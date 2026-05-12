@@ -3,6 +3,7 @@ import { Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { PostStatus, PublicationStatus } from '@inboudly/database';
+import { ConnectorRegistry } from '../connectors/connector-registry.service';
 
 interface PublishJobPayload {
   postId: string;
@@ -11,15 +12,15 @@ interface PublishJobPayload {
 /**
  * BullMQ worker that publishes posts when their scheduled time arrives.
  *
- * For Phase 1 we wire up the orchestration here. Per-platform connectors
- * (Instagram Graph API, TikTok Content Posting API, RedNote) are individual
- * services in a future SocialPublisherModule; this processor delegates to them.
+ * Delegates the actual platform call to the connector registered for each
+ * variant's platform. Connectors implement IPlatformConnector — see
+ * modules/connectors/connector.interface.ts.
  */
 @Processor('publish')
 export class PublishProcessor extends WorkerHost {
   private readonly logger = new Logger(PublishProcessor.name);
 
-  constructor(private prisma: PrismaService) {
+  constructor(private prisma: PrismaService, private connectors: ConnectorRegistry) {
     super();
   }
 
@@ -58,8 +59,12 @@ export class PublishProcessor extends WorkerHost {
       }
 
       try {
-        // TODO: dispatch to platform connector (IG / TikTok / RedNote)
-        // For now we simulate success and store a placeholder publication
+        const connector = this.connectors.get(variant.platform);
+        const result = await connector.publish({
+          account,
+          variant: { ...variant, media: variant.media },
+        });
+
         await this.prisma.postPublication.upsert({
           where: {
             postVariantId_socialAccountId: {
@@ -69,13 +74,17 @@ export class PublishProcessor extends WorkerHost {
           },
           update: {
             status: PublicationStatus.SUCCESS,
+            platformPostId: result.platformPostId,
+            platformPostUrl: result.platformPostUrl,
             publishedAt: new Date(),
+            errorMessage: null,
           },
           create: {
             postVariantId: variant.id,
             socialAccountId: account.id,
             status: PublicationStatus.SUCCESS,
-            platformPostId: `mock-${Date.now()}`,
+            platformPostId: result.platformPostId,
+            platformPostUrl: result.platformPostUrl,
             publishedAt: new Date(),
           },
         });

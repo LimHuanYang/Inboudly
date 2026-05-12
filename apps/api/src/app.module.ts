@@ -20,6 +20,8 @@ import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { AiModule } from './modules/ai/ai.module';
 import { RepurposeModule } from './modules/repurpose/repurpose.module';
 import { IntelligenceModule } from './modules/intelligence/intelligence.module';
+import { ConnectorsModule } from './modules/connectors/connectors.module';
+import { OAuthModule } from './modules/oauth/oauth.module';
 
 @Module({
   imports: [
@@ -49,6 +51,8 @@ import { IntelligenceModule } from './modules/intelligence/intelligence.module';
     AiModule,
     RepurposeModule,
     IntelligenceModule,
+    ConnectorsModule,
+    OAuthModule,
   ],
 })
 export class AppModule {}
