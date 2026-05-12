@@ -60,21 +60,23 @@ pnpm db:push
 pnpm dev
 ```
 
-## Phase 1 MVP Scope (Month 1)
+## Phase 1 MVP Scope — ✅ shipped
 
 - [x] Monorepo scaffolding
-- [ ] Multi-tenant workspace foundations
-- [ ] Brand kit + brand voice training
-- [ ] Multi-platform composer (IG, TikTok, RedNote)
-- [ ] Claude text generation + GPT image generation
-- [ ] Repurpose engine (file upload, YouTube URL, podcast URL, blog URL)
-- [ ] Scheduler + calendar
-- [ ] Pre-publish virality score + per-platform algorithm coach
-- [ ] Multi-level approval workflow
-- [ ] Comment inbox (basic with AI suggestions)
-- [ ] Basic analytics
+- [x] Multi-tenant workspace foundations
+- [x] Brand kit + brand voice training (Pinecone RAG)
+- [x] Multi-platform composer (IG, TikTok, RedNote)
+- [x] Claude text generation + GPT image generation
+- [x] Repurpose engine (file, YouTube, podcast, blog)
+- [x] Scheduler + calendar UI
+- [x] Pre-publish virality score + per-platform algorithm coach
+- [x] Multi-level approval workflow + public client review page
+- [x] Comment inbox with intent filters + AI reply suggestions
+- [x] Analytics overview, media library, settings
+- [x] Platform connectors (Instagram, TikTok, RedNote) wired to publish
+- [x] Production Dockerfile + Vercel + Railway deploy configs
 
-See `docs/PRODUCT-SPEC.md` for the full 10-year roadmap.
+See `docs/PRODUCT-SPEC.md` for the full 10-year roadmap and `docs/DEPLOYMENT.md` for shipping it live.
 
 ## License
 

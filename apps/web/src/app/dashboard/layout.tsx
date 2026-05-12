@@ -8,6 +8,7 @@ import {
   BarChart3,
   Settings,
   Wand2,
+  CheckCircle2,
 } from 'lucide-react';
 
 const nav = [
@@ -15,6 +16,7 @@ const nav = [
   { href: '/dashboard/composer', label: 'Composer', icon: Sparkles },
   { href: '/dashboard/repurpose', label: 'Repurpose', icon: Wand2 },
   { href: '/dashboard/calendar', label: 'Calendar', icon: Calendar },
+  { href: '/dashboard/approvals', label: 'Approvals', icon: CheckCircle2 },
   { href: '/dashboard/media', label: 'Media', icon: ImageIcon },
   { href: '/dashboard/inbox', label: 'Inbox', icon: MessageSquare },
   { href: '/dashboard/analytics', label: 'Analytics', icon: BarChart3 },

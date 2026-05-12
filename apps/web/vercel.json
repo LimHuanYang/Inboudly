@@ -1,0 +1,8 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "buildCommand": "cd ../.. && pnpm install && pnpm --filter @inboudly/database db:generate && pnpm --filter @inboudly/web build",
+  "outputDirectory": ".next",
+  "installCommand": "echo 'install handled by buildCommand'",
+  "regions": ["iad1"]
+}
