@@ -1,0 +1,868 @@
+// Inboudly Database Schema
+// Multi-tenant SaaS for AI-native social media management
+// Tenant isolation enforced via Row-Level Security policies in Supabase
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ============================================================
+// TENANTS & USERS
+// ============================================================
+
+enum PlanTier {
+  STARTER
+  PRO
+  AGENCY
+  WHITE_LABEL
+  ENTERPRISE
+}
+
+enum UserRole {
+  OWNER
+  ADMIN
+  EDITOR
+  APPROVER
+  VIEWER
+  CLIENT
+}
+
+model Tenant {
+  id            String   @id @default(cuid())
+  name          String
+  slug          String   @unique
+  plan          PlanTier @default(STARTER)
+  customDomain  String?  @unique
+  branding      Json?    // { logoUrl, primaryColor, secondaryColor, accentColor, fontFamily }
+  billingEmail  String?
+  stripeCustomerId String? @unique
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  workspaces    Workspace[]
+  subscriptions Subscription[]
+  usageRecords  UsageRecord[]
+  aiCredits     AiCreditBalance?
+  auditLogs     AuditLog[]
+
+  @@index([slug])
+  @@index([customDomain])
+}
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  fullName      String?
+  avatarUrl     String?
+  // Supabase auth user id — for linking the local profile to the auth row
+  supabaseUserId String? @unique
+  emailVerified DateTime?
+  lastSeenAt    DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  memberships   WorkspaceMember[]
+  posts         Post[]            @relation("PostsCreatedBy")
+  approvals     ApprovalStep[]
+  comments      InternalComment[]
+  notifications Notification[]
+  auditLogs     AuditLog[]
+
+  @@index([email])
+}
+
+model Workspace {
+  id          String   @id @default(cuid())
+  tenantId    String
+  name        String
+  slug        String
+  description String?
+  timezone    String   @default("UTC")
+  locale      String   @default("en")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant            Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  members           WorkspaceMember[]
+  socialAccounts    SocialAccount[]
+  posts             Post[]
+  mediaAssets       MediaAsset[]
+  brandKits         BrandKit[]
+  brandVoices       BrandVoice[]
+  competitors       Competitor[]
+  kolCampaigns      KolCampaign[]
+  agentRuns         AgentRun[]
+  approvalWorkflows ApprovalWorkflow[]
+
+  @@unique([tenantId, slug])
+  @@index([tenantId])
+}
+
+model WorkspaceMember {
+  id          String   @id @default(cuid())
+  workspaceId String
+  userId      String
+  role        UserRole @default(EDITOR)
+  invitedAt   DateTime @default(now())
+  acceptedAt  DateTime?
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+  @@index([userId])
+}
+
+// ============================================================
+// SOCIAL ACCOUNTS
+// ============================================================
+
+enum SocialPlatform {
+  INSTAGRAM
+  TIKTOK
+  REDNOTE
+  FACEBOOK
+  LINKEDIN
+  YOUTUBE
+  X
+  THREADS
+  LEMON8
+  PINTEREST
+}
+
+enum AccountStatus {
+  ACTIVE
+  DISCONNECTED
+  EXPIRED
+  ERROR
+  PENDING_REAUTH
+}
+
+model SocialAccount {
+  id              String         @id @default(cuid())
+  workspaceId     String
+  platform        SocialPlatform
+  platformUserId  String         // Account ID on the platform
+  handle          String         // @username
+  displayName     String?
+  avatarUrl       String?
+  status          AccountStatus  @default(ACTIVE)
+  // Encrypted at rest by application layer
+  accessToken     String         @db.Text
+  refreshToken    String?        @db.Text
+  tokenExpiresAt  DateTime?
+  scopes          String[]       @default([])
+  meta            Json?          // platform-specific data (business account info, etc.)
+  lastSyncedAt    DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  workspace       Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  postPublications PostPublication[]
+  comments        Comment[]
+  analyticsSnapshots AnalyticsSnapshot[]
+
+  @@unique([workspaceId, platform, platformUserId])
+  @@index([workspaceId, platform])
+  @@index([status])
+}
+
+// ============================================================
+// BRAND KIT & BRAND VOICE
+// ============================================================
+
+model BrandKit {
+  id              String   @id @default(cuid())
+  workspaceId     String
+  name            String
+  primaryColor    String   @default("#000000")
+  secondaryColor  String?
+  accentColor     String?
+  fontFamily      String?
+  logoUrl         String?
+  logoLightUrl    String?
+  logoDarkUrl     String?
+  isDefault       Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  workspace       Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+}
+
+model BrandVoice {
+  id            String   @id @default(cuid())
+  workspaceId   String
+  name          String
+  // Style guide
+  toneTags      String[] @default([])    // ["casual", "witty", "professional"]
+  perspective   String?                  // "we", "I", "brand-name"
+  emojiUsage    String?                  // "none", "minimal", "frequent"
+  glossary      Json?                    // { brandTerms: [...], productNames: [...] }
+  bannedWords   String[] @default([])
+  styleNotes    String?  @db.Text
+  // Vector DB reference
+  embeddingNamespace String  // Pinecone namespace for this brand voice's training data
+  trainedOnPostCount Int     @default(0)
+  isDefault     Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  posts         Post[]
+
+  @@index([workspaceId])
+}
+
+// ============================================================
+// MEDIA LIBRARY
+// ============================================================
+
+enum MediaType {
+  IMAGE
+  VIDEO
+  AUDIO
+  GIF
+}
+
+enum MediaSource {
+  UPLOAD
+  AI_GENERATED
+  REPURPOSED
+  STOCK
+}
+
+model MediaAsset {
+  id            String      @id @default(cuid())
+  workspaceId   String
+  type          MediaType
+  source        MediaSource @default(UPLOAD)
+  url           String      // R2 public URL
+  thumbnailUrl  String?
+  filename      String
+  mimeType      String
+  sizeBytes     BigInt
+  width         Int?
+  height        Int?
+  durationSec   Float?
+  // For AI-generated
+  aiPrompt      String?     @db.Text
+  aiModel       String?     // "gpt-image-1", "flux-pro", "runway-gen3", etc.
+  aiCostUsd     Decimal?    @db.Decimal(10, 6)
+  // Repurposed-source
+  parentMediaId String?
+  parent        MediaAsset? @relation("RepurposedFrom", fields: [parentMediaId], references: [id])
+  derivatives   MediaAsset[] @relation("RepurposedFrom")
+  // Metadata
+  altText       String?
+  tags          String[]    @default([])
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  workspace     Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  postMedia     PostMedia[]
+
+  @@index([workspaceId, type])
+  @@index([workspaceId, source])
+  @@index([parentMediaId])
+}
+
+// ============================================================
+// POSTS, VARIANTS, PUBLICATIONS
+// ============================================================
+
+enum PostStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  SCHEDULED
+  PUBLISHING
+  PUBLISHED
+  FAILED
+  CANCELLED
+}
+
+model Post {
+  id            String     @id @default(cuid())
+  workspaceId   String
+  createdById   String
+  brandVoiceId  String?
+  title         String?    // internal name
+  status        PostStatus @default(DRAFT)
+  scheduledFor  DateTime?
+  publishedAt   DateTime?
+  campaignTag   String?    // optional grouping
+  notes         String?    @db.Text
+  // Pre-publish intelligence
+  viralityScore Int?       // 0-100
+  algorithmCoachReport Json? // per-platform coaching output
+  multimodalCoherenceScore Int? // 0-100
+  // Approval
+  approvalRequired Boolean @default(false)
+  lockedAfterApproval Boolean @default(true)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  workspace     Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy     User             @relation("PostsCreatedBy", fields: [createdById], references: [id])
+  brandVoice    BrandVoice?      @relation(fields: [brandVoiceId], references: [id])
+  variants      PostVariant[]
+  approvalWorkflow ApprovalWorkflow?
+  internalComments InternalComment[]
+  scheduledJobs ScheduledJob[]
+
+  @@index([workspaceId, status])
+  @@index([scheduledFor])
+  @@index([createdById])
+}
+
+model PostVariant {
+  id          String         @id @default(cuid())
+  postId      String
+  platform    SocialPlatform
+  caption     String         @db.Text
+  language    String         @default("en") // "en", "zh-CN", etc.
+  hashtags    String[]       @default([])
+  mentions    String[]       @default([])
+  // Platform-specific fields stored as JSON
+  platformOptions Json?      // e.g., TikTok privacy, Instagram alt text, RedNote topic, etc.
+  // Pre-publish per-platform score
+  platformScore Int?         // 0-100
+  coachingNotes Json?        // platform-specific tips for THIS variant
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  post        Post           @relation(fields: [postId], references: [id], onDelete: Cascade)
+  media       PostMedia[]
+  publications PostPublication[]
+
+  @@unique([postId, platform])
+  @@index([postId])
+}
+
+model PostMedia {
+  id            String   @id @default(cuid())
+  postVariantId String
+  mediaAssetId  String
+  order         Int      @default(0)
+
+  postVariant   PostVariant @relation(fields: [postVariantId], references: [id], onDelete: Cascade)
+  mediaAsset    MediaAsset  @relation(fields: [mediaAssetId], references: [id])
+
+  @@unique([postVariantId, order])
+  @@index([postVariantId])
+  @@index([mediaAssetId])
+}
+
+enum PublicationStatus {
+  PENDING
+  PUBLISHING
+  SUCCESS
+  FAILED
+  RETRY_SCHEDULED
+}
+
+model PostPublication {
+  id              String            @id @default(cuid())
+  postVariantId   String
+  socialAccountId String
+  status          PublicationStatus @default(PENDING)
+  platformPostId  String?           // The ID returned by the platform
+  platformPostUrl String?
+  publishedAt     DateTime?
+  errorMessage    String?           @db.Text
+  retryCount      Int               @default(0)
+  nextRetryAt     DateTime?
+
+  postVariant     PostVariant       @relation(fields: [postVariantId], references: [id], onDelete: Cascade)
+  socialAccount   SocialAccount     @relation(fields: [socialAccountId], references: [id], onDelete: Cascade)
+
+  @@unique([postVariantId, socialAccountId])
+  @@index([status])
+  @@index([nextRetryAt])
+}
+
+// ============================================================
+// SCHEDULER & QUEUE TRACKING
+// ============================================================
+
+enum JobStatus {
+  QUEUED
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+model ScheduledJob {
+  id          String    @id @default(cuid())
+  postId      String?
+  jobType     String    // "publish", "analytics_pull", "trend_scan", etc.
+  bullJobId   String?   // BullMQ job id
+  scheduledFor DateTime
+  status      JobStatus @default(QUEUED)
+  payload     Json?
+  result      Json?
+  errorMessage String?  @db.Text
+  attempts    Int       @default(0)
+  createdAt   DateTime  @default(now())
+  completedAt DateTime?
+
+  post        Post?     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([scheduledFor, status])
+  @@index([postId])
+}
+
+// ============================================================
+// APPROVAL WORKFLOW
+// ============================================================
+
+enum ApprovalMode {
+  NONE
+  OPTIONAL
+  REQUIRED
+  MULTI_LEVEL
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CHANGES_REQUESTED
+  CANCELLED
+}
+
+model ApprovalWorkflow {
+  id            String         @id @default(cuid())
+  postId        String         @unique
+  workspaceId   String
+  mode          ApprovalMode   @default(REQUIRED)
+  currentStep   Int            @default(0)
+  status        ApprovalStatus @default(PENDING)
+  shareableToken String?       @unique // for client review without login
+  shareableExpiresAt DateTime?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  post          Post           @relation(fields: [postId], references: [id], onDelete: Cascade)
+  workspace     Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  steps         ApprovalStep[]
+
+  @@index([workspaceId, status])
+  @@index([shareableToken])
+}
+
+model ApprovalStep {
+  id            String         @id @default(cuid())
+  workflowId    String
+  stepOrder     Int
+  approverId    String?        // null = external client via shareable link
+  approverEmail String?        // for external clients
+  status        ApprovalStatus @default(PENDING)
+  comment       String?        @db.Text
+  decidedAt     DateTime?
+  remindedAt    DateTime?
+  createdAt     DateTime       @default(now())
+
+  workflow      ApprovalWorkflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  approver      User?            @relation(fields: [approverId], references: [id])
+
+  @@unique([workflowId, stepOrder])
+  @@index([workflowId])
+  @@index([approverId])
+}
+
+model InternalComment {
+  id          String   @id @default(cuid())
+  postId      String
+  authorId    String
+  body        String   @db.Text
+  resolvedAt  DateTime?
+  createdAt   DateTime @default(now())
+
+  post        Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author      User     @relation(fields: [authorId], references: [id])
+
+  @@index([postId])
+}
+
+// ============================================================
+// COMMENT INBOX (incoming comments/DMs from platforms)
+// ============================================================
+
+enum CommentIntent {
+  PURCHASE_INTENT
+  COMPLAINT
+  QUESTION
+  FAN_ENGAGEMENT
+  SPAM
+  UNCLASSIFIED
+}
+
+enum CommentSentiment {
+  POSITIVE
+  NEUTRAL
+  NEGATIVE
+  MIXED
+  UNANALYZED
+}
+
+enum CommentReplyStatus {
+  PENDING
+  REPLIED
+  HIDDEN
+  IGNORED
+}
+
+model Comment {
+  id              String           @id @default(cuid())
+  socialAccountId String
+  // platform-side
+  platformCommentId String         @unique
+  platformPostId  String?          // which post it's on
+  parentCommentId String?          // for threaded replies
+  authorHandle    String
+  authorAvatarUrl String?
+  body            String           @db.Text
+  language        String?
+  postedAt        DateTime
+  // AI-classified
+  intent          CommentIntent    @default(UNCLASSIFIED)
+  sentiment       CommentSentiment @default(UNANALYZED)
+  intentConfidence Float?
+  // status
+  replyStatus     CommentReplyStatus @default(PENDING)
+  hiddenAt        DateTime?
+  assignedToId    String?
+  // metadata
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  socialAccount   SocialAccount    @relation(fields: [socialAccountId], references: [id], onDelete: Cascade)
+  replies         CommentReply[]
+
+  @@index([socialAccountId, replyStatus])
+  @@index([intent])
+  @@index([sentiment])
+  @@index([postedAt])
+}
+
+model CommentReply {
+  id            String   @id @default(cuid())
+  commentId     String
+  body          String   @db.Text
+  generatedByAi Boolean  @default(false)
+  aiModel       String?
+  sentAt        DateTime?
+  sentByUserId  String?
+  platformReplyId String?
+  createdAt     DateTime @default(now())
+
+  comment       Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  @@index([commentId])
+}
+
+// ============================================================
+// ANALYTICS
+// ============================================================
+
+model AnalyticsSnapshot {
+  id              String         @id @default(cuid())
+  socialAccountId String
+  capturedAt      DateTime       @default(now())
+  followerCount   Int?
+  followingCount  Int?
+  postCount       Int?
+  reach           Int?
+  impressions     Int?
+  engagementRate  Decimal?       @db.Decimal(6, 4)
+  // platform-specific extra metrics stored as JSON
+  extra           Json?
+
+  socialAccount   SocialAccount  @relation(fields: [socialAccountId], references: [id], onDelete: Cascade)
+
+  @@index([socialAccountId, capturedAt])
+}
+
+// Per-publication metrics (likes/comments/shares/saves)
+model PublicationMetrics {
+  id              String   @id @default(cuid())
+  publicationId   String   // PostPublication.id
+  capturedAt      DateTime @default(now())
+  likes           Int?
+  comments        Int?
+  shares          Int?
+  saves           Int?
+  reach           Int?
+  impressions     Int?
+  videoViews      Int?
+  averageWatchSec Float?
+  clickThroughs   Int?
+  extra           Json?
+
+  @@index([publicationId, capturedAt])
+}
+
+// ============================================================
+// COMPETITOR & TREND (Phase 2 — schema in place from day 1)
+// ============================================================
+
+model Competitor {
+  id              String         @id @default(cuid())
+  workspaceId     String
+  platform        SocialPlatform
+  handle          String
+  displayName     String?
+  avatarUrl       String?
+  trackedSince    DateTime       @default(now())
+  notes           String?        @db.Text
+
+  workspace       Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  snapshots       CompetitorSnapshot[]
+
+  @@unique([workspaceId, platform, handle])
+  @@index([workspaceId])
+}
+
+model CompetitorSnapshot {
+  id            String   @id @default(cuid())
+  competitorId  String
+  capturedAt    DateTime @default(now())
+  followerCount Int?
+  postCount     Int?
+  engagementRate Decimal? @db.Decimal(6, 4)
+  topPostsJson  Json?    // top 5 posts at this snapshot
+  extra         Json?
+
+  competitor    Competitor @relation(fields: [competitorId], references: [id], onDelete: Cascade)
+
+  @@index([competitorId, capturedAt])
+}
+
+model TrendSignal {
+  id            String         @id @default(cuid())
+  platform      SocialPlatform
+  signalType    String         // "hashtag", "sound", "topic", "format"
+  signalValue   String         // the actual hashtag/sound id/topic
+  niche         String?
+  velocity      Decimal        @db.Decimal(10, 4) // acceleration rate
+  scoredAt      DateTime       @default(now())
+  expiresAt     DateTime?
+  meta          Json?
+
+  @@index([platform, signalType, scoredAt])
+  @@index([niche])
+}
+
+// ============================================================
+// KOL DISCOVERY (Phase 2 — schema in place from day 1)
+// ============================================================
+
+model Kol {
+  id              String         @id @default(cuid())
+  platform        SocialPlatform
+  platformUserId  String
+  handle          String
+  displayName     String?
+  avatarUrl       String?
+  bio             String?        @db.Text
+  niche           String[]       @default([])
+  language        String?
+  country         String?
+  followerCount   Int?
+  engagementRate  Decimal?       @db.Decimal(6, 4)
+  authenticityScore Int?         // 0-100
+  // Behavioral analysis
+  bot24x7Score    Decimal?       @db.Decimal(5, 4) // 0-1 likelihood of bot engagement pattern
+  commentLanguageScore Decimal?  @db.Decimal(5, 4) // 0-1 score of generic vs. content-specific comments
+  audienceOverlap Json?
+  lastAnalyzedAt  DateTime?
+  createdAt       DateTime       @default(now())
+
+  campaignDeliverables KolDeliverable[]
+
+  @@unique([platform, platformUserId])
+  @@index([platform, niche])
+  @@index([authenticityScore])
+}
+
+model KolCampaign {
+  id            String   @id @default(cuid())
+  workspaceId   String
+  name          String
+  brief         String?  @db.Text
+  budgetUsd     Decimal? @db.Decimal(12, 2)
+  status        String   @default("DRAFT") // DRAFT, ACTIVE, COMPLETED, CANCELLED
+  startsOn      DateTime?
+  endsOn        DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  deliverables  KolDeliverable[]
+
+  @@index([workspaceId])
+}
+
+model KolDeliverable {
+  id          String   @id @default(cuid())
+  campaignId  String
+  kolId       String
+  status      String   @default("OUTREACH_SENT")
+  agreedFee   Decimal? @db.Decimal(10, 2)
+  dueDate     DateTime?
+  postUrl     String?
+  metricsJson Json?
+  createdAt   DateTime @default(now())
+
+  campaign    KolCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  kol         Kol         @relation(fields: [kolId], references: [id])
+
+  @@index([campaignId])
+  @@index([kolId])
+}
+
+// ============================================================
+// AI AGENT RUNS (Phase 2+)
+// ============================================================
+
+enum AgentType {
+  CONTENT
+  REPLY
+  TREND_HUNTER
+  KOL_OUTREACH
+  CRISIS
+  GROWTH
+  REPURPOSE
+}
+
+enum AgentRunStatus {
+  RUNNING
+  AWAITING_HUMAN
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+model AgentRun {
+  id            String         @id @default(cuid())
+  workspaceId   String
+  agentType     AgentType
+  status        AgentRunStatus @default(RUNNING)
+  goal          String         @db.Text
+  config        Json?          // agent-specific config
+  steps         Json?          // log of steps taken
+  output        Json?
+  costUsd       Decimal?       @db.Decimal(10, 6)
+  startedAt     DateTime       @default(now())
+  endedAt       DateTime?
+
+  workspace     Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, status])
+  @@index([agentType])
+}
+
+// ============================================================
+// BILLING
+// ============================================================
+
+model Subscription {
+  id                  String   @id @default(cuid())
+  tenantId            String
+  plan                PlanTier
+  stripeSubscriptionId String? @unique
+  status              String   // active, past_due, canceled, trialing
+  currentPeriodStart  DateTime
+  currentPeriodEnd    DateTime
+  cancelAtPeriodEnd   Boolean  @default(false)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  tenant              Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([status])
+}
+
+model UsageRecord {
+  id        String   @id @default(cuid())
+  tenantId  String
+  metric    String   // "posts_published", "ai_text_calls", "ai_image_calls", etc.
+  quantity  Int
+  period    String   // "2026-05" (year-month)
+  createdAt DateTime @default(now())
+
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, metric, period])
+  @@index([tenantId, period])
+}
+
+model AiCreditBalance {
+  id          String   @id @default(cuid())
+  tenantId    String   @unique
+  balance     Int      @default(0)
+  monthlyAllowance Int @default(50000)
+  resetOn     DateTime
+  updatedAt   DateTime @updatedAt
+
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+// ============================================================
+// AUDIT LOG & NOTIFICATIONS
+// ============================================================
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  tenantId    String
+  userId      String?
+  action      String   // "post.published", "user.invited", "approval.granted", etc.
+  resourceType String?
+  resourceId  String?
+  metadata    Json?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user        User?    @relation(fields: [userId], references: [id])
+
+  @@index([tenantId, createdAt])
+  @@index([userId])
+  @@index([resourceType, resourceId])
+}
+
+enum NotificationChannel {
+  IN_APP
+  EMAIL
+  SMS
+  WEBHOOK
+}
+
+model Notification {
+  id          String              @id @default(cuid())
+  userId      String
+  channel     NotificationChannel @default(IN_APP)
+  title       String
+  body        String?             @db.Text
+  link        String?
+  readAt      DateTime?
+  sentAt      DateTime?
+  metadata    Json?
+  createdAt   DateTime            @default(now())
+
+  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+}

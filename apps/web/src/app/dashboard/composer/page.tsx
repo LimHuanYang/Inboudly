@@ -1,0 +1,282 @@
+'use client';
+
+import { useMemo, useState } from 'react';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { toast } from 'sonner';
+import { api } from '@/lib/api-client';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Sparkles, Wand2 } from 'lucide-react';
+import {
+  PLATFORM_SPECS,
+  type SocialPlatform,
+  type ViralityScoreResponse,
+} from '@inboudly/shared';
+
+const PHASE_1_PLATFORMS: SocialPlatform[] = ['INSTAGRAM', 'TIKTOK', 'REDNOTE'];
+
+export default function ComposerPage() {
+  const [selectedPlatforms, setSelectedPlatforms] = useState<SocialPlatform[]>(['INSTAGRAM']);
+  const [activePlatform, setActivePlatform] = useState<SocialPlatform>('INSTAGRAM');
+  const [captions, setCaptions] = useState<Record<SocialPlatform, string>>({
+    INSTAGRAM: '',
+    TIKTOK: '',
+    REDNOTE: '',
+  } as Record<SocialPlatform, string>);
+  const [hashtags, setHashtags] = useState<Record<SocialPlatform, string>>({
+    INSTAGRAM: '',
+    TIKTOK: '',
+    REDNOTE: '',
+  } as Record<SocialPlatform, string>);
+  const [aiPrompt, setAiPrompt] = useState('');
+
+  const me = useQuery({
+    queryKey: ['me'],
+    queryFn: () => api.get<any>('/auth/me'),
+  });
+  const workspaceId = me.data?.memberships?.[0]?.workspace?.id;
+
+  const generateText = useMutation({
+    mutationFn: (input: { platform: SocialPlatform; prompt: string }) =>
+      api.post<any>('/ai/text', {
+        workspaceId,
+        platform: input.platform,
+        prompt: input.prompt,
+        language: input.platform === 'REDNOTE' ? 'zh-CN' : 'en',
+        variations: 1,
+      }),
+    onSuccess: (data, vars) => {
+      const v = data.variants?.[0];
+      if (v) {
+        setCaptions((prev) => ({ ...prev, [vars.platform]: v.caption }));
+        setHashtags((prev) => ({ ...prev, [vars.platform]: (v.hashtags ?? []).join(' ') }));
+      }
+      toast.success(`Generated ${vars.platform} caption`);
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
+
+  const variantsForScoring = useMemo(
+    () =>
+      selectedPlatforms.map((p) => ({
+        platform: p,
+        caption: captions[p] ?? '',
+        hashtags: (hashtags[p] ?? '')
+          .split(/\s+/)
+          .filter((h) => h.startsWith('#'))
+          .map((h) => h.slice(1)),
+        language: p === 'REDNOTE' ? 'zh-CN' : 'en',
+        hasImage: false,
+        hasVideo: false,
+      })),
+    [selectedPlatforms, captions, hashtags],
+  );
+
+  const score = useQuery({
+    queryKey: ['virality', variantsForScoring],
+    queryFn: () =>
+      api.post<ViralityScoreResponse>('/intelligence/virality-score', {
+        variants: variantsForScoring,
+      }),
+    enabled: variantsForScoring.some((v) => v.caption.length > 10),
+  });
+
+  const togglePlatform = (p: SocialPlatform) => {
+    setSelectedPlatforms((prev) =>
+      prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p],
+    );
+  };
+
+  const activeScore = score.data?.perPlatform.find((p) => p.platform === activePlatform);
+
+  return (
+    <div className="container py-8">
+      <h1 className="mb-2 text-3xl font-bold">Composer</h1>
+      <p className="mb-8 text-muted-foreground">
+        Write once, optimize for every platform with AI.
+      </p>
+
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* Left: Platform tabs + composer */}
+        <div className="space-y-6 lg:col-span-2">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Platforms</CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-wrap gap-2">
+              {PHASE_1_PLATFORMS.map((p) => (
+                <button
+                  key={p}
+                  onClick={() => togglePlatform(p)}
+                  className={`rounded-full border px-4 py-1.5 text-sm transition-colors ${
+                    selectedPlatforms.includes(p)
+                      ? 'border-primary bg-primary text-primary-foreground'
+                      : 'bg-background hover:bg-secondary'
+                  }`}
+                >
+                  {PLATFORM_SPECS[p].displayName}
+                </button>
+              ))}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="text-base">{PLATFORM_SPECS[activePlatform].displayName}</CardTitle>
+              <div className="flex gap-1">
+                {selectedPlatforms.map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => setActivePlatform(p)}
+                    className={`rounded px-2 py-1 text-xs ${
+                      activePlatform === p ? 'bg-primary text-primary-foreground' : 'bg-secondary'
+                    }`}
+                  >
+                    {p[0]}
+                    {p[1]?.toLowerCase()}
+                  </button>
+                ))}
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <label className="text-sm font-medium">Caption</label>
+                <textarea
+                  rows={8}
+                  value={captions[activePlatform] ?? ''}
+                  onChange={(e) =>
+                    setCaptions((prev) => ({ ...prev, [activePlatform]: e.target.value }))
+                  }
+                  placeholder={`Write your ${activePlatform.toLowerCase()} caption…`}
+                  className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+                <div className="mt-1 flex justify-between text-xs text-muted-foreground">
+                  <span>
+                    {(captions[activePlatform] ?? '').length} /{' '}
+                    {PLATFORM_SPECS[activePlatform].maxCaptionLength}
+                  </span>
+                  <span>
+                    sweet spot: {PLATFORM_SPECS[activePlatform].optimalCaptionLength.min}-
+                    {PLATFORM_SPECS[activePlatform].optimalCaptionLength.max}
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium">Hashtags</label>
+                <input
+                  value={hashtags[activePlatform] ?? ''}
+                  onChange={(e) =>
+                    setHashtags((prev) => ({ ...prev, [activePlatform]: e.target.value }))
+                  }
+                  placeholder="#hashtag #another"
+                  className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Optimal: {PLATFORM_SPECS[activePlatform].optimalHashtags} hashtags
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Sparkles className="h-4 w-4" /> Generate with AI
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <textarea
+                rows={3}
+                value={aiPrompt}
+                onChange={(e) => setAiPrompt(e.target.value)}
+                placeholder="What's this post about? E.g. 'New summer skincare line — promote our hydrating serum'"
+                className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+              <Button
+                onClick={() => generateText.mutate({ platform: activePlatform, prompt: aiPrompt })}
+                disabled={!aiPrompt || generateText.isPending || !workspaceId}
+                className="w-full"
+              >
+                <Wand2 className="mr-2 h-4 w-4" />
+                {generateText.isPending ? 'Generating…' : `Generate ${activePlatform} caption`}
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Right: Virality score + algorithm coach */}
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Virality Score</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="mb-4 text-center">
+                <div className="text-5xl font-bold text-primary">
+                  {activeScore?.score ?? '—'}
+                </div>
+                <div className="text-xs text-muted-foreground">/ 100</div>
+              </div>
+              {activeScore && (
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Predicted reach</span>
+                    <span className="font-medium">
+                      {activeScore.predictedReach.toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Engagement rate</span>
+                    <span className="font-medium">
+                      {(activeScore.predictedEngagementRate * 100).toFixed(2)}%
+                    </span>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Algorithm Coach</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {!activeScore?.coachingNotes?.length ? (
+                <p className="text-sm text-muted-foreground">
+                  Start writing — coaching notes will appear as you go.
+                </p>
+              ) : (
+                <ul className="space-y-3">
+                  {activeScore.coachingNotes.map((note, i) => (
+                    <li key={i} className="text-sm">
+                      <div className="flex items-start gap-2">
+                        <span
+                          className={`mt-0.5 inline-block h-2 w-2 shrink-0 rounded-full ${
+                            note.severity === 'critical'
+                              ? 'bg-red-500'
+                              : note.severity === 'warning'
+                                ? 'bg-amber-500'
+                                : note.severity === 'suggestion'
+                                  ? 'bg-blue-500'
+                                  : 'bg-muted-foreground'
+                          }`}
+                        />
+                        <div>
+                          <div className="font-medium">{note.message}</div>
+                          {note.fix && (
+                            <div className="mt-1 text-xs text-muted-foreground">{note.fix}</div>
+                          )}
+                        </div>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}

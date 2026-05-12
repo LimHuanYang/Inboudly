@@ -1,0 +1,103 @@
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { toast } from 'sonner';
+import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { api } from '@/lib/api-client';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+
+export default function SignUpPage() {
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [workspaceName, setWorkspaceName] = useState('');
+
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const supabase = createSupabaseBrowserClient();
+      const { error } = await supabase.auth.signUp({ email, password });
+      if (error) throw error;
+
+      // Provision tenant + workspace via our API
+      await api.post('/auth/provision', { fullName, workspaceName });
+
+      toast.success('Welcome to Inboudly!');
+      router.push('/dashboard');
+    } catch (err: any) {
+      toast.error(err.message ?? 'Sign-up failed');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-secondary/30 p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader>
+          <CardTitle>Create your workspace</CardTitle>
+          <CardDescription>Start in seconds. Free Starter plan, no card required.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={onSubmit} className="space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Workspace name</label>
+              <input
+                value={workspaceName}
+                onChange={(e) => setWorkspaceName(e.target.value)}
+                required
+                placeholder="My Brand"
+                className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Your name</label>
+              <input
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                placeholder="Jane Doe"
+                className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Email</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Password</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                minLength={8}
+                className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+            <Button type="submit" disabled={loading} className="w-full">
+              {loading ? 'Creating…' : 'Create account'}
+            </Button>
+            <p className="text-center text-sm text-muted-foreground">
+              Already have an account?{' '}
+              <Link href="/sign-in" className="text-primary hover:underline">
+                Sign in
+              </Link>
+            </p>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
