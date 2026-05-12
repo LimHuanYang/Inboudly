@@ -5,6 +5,7 @@ import { ThrottlerModule } from '@nestjs/throttler';
 import { BullModule } from '@nestjs/bullmq';
 
 import { PrismaModule } from './common/prisma/prisma.module';
+import { PineconeModule } from './common/pinecone/pinecone.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { TenantsModule } from './modules/tenants/tenants.module';
 import { WorkspacesModule } from './modules/workspaces/workspaces.module';
@@ -31,6 +32,7 @@ import { IntelligenceModule } from './modules/intelligence/intelligence.module';
       },
     }),
     PrismaModule,
+    PineconeModule,
 
     // Feature modules
     AuthModule,

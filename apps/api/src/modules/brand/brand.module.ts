@@ -1,11 +1,14 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { BrandController } from './brand.controller';
 import { BrandService } from './brand.service';
+import { VoiceTrainingService } from './voice-training.service';
 import { WorkspacesService } from '../workspaces/workspaces.service';
+import { AiModule } from '../ai/ai.module';
 
 @Module({
+  imports: [forwardRef(() => AiModule)],
   controllers: [BrandController],
-  providers: [BrandService, WorkspacesService],
-  exports: [BrandService],
+  providers: [BrandService, VoiceTrainingService, WorkspacesService],
+  exports: [BrandService, VoiceTrainingService],
 })
 export class BrandModule {}

@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { api } from '@/lib/api-client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Sparkles, Wand2 } from 'lucide-react';
+import { ImageIcon, Sparkles, Wand2 } from 'lucide-react';
 import {
   PLATFORM_SPECS,
   type SocialPlatform,
@@ -30,11 +30,54 @@ export default function ComposerPage() {
   } as Record<SocialPlatform, string>);
   const [aiPrompt, setAiPrompt] = useState('');
 
+  // ----- Image generation state -----
+  const [imagePrompt, setImagePrompt] = useState('');
+  const [imageAspect, setImageAspect] = useState<'1:1' | '4:5' | '9:16' | '16:9'>('1:1');
+  const [imageCount, setImageCount] = useState(1);
+  const [generatedImages, setGeneratedImages] = useState<
+    Array<{ id: string; url: string; prompt: string }>
+  >([]);
+  const [attachedImageIds, setAttachedImageIds] = useState<Record<SocialPlatform, string[]>>({
+    INSTAGRAM: [],
+    TIKTOK: [],
+    REDNOTE: [],
+  } as Record<SocialPlatform, string[]>);
+
   const me = useQuery({
     queryKey: ['me'],
     queryFn: () => api.get<any>('/auth/me'),
   });
   const workspaceId = me.data?.memberships?.[0]?.workspace?.id;
+
+  const generateImage = useMutation({
+    mutationFn: (input: { prompt: string; aspectRatio: string; count: number }) =>
+      api.post<{ assets: Array<{ id: string; url: string }> }>('/ai/image', {
+        workspaceId,
+        prompt: input.prompt,
+        aspectRatio: input.aspectRatio,
+        count: input.count,
+      }),
+    onSuccess: (data, vars) => {
+      const newImages = (data.assets ?? []).map((a) => ({
+        id: a.id,
+        url: a.url,
+        prompt: vars.prompt,
+      }));
+      setGeneratedImages((prev) => [...newImages, ...prev]);
+      toast.success(`Generated ${newImages.length} image${newImages.length === 1 ? '' : 's'}`);
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
+
+  const toggleAttachImage = (imageId: string) => {
+    setAttachedImageIds((prev) => {
+      const current = prev[activePlatform] ?? [];
+      const next = current.includes(imageId)
+        ? current.filter((id) => id !== imageId)
+        : [...current, imageId];
+      return { ...prev, [activePlatform]: next };
+    });
+  };
 
   const generateText = useMutation({
     mutationFn: (input: { platform: SocialPlatform; prompt: string }) =>
@@ -66,10 +109,10 @@ export default function ComposerPage() {
           .filter((h) => h.startsWith('#'))
           .map((h) => h.slice(1)),
         language: p === 'REDNOTE' ? 'zh-CN' : 'en',
-        hasImage: false,
+        hasImage: (attachedImageIds[p] ?? []).length > 0,
         hasVideo: false,
       })),
-    [selectedPlatforms, captions, hashtags],
+    [selectedPlatforms, captions, hashtags, attachedImageIds],
   );
 
   const score = useQuery({
@@ -182,7 +225,7 @@ export default function ComposerPage() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
-                <Sparkles className="h-4 w-4" /> Generate with AI
+                <Sparkles className="h-4 w-4" /> Generate caption with AI
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -201,6 +244,93 @@ export default function ComposerPage() {
                 <Wand2 className="mr-2 h-4 w-4" />
                 {generateText.isPending ? 'Generating…' : `Generate ${activePlatform} caption`}
               </Button>
+            </CardContent>
+          </Card>
+
+          {/* AI Image Generation */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <ImageIcon className="h-4 w-4" /> Generate image with AI
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <textarea
+                rows={3}
+                value={imagePrompt}
+                onChange={(e) => setImagePrompt(e.target.value)}
+                placeholder="Describe the image. E.g. 'Sunlit minimalist skincare bottle on marble with rosemary sprig'"
+                className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+              <div className="flex gap-2">
+                <select
+                  value={imageAspect}
+                  onChange={(e) => setImageAspect(e.target.value as typeof imageAspect)}
+                  className="flex-1 rounded-md border bg-background px-3 py-2 text-sm"
+                >
+                  <option value="1:1">Square 1:1</option>
+                  <option value="4:5">Portrait 4:5 (Instagram)</option>
+                  <option value="9:16">Vertical 9:16 (Reels/TikTok)</option>
+                  <option value="16:9">Landscape 16:9</option>
+                </select>
+                <select
+                  value={imageCount}
+                  onChange={(e) => setImageCount(Number(e.target.value))}
+                  className="w-24 rounded-md border bg-background px-3 py-2 text-sm"
+                >
+                  <option value={1}>1 image</option>
+                  <option value={2}>2 images</option>
+                  <option value={4}>4 images</option>
+                </select>
+              </div>
+              <Button
+                onClick={() =>
+                  generateImage.mutate({
+                    prompt: imagePrompt,
+                    aspectRatio: imageAspect,
+                    count: imageCount,
+                  })
+                }
+                disabled={!imagePrompt || generateImage.isPending || !workspaceId}
+                className="w-full"
+              >
+                <Wand2 className="mr-2 h-4 w-4" />
+                {generateImage.isPending ? 'Generating…' : `Generate ${imageCount} image${imageCount === 1 ? '' : 's'}`}
+              </Button>
+
+              {generatedImages.length > 0 && (
+                <div>
+                  <div className="mb-2 text-xs text-muted-foreground">
+                    Click an image to attach to the active {activePlatform} variant.
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {generatedImages.map((img) => {
+                      const attached = (attachedImageIds[activePlatform] ?? []).includes(img.id);
+                      return (
+                        <button
+                          key={img.id}
+                          onClick={() => toggleAttachImage(img.id)}
+                          className={`group relative overflow-hidden rounded-md border-2 transition-colors ${
+                            attached ? 'border-primary' : 'border-transparent hover:border-border'
+                          }`}
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={img.url}
+                            alt={img.prompt}
+                            className="aspect-square w-full object-cover"
+                          />
+                          {attached && (
+                            <span className="absolute right-1 top-1 rounded bg-primary px-1.5 py-0.5 text-[10px] font-medium text-primary-foreground">
+                              ATTACHED
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

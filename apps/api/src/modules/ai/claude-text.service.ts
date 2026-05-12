@@ -1,6 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable, forwardRef } from '@nestjs/common';
 import Anthropic from '@anthropic-ai/sdk';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { VoiceTrainingService } from '../brand/voice-training.service';
 import { getPlatformSpec, type SocialPlatform } from '@inboudly/shared';
 
 const MODEL = 'claude-sonnet-4-6';
@@ -17,7 +18,11 @@ interface GeneratedVariant {
 export class ClaudeTextService {
   private client: Anthropic;
 
-  constructor(private prisma: PrismaService) {
+  constructor(
+    private prisma: PrismaService,
+    @Inject(forwardRef(() => VoiceTrainingService))
+    private voiceTraining: VoiceTrainingService,
+  ) {
     this.client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
   }
 
@@ -41,7 +46,13 @@ export class ClaudeTextService {
     const lang = params.language ?? spec.primaryLanguage;
     const variations = params.variations ?? 3;
 
-    const system = this.buildSystemPrompt(spec, brandVoice, lang);
+    // Retrieve up to 5 brand-voice exemplars semantically similar to this prompt.
+    // Returns [] if the voice has no training data yet — graceful fallback.
+    const exemplars = brandVoice
+      ? await this.voiceTraining.retrieveExamples(brandVoice.id, params.prompt, 5)
+      : [];
+
+    const system = this.buildSystemPrompt(spec, brandVoice, lang, exemplars);
     const user = this.buildUserPrompt(params.prompt, params.platform, variations, params.referenceUrl);
 
     const response = await this.client.messages.create({
@@ -64,6 +75,7 @@ export class ClaudeTextService {
     spec: ReturnType<typeof getPlatformSpec>,
     brandVoice: { toneTags: string[]; perspective: string | null; emojiUsage: string | null; styleNotes: string | null; bannedWords: string[] } | null,
     lang: string,
+    exemplars: Array<{ text: string; score: number; platform?: string; topic?: string }> = [],
   ) {
     const tones = brandVoice?.toneTags?.length ? brandVoice.toneTags.join(', ') : 'authentic, engaging';
     const perspective = brandVoice?.perspective ?? 'we';
@@ -72,6 +84,13 @@ export class ClaudeTextService {
     const notes = brandVoice?.styleNotes ?? '';
 
     const platformGuidance = this.platformAlgorithmGuidance(spec.id);
+
+    // Brand-voice exemplars block (RAG)
+    const exemplarsBlock = exemplars.length
+      ? `\nBRAND VOICE EXEMPLARS — these are this brand's actual past posts that performed well or define the voice. Match this tone, rhythm, and vocabulary; do not copy them verbatim.\n${exemplars
+          .map((e, i) => `[Example ${i + 1}${e.platform ? ` · ${e.platform}` : ''}]\n${e.text}`)
+          .join('\n\n')}\n`
+      : '';
 
     return `You are Inboudly's expert social-media content writer.
 
@@ -86,7 +105,7 @@ Perspective: ${perspective}
 Emoji usage: ${emoji}
 Banned words: ${banned}
 Style notes: ${notes}
-
+${exemplarsBlock}
 PLATFORM ALGORITHM INTELLIGENCE
 ${platformGuidance}
 
