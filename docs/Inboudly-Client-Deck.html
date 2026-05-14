@@ -1,0 +1,510 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inboudly — AI-native social media intelligence</title>
+
+<!-- reveal.js core (loaded from CDN — no install needed) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/theme/black.css" id="theme">
+
+<style>
+  :root {
+    --inboudly-pink: #FF3D7F;
+    --inboudly-gold: #F5C518;
+    --inboudly-ink:  #0D1B2A;
+  }
+  .reveal {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: #fff;
+  }
+  .reveal h1, .reveal h2, .reveal h3 { font-weight: 700; letter-spacing: -0.02em; }
+  .reveal h1 { font-size: 2.6em; }
+  .reveal h2 { font-size: 1.8em; color: #fff; }
+  .reveal h3 { font-size: 1.3em; color: var(--inboudly-pink); margin-bottom: 0.3em; }
+  .reveal section { text-align: left; }
+  .reveal .slides > section.title-slide { text-align: center; }
+
+  .pink   { color: var(--inboudly-pink); }
+  .gold   { color: var(--inboudly-gold); }
+  .muted  { color: #94a3b8; }
+  .small  { font-size: 0.7em; }
+  .center { text-align: center; }
+
+  .gradient-text {
+    background: linear-gradient(90deg, var(--inboudly-pink), var(--inboudly-gold));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .logo-mark {
+    display: inline-block;
+    width: 56px; height: 56px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--inboudly-pink), var(--inboudly-gold));
+    vertical-align: middle;
+    margin-right: 16px;
+  }
+
+  .pillar {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px;
+    padding: 18px 22px;
+  }
+  .pillar h3 { margin-top: 0; color: var(--inboudly-pink); }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+
+  .reveal table { font-size: 0.55em; border-collapse: collapse; width: 100%; }
+  .reveal table th, .reveal table td {
+    padding: 7px 10px; border-bottom: 1px solid rgba(255,255,255,0.1); text-align: left;
+  }
+  .reveal table th { color: var(--inboudly-pink); font-weight: 600; }
+  .reveal table tr:last-child td { border-bottom: none; }
+  .reveal table .yes  { color: #4ade80; font-weight: 700; }
+  .reveal table .no   { color: #6b7280; }
+
+  .reveal blockquote {
+    border-left: 4px solid var(--inboudly-pink);
+    padding-left: 1em;
+    margin: 1em 0;
+    color: #e2e8f0;
+  }
+
+  .reveal ul li { margin: 0.4em 0; }
+  .reveal ul li::marker { color: var(--inboudly-pink); }
+
+  .footer-note {
+    position: fixed; bottom: 12px; right: 16px;
+    color: #475569; font-size: 14px;
+  }
+
+  .price-card {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 14px;
+    padding: 18px 16px;
+    text-align: center;
+  }
+  .price-card.featured {
+    border-color: var(--inboudly-pink);
+    box-shadow: 0 0 0 1px var(--inboudly-pink);
+  }
+  .price-card .name { color: var(--inboudly-pink); font-weight: 700; font-size: 0.9em; }
+  .price-card .price { font-size: 1.6em; font-weight: 800; margin: 6px 0; }
+  .price-card .meta { color: #94a3b8; font-size: 0.65em; }
+
+  .stat { text-align: center; padding: 16px; }
+  .stat .num { font-size: 2.4em; font-weight: 800; color: var(--inboudly-pink); }
+  .stat .label { color: #cbd5e1; font-size: 0.7em; text-transform: uppercase; letter-spacing: 0.06em; }
+</style>
+</head>
+<body>
+
+<div class="reveal">
+  <div class="slides">
+
+    <!-- ============================================ -->
+    <!-- 1. TITLE -->
+    <!-- ============================================ -->
+    <section class="title-slide">
+      <h1><span class="logo-mark"></span>Inboudly</h1>
+      <h2 class="gradient-text">AI-native social media, built for the next decade</h2>
+      <p class="muted small" style="margin-top: 32px;">Confidential — for partner discussion only</p>
+    </section>
+
+    <!-- ============================================ -->
+    <!-- 2. THE PROBLEM -->
+    <!-- ============================================ -->
+    <section>
+      <h2>Content at scale is broken</h2>
+      <ul>
+        <li>Brands need to post <span class="pink">3–5×/week per platform</span> to grow — that's 15–25 posts a week across IG, TikTok, RedNote.</li>
+        <li>Marketing teams spend <span class="pink">12–16 hours/month</span> just planning and writing.</li>
+        <li>Existing tools force you to bounce between <span class="pink">5+ apps</span>: scheduler, AI text, AI image, video editor, analytics.</li>
+        <li>None of them properly support <span class="pink">RedNote (小红书)</span> — the platform that drives Chinese consumer purchase decisions.</li>
+      </ul>
+      <blockquote class="small">
+        96% of marketing managers say AI saves them 80% of content creation time — but only when the AI is built into the workflow.
+      </blockquote>
+    </section>
+
+    <!-- ============================================ -->
+    <!-- 3. MARKET GAP -->
+    <!-- ============================================ -->
+    <section>
+      <h2>The market is split — nobody owns the full stack</h2>
+      <div class="grid-3">
+        <div class="pillar">
+          <h3>Schedulers</h3>
+          <p class="small">Buffer · Later · Postiz · Mixpost</p>
+          <p class="small muted">Solved 2014's problem. Weak AI. No video repurposing.</p>
+        </div>
+        <div class="pillar">
+          <h3>Listeners</h3>
+          <p class="small">Hootsuite · Sprout · Talkwalker</p>
+          <p class="small muted">Enterprise-priced. Western platforms only. No native AI generation.</p>
+        </div>
+        <div class="pillar">
+          <h3>AI tools</h3>
+          <p class="small">OpusClip · Canva · Predis.ai</p>
+          <p class="small muted">Narrow point solutions. No scheduling. No publishing.</p>
+        </div>
+      </div>
+      <p class="center" style="margin-top: 28px; font-size: 1.4em;">
+        <span class="gradient-text">Inboudly is the only platform that does all three.</span>
+      </p>
+    </section>
+
+    <!-- ============================================ -->
+    <!-- 4. SOLUTION OVERVIEW -->
+    <!-- ============================================ -->
+    <section>
+      <h2>One platform. End-to-end.</h2>
+      <div class="grid-2">
+        <ul>
+          <li>✏️ Generate captions in EN + Chinese</li>
+          <li>🎨 Generate images (GPT Image 2.0)</li>
+          <li>🎬 Repurpose long videos to short clips</li>
+          <li>📅 Schedule + publish to IG, TikTok, RedNote</li>
+        </ul>
+        <ul>
+          <li>📊 Pre-publish virality score</li>
+          <li>🧠 Per-platform algorithm coach</li>
+          <li>✅ Multi-level approval workflows</li>
+          <li>💬 Unified comment inbox with AI replies</li>
+        </ul>
+      </div>
+      <p class="center small muted" style="margin-top: 30px;">
+        Built on Claude Sonnet 4.6, GPT Image 2.0, Whisper, FFmpeg, and proprietary engagement-prediction models.
+      </p>
+    </section>
+
+    <!-- ============================================ -->
+    <!-- 5. PILLAR 1 — AI TEXT -->
+    <!-- ============================================ -->
+    <section>
+      <h3>Pillar 1</h3>
+      <h2>AI captions that learn <em>your</em> voice</h2>
+      <ul>
+        <li>Powered by <span class="pink">Claude Sonnet 4.6</span> — best-in-class for tone fidelity</li>
+        <li><span class="pink">Brand-voice training</span>: paste your past best posts → Inboudly learns your style and writes in it (RAG with vector embeddings)</li>
+        <li><span class="pink">Bilingual</span>: native Simplified Chinese for RedNote, English for everywhere else</li>
+        <li><span class="pink">Per-platform optimisation</span>: caption length, hashtag count, hook style — all tuned per platform's algorithm</li>
+      </ul>
+    </section>
+
+    <!-- ============================================ -->
+    <!-- 6. PILLAR 2 — AI IMAGE -->
+    <!-- ============================================ -->
+    <section>
+      <h3>Pillar 2</h3>
+      <h2>AI images that match your brand</h2>
+      <ul>
+        <li><span class="pink">GPT Image 2.0</span> + FLUX.1 — production-quality images from a prompt</li>
+        <li><span class="pink">Brand kit aware</span>: colours, fonts, and logo automatically baked into every generation</li>
+        <li><span class="pink">Multiple aspect ratios</span> in one click — IG portrait, TikTok 9:16, RedNote 1:1</li>
+        <li><span class="pink">No design skill required</span>: type what you want, get it</li>
+      </ul>
+    </section>
+
+    <!-- ============================================ -->
+    <!-- 7. PILLAR 3 — REPURPOSE ENGINE -->
+    <!-- ============================================ -->
+    <section>
+      <h3>Pillar 3 — flagship feature</h3>
+      <h2>One upload → every platform</h2>
+      <p>Drop in a YouTube video, podcast, or blog. Inboudly:</p>
+      <ol>
+        <li>Transcribes it with Whisper</li>
+        <li>Asks Claude to pick the highest-virality clips per platform</li>
+        <li>FFmpeg cuts + reframes (9:16 / 1:1 / 16:9)</li>
+        <li>Burns in branded captions</li>
+        <li>Schedules them across all your platforms</li>
+      </ol>
+      <p class="muted small" style="margin-top: 16px;">
+        Research-grounded approach (arXiv 2512.11399 "Minimal Clips, Maximum Salience") — no other social media tool ships this natively.
+      </p>
+    </section>
+
+    <!-- ============================================ -->
+    <!-- 8. PILLAR 4 — VIRALITY SCORE -->
+    <!-- ============================================ -->
+    <section>
+      <h3>Pillar 4</h3>
+      <h2>Know how a post will perform — <em>before</em> publishing</h2>
+      <div class="grid-2" style="align-items: center;">
+        <div>
+          <ul>
+            <li>Real-time score (0–100) updates as you edit</li>
+            <li>Predicted reach + engagement rate</li>
+            <li>Backed by ensemble ML (XGBoost + LightGBM)</li>
+            <li>Calibrated against your account's own history</li>
+          </ul>
+        </div>
+        <div class="stat">
+          <div class="num">+40%</div>
+          <div class="label">Engagement lift from pre-publish prediction (Deloitte)</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================ -->
+    <!-- 9. PILLAR 5 — ALGORITHM COACH -->
+    <!-- ============================================ -->
+    <section>
+      <h3>Pillar 5</h3>
+      <h2>Per-platform algorithm coaching, live</h2>
+      <div class="grid-2">
+        <div class="pillar">
+          <h3>Instagram</h3>
+          <p class="small">DM shares · saves · 3-sec hold rate · trending audio</p>
+        </div>
+        <div class="pillar">
+          <h3>TikTok</h3>
+          <p class="small">Quality-graded interactions · trending sounds · hook engineering</p>
+        </div>
+        <div class="pillar">
+          <h3>RedNote</h3>
+          <p class="small">CES scoring · keyword-in-first-8-chars · search intent matching</p>
+        </div>
+        <div class="pillar">
+          <h3>+ LinkedIn, YouTube</h3>
+          <p class="small">Dwell time · CTR · session duration</p>
+        </div>
+      </div>
+      <blockquote class="small" style="margin-top: 20px;">
+        No competitor has this. Tools either schedule blindly or analyse <em>after</em> the post fails.
+      </blockquote>
+    </section>
+
+    <!-- ============================================ -->
+    <!-- 10. RedNote DIFFERENTIATOR -->
+    <!-- ============================================ -->
+    <section>
+      <h2>The <span class="gradient-text">RedNote</span> moat</h2>
+      <ul>
+        <li>RedNote drives <span class="pink">60% of Chinese consumer purchase decisions</span> via search-first behaviour</li>
+        <li><span class="pink">No Western tool</span> properly supports it — Buffer, Hootsuite, Sprout, Later: zero</li>
+        <li>Inboudly ships:
+          <ul>
+            <li>Native Simplified Chinese generation</li>
+            <li>CES scoring optimiser (Comments=4 · Shares=4 · Follows=8 weighted)</li>
+            <li>Title-keyword-in-first-8-chars enforcement</li>
+            <li>Search-intent caption structuring</li>
+          </ul>
+        </li>
+      </ul>
+      <p class="center" style="margin-top: 24px; font-size: 1.2em;">
+        <span class="pink">Whoever owns RedNote in the West owns China-market social tooling.</span>
+      </p>
+    </section>
+
+    <!-- ============================================ -->
+    <!-- 11. APPROVAL WORKFLOW -->
+    <!-- ============================================ -->
+    <section>
+      <h2>Built for agencies + teams</h2>
+      <div class="grid-2">
+        <div>
+          <h3>Multi-level approval</h3>
+          <ul>
+            <li>Writer → Manager → Client</li>
+            <li>4 modes: None / Optional / Required / Multi-level</li>
+            <li>Posts auto-lock after approval</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Shareable client links</h3>
+          <ul>
+            <li>Client reviews <strong>without an account</strong></li>
+            <li>Approve / Request changes / Reject in one click</li>
+            <li>Full audit trail per post</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================ -->
+    <!-- 12. COMPETITIVE MATRIX -->
+    <!-- ============================================ -->
+    <section>
+      <h2>How we stack up</h2>
+      <table>
+        <tr>
+          <th>Capability</th>
+          <th>Buffer</th>
+          <th>Hootsuite</th>
+          <th>Sprout</th>
+          <th>Later</th>
+          <th>Postiz</th>
+          <th>Inboudly</th>
+        </tr>
+        <tr><td>RedNote support</td><td class="no">✗</td><td class="no">✗</td><td class="no">✗</td><td class="no">✗</td><td class="no">✗</td><td class="yes">✓</td></tr>
+        <tr><td>Native AI image gen</td><td class="no">✗</td><td class="no">✗</td><td class="no">✗</td><td class="no">✗</td><td class="no">DALL-E</td><td class="yes">GPT Image 2.0</td></tr>
+        <tr><td>Native AI video gen</td><td class="no">✗</td><td class="no">✗</td><td class="no">✗</td><td class="no">✗</td><td class="no">✗</td><td class="yes">Runway + Kling</td></tr>
+        <tr><td>Video repurpose engine</td><td class="no">✗</td><td class="no">✗</td><td class="no">✗</td><td class="no">✗</td><td class="no">✗</td><td class="yes">✓</td></tr>
+        <tr><td>Pre-publish virality score</td><td class="no">✗</td><td class="no">✗</td><td class="no">✗</td><td class="no">✗</td><td class="no">✗</td><td class="yes">✓</td></tr>
+        <tr><td>Per-platform algorithm coach</td><td class="no">✗</td><td class="no">✗</td><td class="no">✗</td><td class="no">✗</td><td class="no">✗</td><td class="yes">✓</td></tr>
+        <tr><td>Native Chinese content gen</td><td class="no">✗</td><td class="no">✗</td><td class="no">✗</td><td class="no">✗</td><td class="no">✗</td><td class="yes">✓</td></tr>
+        <tr><td>Full white-label</td><td class="no">✗</td><td class="no">Enterprise</td><td class="no">Enterprise</td><td class="no">✗</td><td class="no">Self-host</td><td class="yes">Built-in</td></tr>
+      </table>
+      <p class="center small muted" style="margin-top: 16px;">
+        Inboudly wins on 8 of 8 differentiating capabilities.
+      </p>
+    </section>
+
+    <!-- ============================================ -->
+    <!-- 13. PRICING -->
+    <!-- ============================================ -->
+    <section>
+      <h2>Pricing</h2>
+      <div class="grid-3">
+        <div class="price-card">
+          <div class="name">STARTER</div>
+          <div class="price">$49<span class="meta">/mo</span></div>
+          <div class="meta">Solo creator · 3 accounts · 100 posts/mo · basic AI</div>
+        </div>
+        <div class="price-card featured">
+          <div class="name">PRO</div>
+          <div class="price">$149<span class="meta">/mo</span></div>
+          <div class="meta">Small team · 10 accounts · full AI · repurpose engine</div>
+        </div>
+        <div class="price-card">
+          <div class="name">AGENCY</div>
+          <div class="price">$399<span class="meta">/mo</span></div>
+          <div class="meta">15 users · 50 accounts · KOL · competitor · approvals</div>
+        </div>
+      </div>
+      <div class="grid-2" style="margin-top: 18px;">
+        <div class="price-card">
+          <div class="name">WHITE-LABEL</div>
+          <div class="price">From $1,999<span class="meta">/mo</span></div>
+          <div class="meta">Custom domain · full rebrand · multi-tenant child workspaces</div>
+        </div>
+        <div class="price-card">
+          <div class="name">ENTERPRISE</div>
+          <div class="price">Custom</div>
+          <div class="meta">SSO · dedicated infra · custom AI training · SLA</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================ -->
+    <!-- 14. ROADMAP -->
+    <!-- ============================================ -->
+    <section>
+      <h2>10-year roadmap</h2>
+      <table>
+        <tr><th>Year</th><th>Focus</th></tr>
+        <tr><td><span class="pink">1 — shipped</span></td><td>IG + TikTok + RedNote · AI text/image · composer · scheduler · approvals · repurpose v1</td></tr>
+        <tr><td>2</td><td>Video gen · deep analytics · comment intent AI · FB + LinkedIn + YT · KOL discovery · competitor tracking · trend radar</td></tr>
+        <tr><td>3</td><td>White-label resale · mobile + desktop apps · autonomous AI agents · brand voice memory</td></tr>
+        <tr><td>4</td><td>Virtual Influencer Studio · voice + music generation</td></tr>
+        <tr><td>5</td><td>Live multi-cast + commerce integrations</td></tr>
+        <tr><td>6–8</td><td>Industry vertical packs · plugin marketplace</td></tr>
+        <tr><td>9–10</td><td>Inboudly's own AI-native social network · IPO / acquisition</td></tr>
+      </table>
+    </section>
+
+    <!-- ============================================ -->
+    <!-- 15. WHY NOW -->
+    <!-- ============================================ -->
+    <section>
+      <h2>Why now</h2>
+      <div class="grid-3">
+        <div class="stat">
+          <div class="num">$37.8B</div>
+          <div class="label">Virtual influencer market by 2030</div>
+        </div>
+        <div class="stat">
+          <div class="num">28%</div>
+          <div class="label">CAGR in social-media AI tools through 2030</div>
+        </div>
+        <div class="stat">
+          <div class="num">96%</div>
+          <div class="label">Marketing managers using AI daily</div>
+        </div>
+      </div>
+      <p style="margin-top: 24px;">Three irreversible shifts:</p>
+      <ul>
+        <li><span class="pink">AI agents replace dashboards</span> — users will deploy autonomous agents, not click buttons</li>
+        <li><span class="pink">Authenticity counter-trend</span> — winners balance AI scale with human feel</li>
+        <li><span class="pink">China-market dominance</span> — RedNote becomes critical, Western tools haven't adapted</li>
+      </ul>
+    </section>
+
+    <!-- ============================================ -->
+    <!-- 16. TECH STACK -->
+    <!-- ============================================ -->
+    <section>
+      <h2>Engineered for scale</h2>
+      <div class="grid-2">
+        <div>
+          <h3>Frontend</h3>
+          <ul class="small">
+            <li>Next.js 15 (App Router) + TypeScript</li>
+            <li>Tailwind + shadcn/ui</li>
+            <li>Vercel global edge deploy</li>
+          </ul>
+          <h3>Backend</h3>
+          <ul class="small">
+            <li>NestJS modular monolith</li>
+            <li>BullMQ async pipelines</li>
+            <li>Railway / AWS ECS Fargate</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Data + AI</h3>
+          <ul class="small">
+            <li>PostgreSQL (Supabase, RLS multi-tenant)</li>
+            <li>Pinecone vector DB (3072-dim brand-voice memory)</li>
+            <li>Cloudflare R2 media storage</li>
+            <li>Claude Sonnet 4.6 · GPT Image 2.0 · Whisper · FFmpeg</li>
+          </ul>
+          <h3>Security</h3>
+          <ul class="small">
+            <li>Supabase Auth (MFA, SSO)</li>
+            <li>Row-level security per tenant</li>
+            <li>Full audit log</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================ -->
+    <!-- 17. CTA -->
+    <!-- ============================================ -->
+    <section class="title-slide">
+      <h2 class="gradient-text">Ready for a live demo?</h2>
+      <p class="muted" style="margin-top: 24px;">15-minute walk-through. Bring one of your past posts and we'll regenerate it on the platform.</p>
+      <div style="margin-top: 48px;">
+        <p><span class="pink">📧</span> agilec.dev1@gmail.com</p>
+        <p><span class="pink">🌐</span> github.com/LimHuanYang/Inboudly</p>
+      </div>
+      <p class="muted small" style="margin-top: 64px;">© Inboudly 2026 — All rights reserved</p>
+    </section>
+
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/notes/notes.js"></script>
+<script>
+  Reveal.initialize({
+    hash: true,
+    transition: 'slide',
+    controls: true,
+    progress: true,
+    slideNumber: 'c/t',
+    plugins: [ RevealNotes ]
+  });
+</script>
+
+<div class="footer-note">Inboudly · Confidential</div>
+</body>
+</html>
