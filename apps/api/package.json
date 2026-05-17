@@ -15,6 +15,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.27.3",
     "@aws-sdk/client-s3": "^3.654.0",
+    "@google/genai": "^0.15.0",
     "@aws-sdk/s3-request-presigner": "^3.654.0",
     "@nestjs/bullmq": "^10.2.1",
     "@nestjs/common": "^10.4.4",
