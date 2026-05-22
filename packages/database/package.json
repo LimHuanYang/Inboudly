@@ -19,6 +19,7 @@
     "db:migrate:deploy": "dotenv -e ../../.env -- prisma migrate deploy",
     "db:studio": "dotenv -e ../../.env -- prisma studio",
     "db:seed": "dotenv -e ../../.env -- tsx prisma/seed.ts",
+    "db:seed:kols": "dotenv -e ../../.env -- tsx prisma/seed-kols.ts",
     "type-check": "tsc --noEmit",
     "clean": "rm -rf node_modules dist .turbo"
   },

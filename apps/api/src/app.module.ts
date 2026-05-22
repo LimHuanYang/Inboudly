@@ -24,6 +24,7 @@ import { RepurposeModule } from './modules/repurpose/repurpose.module';
 import { IntelligenceModule } from './modules/intelligence/intelligence.module';
 import { ConnectorsModule } from './modules/connectors/connectors.module';
 import { OAuthModule } from './modules/oauth/oauth.module';
+import { KolModule } from './modules/kol/kol.module';
 
 @Module({
   imports: [
@@ -72,6 +73,7 @@ import { OAuthModule } from './modules/oauth/oauth.module';
     IntelligenceModule,
     ConnectorsModule,
     OAuthModule,
+    KolModule,
   ],
 })
 export class AppModule {}

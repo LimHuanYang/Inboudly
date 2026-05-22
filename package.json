@@ -17,7 +17,8 @@
     "db:generate": "pnpm --filter @inboudly/database db:generate",
     "db:push": "pnpm --filter @inboudly/database db:push",
     "db:migrate": "pnpm --filter @inboudly/database db:migrate",
-    "db:studio": "pnpm --filter @inboudly/database db:studio"
+    "db:studio": "pnpm --filter @inboudly/database db:studio",
+    "db:seed:kols": "pnpm --filter @inboudly/database db:seed:kols"
   },
   "devDependencies": {
     "@types/node": "^22.7.4",
