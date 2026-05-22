@@ -39,12 +39,15 @@ import { OAuthModule } from './modules/oauth/oauth.module';
     BullModule.forRoot({
       connection: {
         url: process.env.REDIS_URL ?? 'redis://localhost:6379',
-        // Don't block API startup waiting for Redis. Queue calls will fail
-        // loudly if a job is dispatched while Redis is unreachable, but the
-        // rest of the API (composer, virality score, etc.) boots fine.
         lazyConnect: true,
         maxRetriesPerRequest: 3,
         enableOfflineQueue: false,
+        // Stop the ECONNREFUSED retry spam in dev when Redis isn't running.
+        // After 5 attempts the client gives up. The rest of the API
+        // (composer, virality, BYOK) keeps working — only scheduling +
+        // repurpose worker need Redis, and they'll fail loudly when invoked.
+        retryStrategy: (times: number) => (times > 5 ? null : Math.min(times * 200, 2000)),
+        reconnectOnError: () => false,
       },
     }),
     PrismaModule,

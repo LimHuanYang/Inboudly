@@ -4,7 +4,7 @@ import { PrismaService } from '../../common/prisma/prisma.service';
 import { VoiceTrainingService } from '../brand/voice-training.service';
 import { getPlatformSpec, type SocialPlatform } from '@inboudly/shared';
 
-const MODEL = 'gemini-2.5-flash';
+const DEFAULT_MODEL = 'gemini-2.5-flash';
 
 interface GeneratedVariant {
   caption: string;
@@ -37,9 +37,11 @@ export class GeminiTextService {
       language?: string;
       variations?: number;
       referenceUrl?: string;
+      model?: string;
     },
   ): Promise<{ variants: GeneratedVariant[]; model: string; tokensUsed: number }> {
     const client = new GoogleGenerativeAI(apiKey);
+    const MODEL = params.model || DEFAULT_MODEL;
     const spec = getPlatformSpec(params.platform);
 
     const brandVoice = params.brandVoiceId

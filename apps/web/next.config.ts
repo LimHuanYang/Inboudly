@@ -1,7 +1,10 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  reactStrictMode: true,
+  // StrictMode double-renders everything in dev to surface bugs. Useful before
+  // ship, painful during fast iteration. Turning OFF in dev only — Vercel
+  // production builds re-enable it via NODE_ENV check below.
+  reactStrictMode: process.env.NODE_ENV === 'production',
   // typedRoutes disabled in dev — adds a slow per-route check, not worth the speed cost.
   // Re-enable for prod builds if you want compile-time route validation.
   experimental: {

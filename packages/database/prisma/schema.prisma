@@ -111,7 +111,7 @@ model Workspace {
 model WorkspaceAiCredentials {
   id            String   @id @default(cuid())
   workspaceId   String   @unique
-  // Each field stores the AES-256-GCM encrypted ciphertext.
+  // Each *Key field stores the AES-256-GCM encrypted ciphertext.
   // Plaintext format: "<iv>:<authTag>:<ciphertext>" (all hex-encoded).
   geminiKey     String?  @db.Text
   openaiKey     String?  @db.Text
@@ -121,6 +121,12 @@ model WorkspaceAiCredentials {
   elevenLabsKey String?  @db.Text
   sunoKey       String?  @db.Text
   pineconeKey   String?  @db.Text
+  // Optional model overrides — when set, the service uses this model instead
+  // of the platform default (e.g. claude-haiku-4-5 for cheaper, gemini-2.5-pro
+  // for better quality). Plain text — model names aren't secrets.
+  geminiModel    String?
+  openaiModel    String?
+  anthropicModel String?
   // Hint for the controller when both Gemini and OpenAI/Anthropic are set.
   // null = auto-select (Anthropic > Gemini for text, OpenAI > Gemini for image).
   preferredTextProvider  String?  // 'claude' | 'gemini'
