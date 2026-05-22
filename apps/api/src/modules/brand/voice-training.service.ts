@@ -1,32 +1,26 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, Logger, NotFoundException, forwardRef } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { PineconeService } from '../../common/pinecone/pinecone.service';
 import { EmbeddingsService } from '../ai/embeddings.service';
+import { AiCredentialsService } from '../ai-credentials/ai-credentials.service';
 import type { SocialPlatform } from '@inboudly/shared';
 
 interface TrainingExample {
-  /** Raw caption text the AI should learn the voice from */
   text: string;
-  /** Optional metadata to bias retrieval — platform/topic/performance */
   platform?: SocialPlatform;
   topic?: string;
-  /** Engagement signal — high-performing posts get retrieval boost */
   engagementScore?: number;
   sourcePostId?: string;
 }
 
 /**
- * Brand Voice Training
+ * Brand Voice Training (BYOK)
  *
- * Workflow:
- *  1. User pastes past posts (or we pull from connected social accounts)
- *  2. We embed each example with text-embedding-3-large
- *  3. Store in Pinecone under the BrandVoice's namespace
- *  4. At generation time, retrieve top-K similar examples and include them
- *     in the Claude system prompt as in-context exemplars
+ * Embeddings use OpenAI text-embedding-3-large, so this service needs the
+ * workspace's OpenAI key. Resolved per-call via AiCredentialsService.
  *
- * Research basis: in-context learning + RAG produces brand-voice fidelity that
- * fine-tuning struggles to match for short-form text, at a fraction of the cost.
+ * If the workspace has no OpenAI key configured, training/retrieval gracefully
+ * degrade — generation falls back to platform-spec-only prompts (no exemplars).
  */
 @Injectable()
 export class VoiceTrainingService {
@@ -36,7 +30,23 @@ export class VoiceTrainingService {
     private prisma: PrismaService,
     private pinecone: PineconeService,
     private embeddings: EmbeddingsService,
+    @Inject(forwardRef(() => AiCredentialsService))
+    private credentials: AiCredentialsService,
   ) {}
+
+  /** Resolves the workspace OpenAI key for the brand voice's workspace. */
+  private async getOpenAiKeyForVoice(brandVoiceId: string): Promise<{
+    workspaceId: string;
+    openaiKey: string | null;
+  } | null> {
+    const voice = await this.prisma.brandVoice.findUnique({
+      where: { id: brandVoiceId },
+      select: { workspaceId: true },
+    });
+    if (!voice) return null;
+    const openaiKey = await this.credentials.getDecryptedKey(voice.workspaceId, 'openaiKey');
+    return { workspaceId: voice.workspaceId, openaiKey };
+  }
 
   async ingest(brandVoiceId: string, examples: TrainingExample[]) {
     if (examples.length === 0) return { ingested: 0 };
@@ -45,17 +55,29 @@ export class VoiceTrainingService {
     if (!voice) throw new NotFoundException('Brand voice not found');
 
     if (!this.pinecone.isConfigured()) {
-      this.logger.warn('Pinecone not configured — voice training disabled. Examples ignored.');
+      this.logger.warn('Pinecone not configured — voice training disabled.');
       return { ingested: 0, warning: 'Pinecone not configured' };
     }
 
-    const vectors = await this.embeddings.embedMany(examples.map((e) => e.text));
+    const resolved = await this.getOpenAiKeyForVoice(brandVoiceId);
+    if (!resolved?.openaiKey) {
+      return {
+        ingested: 0,
+        warning:
+          'No OpenAI API key in workspace — embeddings cannot be created. Add a key in Settings → AI Providers.',
+      };
+    }
+
+    const vectors = await this.embeddings.embedMany(
+      resolved.openaiKey,
+      examples.map((e) => e.text),
+    );
 
     const upserts = examples.map((ex, i) => ({
       id: ex.sourcePostId ?? `${brandVoiceId}-${Date.now()}-${i}`,
       values: vectors[i]!,
       metadata: {
-        text: ex.text.slice(0, 2000), // store text in metadata for retrieval display
+        text: ex.text.slice(0, 2000),
         platform: ex.platform ?? 'UNKNOWN',
         topic: ex.topic ?? '',
         engagementScore: ex.engagementScore ?? 0,
@@ -75,7 +97,7 @@ export class VoiceTrainingService {
 
   /**
    * Retrieve the top-K past posts most similar to the user's current intent.
-   * Used by ClaudeTextService to ground generation in real brand voice.
+   * Degrades gracefully: returns [] if Pinecone/OpenAI key not configured.
    */
   async retrieveExamples(
     brandVoiceId: string,
@@ -87,7 +109,10 @@ export class VoiceTrainingService {
     const voice = await this.prisma.brandVoice.findUnique({ where: { id: brandVoiceId } });
     if (!voice || voice.trainedOnPostCount === 0) return [];
 
-    const queryVec = await this.embeddings.embedOne(intent);
+    const resolved = await this.getOpenAiKeyForVoice(brandVoiceId);
+    if (!resolved?.openaiKey) return [];
+
+    const queryVec = await this.embeddings.embedOne(resolved.openaiKey, intent);
     const matches = await this.pinecone.query(voice.embeddingNamespace, queryVec, topK);
 
     return matches.map((m) => ({

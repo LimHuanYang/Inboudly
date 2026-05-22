@@ -99,9 +99,36 @@ model Workspace {
   kolCampaigns      KolCampaign[]
   agentRuns         AgentRun[]
   approvalWorkflows ApprovalWorkflow[]
+  aiCredentials     WorkspaceAiCredentials?
 
   @@unique([tenantId, slug])
   @@index([tenantId])
+}
+
+/// BYOK (Bring Your Own Key) — each workspace stores its own AI provider API
+/// keys, encrypted at rest with the platform's master ENCRYPTION_KEY.
+/// Users pay their AI provider directly; Inboudly never touches their bill.
+model WorkspaceAiCredentials {
+  id            String   @id @default(cuid())
+  workspaceId   String   @unique
+  // Each field stores the AES-256-GCM encrypted ciphertext.
+  // Plaintext format: "<iv>:<authTag>:<ciphertext>" (all hex-encoded).
+  geminiKey     String?  @db.Text
+  openaiKey     String?  @db.Text
+  anthropicKey  String?  @db.Text
+  runwayKey     String?  @db.Text
+  klingKey      String?  @db.Text
+  elevenLabsKey String?  @db.Text
+  sunoKey       String?  @db.Text
+  pineconeKey   String?  @db.Text
+  // Hint for the controller when both Gemini and OpenAI/Anthropic are set.
+  // null = auto-select (Anthropic > Gemini for text, OpenAI > Gemini for image).
+  preferredTextProvider  String?  // 'claude' | 'gemini'
+  preferredImageProvider String?  // 'openai' | 'gemini'
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 }
 
 model WorkspaceMember {

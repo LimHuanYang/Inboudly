@@ -8,6 +8,7 @@ import { v4 as uuid } from 'uuid';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { R2StorageService } from '../media/r2-storage.service';
 import { MediaService } from '../media/media.service';
+import { AiCredentialsService } from '../ai-credentials/ai-credentials.service';
 import { SourceResolverService } from './source-resolver.service';
 import { TranscriptionService } from './transcription.service';
 import { ClipSelectorService } from './clip-selector.service';
@@ -49,6 +50,7 @@ export class RepurposeProcessor extends WorkerHost {
     private prisma: PrismaService,
     private r2: R2StorageService,
     private mediaService: MediaService,
+    private credentials: AiCredentialsService,
     private sourceResolver: SourceResolverService,
     private transcription: TranscriptionService,
     private clipSelector: ClipSelectorService,
@@ -60,6 +62,24 @@ export class RepurposeProcessor extends WorkerHost {
   async process(job: Job<RepurposeRequest>): Promise<{ generatedClips: number }> {
     const req = job.data;
     this.logger.log(`Repurpose job ${job.id}: ${req.source.kind} → ${req.targetPlatforms.join(', ')}`);
+
+    // BYOK: fetch this workspace's keys up front. The repurpose pipeline
+    // needs OpenAI (Whisper) AND Anthropic (clip selection) — fail fast
+    // with a clear message if either is missing.
+    const [openaiKey, anthropicKey] = await Promise.all([
+      this.credentials.getDecryptedKey(req.workspaceId, 'openaiKey'),
+      this.credentials.getDecryptedKey(req.workspaceId, 'anthropicKey'),
+    ]);
+    if (!openaiKey) {
+      throw new Error(
+        'Workspace has no OpenAI API key configured — Whisper transcription cannot run. Add a key in Settings → AI Providers.',
+      );
+    }
+    if (!anthropicKey) {
+      throw new Error(
+        'Workspace has no Anthropic API key configured — clip selection cannot run. Add a key in Settings → AI Providers.',
+      );
+    }
 
     // 1. Resolve source
     await job.updateProgress(5);
@@ -79,14 +99,15 @@ export class RepurposeProcessor extends WorkerHost {
       throw new Error('Source did not produce a local media file');
     }
 
-    // 2. Transcribe
+    // 2. Transcribe (workspace's OpenAI key)
     await job.updateProgress(20);
-    const transcript = await this.transcription.transcribe(resolved.localPath);
+    const transcript = await this.transcription.transcribe(openaiKey, resolved.localPath);
     this.logger.log(`Transcribed: ${transcript.durationSec}s, ${transcript.segments.length} segments`);
 
-    // 3. Pick clips
+    // 3. Pick clips (workspace's Anthropic key)
     await job.updateProgress(40);
     const clipsByPlatform = await this.clipSelector.selectClips(
+      anthropicKey,
       transcript,
       req.targetPlatforms,
       req.clipCount,

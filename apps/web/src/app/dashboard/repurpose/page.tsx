@@ -8,7 +8,7 @@ import { api } from '@/lib/api-client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { PLATFORM_SPECS, type SocialPlatform } from '@inboudly/shared';
+import { PLATFORM_SPECS, type SocialPlatform } from '@inboudly/shared/platforms';
 
 type SourceKind = 'upload' | 'youtube' | 'podcast' | 'blog';
 

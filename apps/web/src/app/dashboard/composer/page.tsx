@@ -6,12 +6,9 @@ import { toast } from 'sonner';
 import { api } from '@/lib/api-client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ImageIcon, Sparkles, Wand2 } from 'lucide-react';
-import {
-  PLATFORM_SPECS,
-  type SocialPlatform,
-  type ViralityScoreResponse,
-} from '@inboudly/shared';
+import { ImageIcon, Loader2, Sparkles, Wand2 } from 'lucide-react';
+import { PLATFORM_SPECS, type SocialPlatform } from '@inboudly/shared/platforms';
+import { type ViralityScoreResponse } from '@inboudly/shared/schemas';
 
 const PHASE_1_PLATFORMS: SocialPlatform[] = ['INSTAGRAM', 'TIKTOK', 'REDNOTE'];
 
@@ -132,12 +129,44 @@ export default function ComposerPage() {
 
   const activeScore = score.data?.perPlatform.find((p) => p.platform === activePlatform);
 
+  // BYOK: warn the user if no AI keys are configured for this workspace
+  const aiCredentials = useQuery({
+    queryKey: ['ai-credentials', workspaceId],
+    queryFn: () => api.get<any>(`/workspaces/${workspaceId}/ai-credentials`),
+    enabled: !!workspaceId,
+  });
+  const hasAnyTextKey =
+    aiCredentials.data?.anthropic?.configured || aiCredentials.data?.gemini?.configured;
+  const hasAnyImageKey =
+    aiCredentials.data?.openai?.configured || aiCredentials.data?.gemini?.configured;
+
   return (
     <div className="container py-8">
       <h1 className="mb-2 text-3xl font-bold">Composer</h1>
-      <p className="mb-8 text-muted-foreground">
+      <p className="mb-4 text-muted-foreground">
         Write once, optimize for every platform with AI.
       </p>
+
+      {/* BYOK banner — only shown if no AI provider key configured */}
+      {workspaceId && !aiCredentials.isLoading && !hasAnyTextKey && !hasAnyImageKey && (
+        <div className="mb-6 rounded-lg border border-amber-500/40 bg-amber-500/10 p-4">
+          <div className="flex items-start gap-3">
+            <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
+            <div className="flex-1">
+              <h3 className="font-medium text-amber-900 dark:text-amber-200">
+                Add your AI keys to start generating
+              </h3>
+              <p className="mt-1 text-sm text-amber-800 dark:text-amber-300">
+                Inboudly uses your own AI provider API keys — you pay your provider directly.
+                Get a <strong>free Gemini key</strong> in 2 minutes to begin.
+              </p>
+              <Button asChild className="mt-3" size="sm">
+                <a href="/dashboard/settings">Open Settings → AI Providers</a>
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Left: Platform tabs + composer */}
@@ -229,6 +258,9 @@ export default function ComposerPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
+              <label className="text-sm font-medium">
+                Your idea <span className="text-muted-foreground">(required)</span>
+              </label>
               <textarea
                 rows={3}
                 value={aiPrompt}
@@ -236,13 +268,32 @@ export default function ComposerPage() {
                 placeholder="What's this post about? E.g. 'New summer skincare line — promote our hydrating serum'"
                 className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
               />
+              {!workspaceId && (
+                <p className="text-xs text-amber-600 dark:text-amber-400">
+                  ⚠ Workspace not loaded. If this persists, check the API is running and you're signed in.
+                </p>
+              )}
+              {workspaceId && !aiPrompt && (
+                <p className="text-xs text-muted-foreground">
+                  💡 Type your idea above, then click Generate.
+                </p>
+              )}
               <Button
                 onClick={() => generateText.mutate({ platform: activePlatform, prompt: aiPrompt })}
                 disabled={!aiPrompt || generateText.isPending || !workspaceId}
                 className="w-full"
               >
-                <Wand2 className="mr-2 h-4 w-4" />
-                {generateText.isPending ? 'Generating…' : `Generate ${activePlatform} caption`}
+                {generateText.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Writing caption with AI… (5-15s)
+                  </>
+                ) : (
+                  <>
+                    <Wand2 className="mr-2 h-4 w-4" />
+                    Generate {activePlatform} caption
+                  </>
+                )}
               </Button>
             </CardContent>
           </Card>
@@ -255,6 +306,9 @@ export default function ComposerPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
+              <label className="text-sm font-medium">
+                Describe your image <span className="text-muted-foreground">(required)</span>
+              </label>
               <textarea
                 rows={3}
                 value={imagePrompt}
@@ -262,6 +316,11 @@ export default function ComposerPage() {
                 placeholder="Describe the image. E.g. 'Sunlit minimalist skincare bottle on marble with rosemary sprig'"
                 className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
               />
+              {workspaceId && !imagePrompt && (
+                <p className="text-xs text-muted-foreground">
+                  💡 Describe what you want above, then click Generate.
+                </p>
+              )}
               <div className="flex gap-2">
                 <select
                   value={imageAspect}
@@ -294,8 +353,17 @@ export default function ComposerPage() {
                 disabled={!imagePrompt || generateImage.isPending || !workspaceId}
                 className="w-full"
               >
-                <Wand2 className="mr-2 h-4 w-4" />
-                {generateImage.isPending ? 'Generating…' : `Generate ${imageCount} image${imageCount === 1 ? '' : 's'}`}
+                {generateImage.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Drawing your image… (15-30s)
+                  </>
+                ) : (
+                  <>
+                    <Wand2 className="mr-2 h-4 w-4" />
+                    Generate {imageCount} image{imageCount === 1 ? '' : 's'}
+                  </>
+                )}
               </Button>
 
               {generatedImages.length > 0 && (

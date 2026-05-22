@@ -6,6 +6,8 @@ import { BullModule } from '@nestjs/bullmq';
 
 import { PrismaModule } from './common/prisma/prisma.module';
 import { PineconeModule } from './common/pinecone/pinecone.module';
+import { CryptoModule } from './common/crypto/crypto.module';
+import { AiCredentialsModule } from './modules/ai-credentials/ai-credentials.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { TenantsModule } from './modules/tenants/tenants.module';
 import { WorkspacesModule } from './modules/workspaces/workspaces.module';
@@ -25,18 +27,32 @@ import { OAuthModule } from './modules/oauth/oauth.module';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    // Load env from monorepo root first, then app-local as fallback.
+    // Without this, NestJS only looks at apps/api/.env (process.cwd) and
+    // misses the SUPABASE_URL / GEMINI_API_KEY / etc. you set at the root.
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: ['../../.env', '.env'],
+    }),
     ScheduleModule.forRoot(),
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 120 }]),
     BullModule.forRoot({
       connection: {
         url: process.env.REDIS_URL ?? 'redis://localhost:6379',
+        // Don't block API startup waiting for Redis. Queue calls will fail
+        // loudly if a job is dispatched while Redis is unreachable, but the
+        // rest of the API (composer, virality score, etc.) boots fine.
+        lazyConnect: true,
+        maxRetriesPerRequest: 3,
+        enableOfflineQueue: false,
       },
     }),
     PrismaModule,
     PineconeModule,
+    CryptoModule,
 
     // Feature modules
+    AiCredentialsModule,
     AuthModule,
     TenantsModule,
     WorkspacesModule,

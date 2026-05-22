@@ -39,7 +39,10 @@ export class PineconeService implements OnModuleInit {
     vectors: Array<{ id: string; values: number[]; metadata?: Record<string, unknown> }>,
   ) {
     const index = this.getIndex();
-    await index.namespace(namespace).upsert(vectors);
+    // Pinecone's RecordMetadata type narrows values to primitives/arrays of
+    // primitives — our caller-side Record<string, unknown> is broader.
+    // The runtime accepts any JSON-serialisable value, so a cast is safe.
+    await index.namespace(namespace).upsert(vectors as never);
   }
 
   /** Top-K similarity search inside a namespace. */

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import { Loader2 } from 'lucide-react';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { api } from '@/lib/api-client';
 import { Button } from '@/components/ui/button';
@@ -87,7 +88,14 @@ export default function SignUpPage() {
               />
             </div>
             <Button type="submit" disabled={loading} className="w-full">
-              {loading ? 'Creating…' : 'Create account'}
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Creating your workspace…
+                </>
+              ) : (
+                'Create account'
+              )}
             </Button>
             <p className="text-center text-sm text-muted-foreground">
               Already have an account?{' '}

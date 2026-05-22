@@ -7,48 +7,32 @@ import { getPlatformSpec } from '@inboudly/shared';
 const MODEL = 'claude-sonnet-4-6';
 
 export interface SelectedClip {
-  /** Index into the original transcript segments array */
   startSegmentIndex: number;
   endSegmentIndex: number;
-  /** Seconds — used to drive ffmpeg cuts */
   startSec: number;
   endSec: number;
-  /** Suggested platform-specific caption for this clip */
   caption: string;
-  /** Why this clip was selected — shown to user as "AI rationale" */
   rationale: string;
-  /** Estimated virality score 0-100 */
   estimatedScore: number;
 }
 
 /**
- * Claude clip selector.
- *
- * Implementation follows the "Minimal Clips, Maximum Salience" research
- * (arXiv 2512.11399): instead of asking the LLM to operate on raw video,
- * we feed it a structured transcript and let it pick the highest-salience
- * windows that satisfy each target platform's optimal duration.
- *
- * The result is a list of clips per platform — TikTok / Reels prefer
- * 15-30s with a 3-second hook; YouTube Shorts will take up to 60s.
+ * BYOK clip selection via Claude. Caller passes the workspace's decrypted
+ * Anthropic key. Research basis: arXiv 2512.11399.
  */
 @Injectable()
 export class ClipSelectorService {
   private readonly logger = new Logger(ClipSelectorService.name);
-  private client: Anthropic;
-
-  constructor() {
-    this.client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-  }
 
   async selectClips(
+    apiKey: string,
     transcript: Transcript,
     platforms: SocialPlatform[],
     maxClipsPerPlatform: number,
   ): Promise<Record<SocialPlatform, SelectedClip[]>> {
+    const client = new Anthropic({ apiKey });
     const result: Record<string, SelectedClip[]> = {};
 
-    // We process each platform in one Claude call — keeps token usage tight.
     for (const platform of platforms) {
       const spec = getPlatformSpec(platform);
       const targetDuration = this.targetDurationFor(platform);
@@ -85,7 +69,7 @@ OUTPUT — strict JSON only:
   ]
 }`;
 
-      const res = await this.client.messages.create({
+      const res = await client.messages.create({
         model: MODEL,
         max_tokens: 2048,
         messages: [{ role: 'user', content: prompt }],
@@ -107,7 +91,7 @@ OUTPUT — strict JSON only:
       case 'REDNOTE':
         return { min: 15, max: 45 };
       case 'YOUTUBE':
-        return { min: 30, max: 60 }; // Shorts
+        return { min: 30, max: 60 };
       case 'LINKEDIN':
         return { min: 30, max: 90 };
       default:
@@ -122,10 +106,7 @@ OUTPUT — strict JSON only:
   }
 
   private parseClips(raw: string, transcript: Transcript): SelectedClip[] {
-    const cleaned = raw
-      .replace(/^```(?:json)?\s*/i, '')
-      .replace(/```\s*$/i, '')
-      .trim();
+    const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '').trim();
     let parsed: { clips?: Array<Record<string, unknown>> } = {};
     try {
       parsed = JSON.parse(cleaned);

@@ -36,7 +36,7 @@ export class PostsService {
             language: v.language,
             hashtags: v.hashtags,
             mentions: v.mentions,
-            platformOptions: v.platformOptions ?? {},
+            platformOptions: (v.platformOptions ?? {}) as never,
           },
         });
 

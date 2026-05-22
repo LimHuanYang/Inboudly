@@ -19,6 +19,9 @@ export class TenantsService {
   }
 
   async updateBranding(id: string, branding: Record<string, unknown>) {
-    return this.prisma.tenant.update({ where: { id }, data: { branding } });
+    return this.prisma.tenant.update({
+      where: { id },
+      data: { branding: branding as never },
+    });
   }
 }

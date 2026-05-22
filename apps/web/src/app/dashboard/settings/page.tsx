@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Plus } from 'lucide-react';
+import { AiProvidersCard } from './ai-providers-card';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
 
@@ -52,6 +53,14 @@ export default function SettingsPage() {
         <h1 className="text-3xl font-bold">Settings</h1>
         <p className="text-sm text-muted-foreground">{workspaceName ?? 'Workspace'}</p>
       </div>
+
+      {/* AI Providers — BYOK. Place above social accounts because users
+          need keys before they can generate content in the composer. */}
+      {workspaceId && (
+        <div className="mb-4">
+          <AiProvidersCard workspaceId={workspaceId} />
+        </div>
+      )}
 
       <Card>
         <CardHeader>

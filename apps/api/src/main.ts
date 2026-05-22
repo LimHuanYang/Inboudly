@@ -6,9 +6,28 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  // Allow any localhost origin in dev (regardless of which port Next.js
+  // picks), plus the configured app URL in production.
+  const allowedOrigins = (process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000')
+    .split(',')
+    .map((o) => o.trim());
+
   app.enableCors({
-    origin: process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000',
+    origin: (origin, cb) => {
+      // No Origin header → same-origin / curl / Postman → allow
+      if (!origin) return cb(null, true);
+      if (
+        process.env.NODE_ENV !== 'production' &&
+        /^https?:\/\/localhost(:\d+)?$/.test(origin)
+      ) {
+        return cb(null, true);
+      }
+      if (allowedOrigins.includes(origin)) return cb(null, true);
+      cb(new Error(`Origin ${origin} not allowed by CORS`));
+    },
     credentials: true,
+    methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
   });
 
   app.setGlobalPrefix('api/v1');

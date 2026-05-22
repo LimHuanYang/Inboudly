@@ -8,9 +8,14 @@ import { TranscriptionService } from './transcription.service';
 import { ClipSelectorService } from './clip-selector.service';
 import { FfmpegService } from './ffmpeg.service';
 import { MediaModule } from '../media/media.module';
+import { AiCredentialsModule } from '../ai-credentials/ai-credentials.module';
 
 @Module({
-  imports: [BullModule.registerQueue({ name: 'repurpose' }), MediaModule],
+  imports: [
+    BullModule.registerQueue({ name: 'repurpose' }),
+    MediaModule,
+    AiCredentialsModule,
+  ],
   controllers: [RepurposeController],
   providers: [
     RepurposeService,

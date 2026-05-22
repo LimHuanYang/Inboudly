@@ -1,5 +1,5 @@
 import { Inject, Injectable, forwardRef } from '@nestjs/common';
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { VoiceTrainingService } from '../brand/voice-training.service';
 import { getPlatformSpec, type SocialPlatform } from '@inboudly/shared';
@@ -15,40 +15,31 @@ interface GeneratedVariant {
 }
 
 /**
- * Gemini fallback for the text-generation surface.
- *
- * Same input/output contract as ClaudeTextService — the controller picks
- * one based on which API key the operator has configured. Useful for:
- *   - Free-tier testing (Gemini has a generous free quota)
- *   - Operators who already have Google Cloud spend
- *   - Cost-sensitive workspaces
- *
- * Behaviour parity with Claude version:
- *   - Same per-platform algorithm guidance baked into the system prompt
- *   - Same brand-voice RAG exemplar retrieval
- *   - Same strict JSON output contract
+ * BYOK: per-call API key. The caller (AiController) looks up the workspace's
+ * encrypted Gemini key, decrypts it, and passes it in. Each customer pays
+ * Google directly.
  */
 @Injectable()
 export class GeminiTextService {
-  private client: GoogleGenAI;
-
   constructor(
     private prisma: PrismaService,
     @Inject(forwardRef(() => VoiceTrainingService))
     private voiceTraining: VoiceTrainingService,
-  ) {
-    this.client = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY ?? '' });
-  }
+  ) {}
 
-  async generatePostText(params: {
-    workspaceId: string;
-    brandVoiceId?: string;
-    platform: SocialPlatform;
-    prompt: string;
-    language?: string;
-    variations?: number;
-    referenceUrl?: string;
-  }): Promise<{ variants: GeneratedVariant[]; model: string; tokensUsed: number }> {
+  async generatePostText(
+    apiKey: string,
+    params: {
+      workspaceId: string;
+      brandVoiceId?: string;
+      platform: SocialPlatform;
+      prompt: string;
+      language?: string;
+      variations?: number;
+      referenceUrl?: string;
+    },
+  ): Promise<{ variants: GeneratedVariant[]; model: string; tokensUsed: number }> {
+    const client = new GoogleGenerativeAI(apiKey);
     const spec = getPlatformSpec(params.platform);
 
     const brandVoice = params.brandVoiceId
@@ -67,19 +58,20 @@ export class GeminiTextService {
     const system = this.buildSystemPrompt(spec, brandVoice, lang, exemplars);
     const user = this.buildUserPrompt(params.prompt, params.platform, variations, params.referenceUrl);
 
-    const res = await this.client.models.generateContent({
+    const model = client.getGenerativeModel({
       model: MODEL,
-      contents: [{ role: 'user', parts: [{ text: user }] }],
-      config: {
-        systemInstruction: system,
+      systemInstruction: system,
+      generationConfig: {
         responseMimeType: 'application/json',
         temperature: 0.9,
       },
     });
 
-    const raw = res.text ?? '';
+    const res = await model.generateContent(user);
+    const raw = res.response.text();
     const variants = this.parseVariants(raw);
-    const tokensUsed = (res.usageMetadata?.totalTokenCount as number | undefined) ?? 0;
+    const usage = res.response.usageMetadata;
+    const tokensUsed = (usage?.promptTokenCount ?? 0) + (usage?.candidatesTokenCount ?? 0);
 
     return { variants, model: MODEL, tokensUsed };
   }
@@ -102,8 +94,6 @@ export class GeminiTextService {
     const banned = brandVoice?.bannedWords?.length ? brandVoice.bannedWords.join(', ') : 'none';
     const notes = brandVoice?.styleNotes ?? '';
 
-    const platformGuidance = this.platformAlgorithmGuidance(spec.id);
-
     const exemplarsBlock = exemplars.length
       ? `\nBRAND VOICE EXEMPLARS — past posts that performed well for this brand. Match tone, rhythm, and vocabulary. Do not copy verbatim.\n${exemplars
           .map((e, i) => `[Example ${i + 1}${e.platform ? ` · ${e.platform}` : ''}]\n${e.text}`)
@@ -125,7 +115,7 @@ Banned words: ${banned}
 Style notes: ${notes}
 ${exemplarsBlock}
 PLATFORM ALGORITHM INTELLIGENCE
-${platformGuidance}
+${this.platformAlgorithmGuidance(spec.id)}
 
 OUTPUT FORMAT — strict JSON only, no prose around it:
 {
@@ -156,40 +146,30 @@ Each variant must be distinct in angle, hook, or framing. Return strict JSON.`;
         return `Top ranking signals (2026): DM shares > saves > watch time > comments > likes.
 - Lead with a 3-second hook that creates curiosity.
 - Write captions designed to be SHARED via DM (insightful, surprising, or quotable).
-- Use trending audio cues in the rationale if it's a Reel.
 - Captions help IG categorize content — be specific about the topic.`;
       case 'TIKTOK':
         return `Top ranking signals: watch time, replays, shares, completion rate.
 - Open with tension: a question, an unexpected claim, a visual cliffhanger.
-- TikTok 2025 grades interactions on quality, not quantity. Avoid generic engagement bait.
-- Suggest layering 1-3 trending sounds in the rationale.
+- TikTok 2025 grades interactions on quality, not quantity.
 - Captions are searchable metadata — include 1-2 high-intent search keywords naturally.`;
       case 'REDNOTE':
         return `RedNote uses CES scoring: Comments=4pts, Shares=4pts, Follows=8pts, Likes=1pt, Collections=1pt.
 - 60% of users use RedNote as a SEARCH ENGINE — structure caption around real search queries.
 - Title is critical — main keyword in first 8 characters.
 - Authenticity beats polish: real experiences, honest reviews, before/after framing.
-- Aim for 200-600 characters of substantive content (long-form educational performs best).
+- Aim for 200-600 characters of substantive content.
 - Use Simplified Chinese unless user requests otherwise.`;
       case 'LINKEDIN':
-        return `Top signals: dwell time, comments, shares.
-- Long-form storytelling outperforms short posts.
-- Hook line (first 2 lines before "see more") must compel a click.
-- End with a discussion-starting question.`;
+        return `Top signals: dwell time, comments, shares. Long-form storytelling wins.`;
       case 'YOUTUBE':
-        return `Top signals: click-through rate, watch time, session duration.
-- Title must promise specific value — avoid clickbait.
-- Description front-loads keywords in the first 150 chars.`;
+        return `Top signals: click-through rate, watch time, session duration. Front-load keywords.`;
       default:
-        return `Optimize for the platform's primary engagement signals: substantive content, clear value proposition, native format.`;
+        return `Optimize for the platform's primary engagement signals.`;
     }
   }
 
   private parseVariants(raw: string): GeneratedVariant[] {
-    const cleaned = raw
-      .replace(/^```(?:json)?\s*/i, '')
-      .replace(/```\s*$/i, '')
-      .trim();
+    const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '').trim();
     try {
       const parsed = JSON.parse(cleaned);
       if (Array.isArray(parsed?.variants)) return parsed.variants;

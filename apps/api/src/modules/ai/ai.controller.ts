@@ -1,20 +1,26 @@
-import { Body, Controller, Post, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { ClaudeTextService } from './claude-text.service';
 import { OpenAiImageService } from './openai-image.service';
 import { GeminiTextService } from './gemini-text.service';
 import { GeminiImageService } from './gemini-image.service';
+import { AiCredentialsService } from '../ai-credentials/ai-credentials.service';
 import { SupabaseAuthGuard } from '../../common/auth/auth.guard';
 import { GenerateTextSchema, GenerateImageSchema } from '@inboudly/shared';
 
+type TextProvider = 'claude' | 'gemini';
+type ImageProvider = 'openai' | 'gemini';
+
 /**
- * Provider selection rules:
- *   - Text:  AI_TEXT_PROVIDER env wins; else use Anthropic if key set,
- *            else Gemini if key set
- *   - Image: AI_IMAGE_PROVIDER env wins; else use OpenAI if key set,
- *            else Gemini if key set
+ * BYOK provider resolution:
  *
- * Defaults let new operators test for free with just a Gemini key.
+ *   1. Look up the workspace's saved AI credentials.
+ *   2. If a preferred provider is set AND we have the key for it → use that.
+ *   3. Else: Anthropic > Gemini for text, OpenAI > Gemini for image.
+ *   4. If no provider key configured at all → 400 with a clear "go to
+ *      Settings → AI Providers and add a key" message.
+ *
+ * Each customer pays their own AI provider. Inboudly never bills for AI usage.
  */
 @ApiTags('ai')
 @ApiBearerAuth()
@@ -26,44 +32,68 @@ export class AiController {
     private openaiImage: OpenAiImageService,
     private gemini: GeminiTextService,
     private geminiImage: GeminiImageService,
+    private credentials: AiCredentialsService,
   ) {}
-
-  private resolveTextProvider() {
-    const forced = process.env.AI_TEXT_PROVIDER?.toLowerCase();
-    if (forced === 'claude' || forced === 'anthropic') return this.claude;
-    if (forced === 'gemini' || forced === 'google') return this.gemini;
-    if (process.env.ANTHROPIC_API_KEY) return this.claude;
-    if (process.env.GEMINI_API_KEY) return this.gemini;
-    throw new Error(
-      'No text AI provider configured. Set ANTHROPIC_API_KEY or GEMINI_API_KEY in .env',
-    );
-  }
-
-  private resolveImageProvider() {
-    const forced = process.env.AI_IMAGE_PROVIDER?.toLowerCase();
-    if (forced === 'openai' || forced === 'gpt') return this.openaiImage;
-    if (forced === 'gemini' || forced === 'google') return this.geminiImage;
-    if (process.env.OPENAI_API_KEY) return this.openaiImage;
-    if (process.env.GEMINI_API_KEY) return this.geminiImage;
-    throw new Error(
-      'No image AI provider configured. Set OPENAI_API_KEY or GEMINI_API_KEY in .env',
-    );
-  }
 
   @Post('text')
   async generateText(@Body() body: unknown) {
     const input = GenerateTextSchema.parse(body);
-    return this.resolveTextProvider().generatePostText(input);
+    const { provider, apiKey } = await this.resolveTextProvider(input.workspaceId);
+    if (provider === 'claude') {
+      return this.claude.generatePostText(apiKey, input);
+    }
+    return this.gemini.generatePostText(apiKey, input);
   }
 
   @Post('image')
   async generateImage(@Body() body: unknown) {
     const input = GenerateImageSchema.parse(body);
-    return this.resolveImageProvider().generate({
+    const { provider, apiKey } = await this.resolveImageProvider(input.workspaceId);
+    const args = {
       workspaceId: input.workspaceId,
       prompt: input.prompt,
       aspectRatio: input.aspectRatio,
       count: input.count,
-    });
+    };
+    if (provider === 'openai') return this.openaiImage.generate(apiKey, args);
+    return this.geminiImage.generate(apiKey, args);
+  }
+
+  private async resolveTextProvider(
+    workspaceId: string,
+  ): Promise<{ provider: TextProvider; apiKey: string }> {
+    const record = await this.credentials.getRecord(workspaceId);
+    const claudeKey = await this.credentials.getDecryptedKey(workspaceId, 'anthropicKey');
+    const geminiKey = await this.credentials.getDecryptedKey(workspaceId, 'geminiKey');
+
+    const preferred = record?.preferredTextProvider as TextProvider | null | undefined;
+    if (preferred === 'claude' && claudeKey) return { provider: 'claude', apiKey: claudeKey };
+    if (preferred === 'gemini' && geminiKey) return { provider: 'gemini', apiKey: geminiKey };
+
+    if (claudeKey) return { provider: 'claude', apiKey: claudeKey };
+    if (geminiKey) return { provider: 'gemini', apiKey: geminiKey };
+
+    throw new BadRequestException(
+      'No text AI provider configured for this workspace. Go to Settings → AI Providers and add either an Anthropic (Claude) or Google (Gemini) API key.',
+    );
+  }
+
+  private async resolveImageProvider(
+    workspaceId: string,
+  ): Promise<{ provider: ImageProvider; apiKey: string }> {
+    const record = await this.credentials.getRecord(workspaceId);
+    const openaiKey = await this.credentials.getDecryptedKey(workspaceId, 'openaiKey');
+    const geminiKey = await this.credentials.getDecryptedKey(workspaceId, 'geminiKey');
+
+    const preferred = record?.preferredImageProvider as ImageProvider | null | undefined;
+    if (preferred === 'openai' && openaiKey) return { provider: 'openai', apiKey: openaiKey };
+    if (preferred === 'gemini' && geminiKey) return { provider: 'gemini', apiKey: geminiKey };
+
+    if (openaiKey) return { provider: 'openai', apiKey: openaiKey };
+    if (geminiKey) return { provider: 'gemini', apiKey: geminiKey };
+
+    throw new BadRequestException(
+      'No image AI provider configured for this workspace. Go to Settings → AI Providers and add either an OpenAI or Google (Gemini) API key. Note: Gemini image generation requires paid Google Cloud billing.',
+    );
   }
 }

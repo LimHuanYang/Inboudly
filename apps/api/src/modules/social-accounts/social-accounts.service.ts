@@ -46,7 +46,7 @@ export class SocialAccountsService {
         refreshToken: params.refreshToken,
         tokenExpiresAt: params.tokenExpiresAt,
         scopes: params.scopes ?? [],
-        meta: params.meta ?? {},
+        meta: (params.meta ?? {}) as never,
         status: AccountStatus.ACTIVE,
       },
       create: {
@@ -60,7 +60,7 @@ export class SocialAccountsService {
         refreshToken: params.refreshToken,
         tokenExpiresAt: params.tokenExpiresAt,
         scopes: params.scopes ?? [],
-        meta: params.meta ?? {},
+        meta: (params.meta ?? {}) as never,
         status: AccountStatus.ACTIVE,
       },
     });

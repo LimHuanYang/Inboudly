@@ -14,27 +14,33 @@ interface GeneratedVariant {
   rationale?: string;
 }
 
+/**
+ * BYOK: this service no longer reads ANTHROPIC_API_KEY from process.env.
+ * The caller (AiController) looks up the workspace's encrypted Claude key,
+ * decrypts it, and passes it in on every request. Each customer pays their
+ * own Anthropic bill.
+ */
 @Injectable()
 export class ClaudeTextService {
-  private client: Anthropic;
-
   constructor(
     private prisma: PrismaService,
     @Inject(forwardRef(() => VoiceTrainingService))
     private voiceTraining: VoiceTrainingService,
-  ) {
-    this.client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-  }
+  ) {}
 
-  async generatePostText(params: {
-    workspaceId: string;
-    brandVoiceId?: string;
-    platform: SocialPlatform;
-    prompt: string;
-    language?: string;
-    variations?: number;
-    referenceUrl?: string;
-  }): Promise<{ variants: GeneratedVariant[]; model: string; tokensUsed: number }> {
+  async generatePostText(
+    apiKey: string,
+    params: {
+      workspaceId: string;
+      brandVoiceId?: string;
+      platform: SocialPlatform;
+      prompt: string;
+      language?: string;
+      variations?: number;
+      referenceUrl?: string;
+    },
+  ): Promise<{ variants: GeneratedVariant[]; model: string; tokensUsed: number }> {
+    const client = new Anthropic({ apiKey });
     const spec = getPlatformSpec(params.platform);
 
     const brandVoice = params.brandVoiceId
@@ -46,8 +52,6 @@ export class ClaudeTextService {
     const lang = params.language ?? spec.primaryLanguage;
     const variations = params.variations ?? 3;
 
-    // Retrieve up to 5 brand-voice exemplars semantically similar to this prompt.
-    // Returns [] if the voice has no training data yet — graceful fallback.
     const exemplars = brandVoice
       ? await this.voiceTraining.retrieveExamples(brandVoice.id, params.prompt, 5)
       : [];
@@ -55,7 +59,7 @@ export class ClaudeTextService {
     const system = this.buildSystemPrompt(spec, brandVoice, lang, exemplars);
     const user = this.buildUserPrompt(params.prompt, params.platform, variations, params.referenceUrl);
 
-    const response = await this.client.messages.create({
+    const response = await client.messages.create({
       model: MODEL,
       max_tokens: 4096,
       system,
@@ -65,7 +69,6 @@ export class ClaudeTextService {
     const textBlock = response.content.find((c) => c.type === 'text');
     const raw = textBlock?.type === 'text' ? textBlock.text : '';
     const variants = this.parseVariants(raw);
-
     const tokensUsed = response.usage.input_tokens + response.usage.output_tokens;
 
     return { variants, model: MODEL, tokensUsed };
@@ -73,7 +76,13 @@ export class ClaudeTextService {
 
   private buildSystemPrompt(
     spec: ReturnType<typeof getPlatformSpec>,
-    brandVoice: { toneTags: string[]; perspective: string | null; emojiUsage: string | null; styleNotes: string | null; bannedWords: string[] } | null,
+    brandVoice: {
+      toneTags: string[];
+      perspective: string | null;
+      emojiUsage: string | null;
+      styleNotes: string | null;
+      bannedWords: string[];
+    } | null,
     lang: string,
     exemplars: Array<{ text: string; score: number; platform?: string; topic?: string }> = [],
   ) {
@@ -83,11 +92,8 @@ export class ClaudeTextService {
     const banned = brandVoice?.bannedWords?.length ? brandVoice.bannedWords.join(', ') : 'none';
     const notes = brandVoice?.styleNotes ?? '';
 
-    const platformGuidance = this.platformAlgorithmGuidance(spec.id);
-
-    // Brand-voice exemplars block (RAG)
     const exemplarsBlock = exemplars.length
-      ? `\nBRAND VOICE EXEMPLARS — these are this brand's actual past posts that performed well or define the voice. Match this tone, rhythm, and vocabulary; do not copy them verbatim.\n${exemplars
+      ? `\nBRAND VOICE EXEMPLARS — past posts that performed well for this brand. Match tone, rhythm, and vocabulary. Do not copy verbatim.\n${exemplars
           .map((e, i) => `[Example ${i + 1}${e.platform ? ` · ${e.platform}` : ''}]\n${e.text}`)
           .join('\n\n')}\n`
       : '';
@@ -107,7 +113,7 @@ Banned words: ${banned}
 Style notes: ${notes}
 ${exemplarsBlock}
 PLATFORM ALGORITHM INTELLIGENCE
-${platformGuidance}
+${this.platformAlgorithmGuidance(spec.id)}
 
 OUTPUT FORMAT — strict JSON only, no prose around it:
 {
@@ -124,7 +130,7 @@ OUTPUT FORMAT — strict JSON only, no prose around it:
   }
 
   private buildUserPrompt(prompt: string, platform: SocialPlatform, variations: number, referenceUrl?: string) {
-    const refSection = referenceUrl ? `\nReference URL (read for context): ${referenceUrl}\n` : '';
+    const refSection = referenceUrl ? `\nReference URL (for context): ${referenceUrl}\n` : '';
     return `Generate ${variations} caption variants for ${platform} based on this brief:
 
 "${prompt}"
@@ -132,10 +138,6 @@ ${refSection}
 Each variant must be distinct in angle, hook, or framing. Return strict JSON.`;
   }
 
-  /**
-   * Per-platform algorithm intelligence baked into the system prompt.
-   * Sources: Mosseri 2025 (IG), TikTok 2025 algorithm update, Xiaohongshu CES research.
-   */
   private platformAlgorithmGuidance(platform: SocialPlatform): string {
     switch (platform) {
       case 'INSTAGRAM':
@@ -167,23 +169,18 @@ Each variant must be distinct in angle, hook, or framing. Return strict JSON.`;
 - Title must promise specific value — avoid clickbait.
 - Description front-loads keywords in the first 150 chars.`;
       default:
-        return `Optimize for the platform's primary engagement signals: substantive content, clear value proposition, native format.`;
+        return `Optimize for the platform's primary engagement signals.`;
     }
   }
 
   private parseVariants(raw: string): GeneratedVariant[] {
-    // Strip code fences if present
-    const cleaned = raw
-      .replace(/^```(?:json)?\s*/i, '')
-      .replace(/```\s*$/i, '')
-      .trim();
+    const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '').trim();
     try {
       const parsed = JSON.parse(cleaned);
       if (Array.isArray(parsed?.variants)) return parsed.variants;
     } catch {
       // fall through
     }
-    // Fallback: return raw text as a single variant
     return [{ caption: raw, hashtags: [] }];
   }
 }

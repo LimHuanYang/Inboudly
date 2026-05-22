@@ -1,55 +1,52 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { GoogleGenAI, Modality } from '@google/genai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { MediaService } from '../media/media.service';
 import { MediaType, MediaSource } from '@inboudly/database';
 
-const MODEL = 'gemini-2.5-flash-image-preview'; // "Nano Banana" — Gemini's image gen model
+const MODEL = 'gemini-2.5-flash-image'; // "Nano Banana"
 
 /**
- * Gemini image generation fallback.
- *
- * Gemini's image generation returns base64 data inline in the response.
- * For testing we store it as a data: URL on the MediaAsset. In production
- * (when the operator wires up R2) the data should be uploaded to object
- * storage and the public URL stored instead — same flow as the OpenAI
- * service.
+ * BYOK: per-call API key. Note: Gemini's free tier does NOT include image
+ * generation (limit: 0) — the customer needs paid Google Cloud billing on
+ * their project for this to actually return an image.
  */
 @Injectable()
 export class GeminiImageService {
   private readonly logger = new Logger(GeminiImageService.name);
-  private client: GoogleGenAI;
 
-  constructor(private media: MediaService) {
-    this.client = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY ?? '' });
-  }
+  constructor(private media: MediaService) {}
 
-  async generate(params: {
-    workspaceId: string;
-    prompt: string;
-    aspectRatio?: string;
-    count?: number;
-    brandKit?: {
-      primaryColor?: string | null;
-      secondaryColor?: string | null;
-      fontFamily?: string | null;
-    };
-  }) {
+  async generate(
+    apiKey: string,
+    params: {
+      workspaceId: string;
+      prompt: string;
+      aspectRatio?: string;
+      count?: number;
+      brandKit?: {
+        primaryColor?: string | null;
+        secondaryColor?: string | null;
+        fontFamily?: string | null;
+      };
+    },
+  ) {
+    const client = new GoogleGenerativeAI(apiKey);
     const count = params.count ?? 1;
     const enrichedPrompt = this.enrichPromptWithBrand(params.prompt, params.brandKit, params.aspectRatio);
 
+    const model = client.getGenerativeModel({
+      model: MODEL,
+      generationConfig: { responseModalities: ['IMAGE', 'TEXT'] } as never,
+    });
+
     const assets = [];
 
-    // Gemini image API generates 1 image per request — loop for count
     for (let i = 0; i < count; i++) {
-      const res = await this.client.models.generateContent({
-        model: MODEL,
-        contents: [{ role: 'user', parts: [{ text: enrichedPrompt }] }],
-        config: { responseModalities: [Modality.IMAGE, Modality.TEXT] },
-      });
+      const res = await model.generateContent(enrichedPrompt);
+      const candidate = res.response.candidates?.[0];
+      const imagePart = candidate?.content?.parts?.find((p) => 'inlineData' in p && p.inlineData);
 
-      const candidate = res.candidates?.[0];
-      const imagePart = candidate?.content?.parts?.find((p) => p.inlineData);
-      if (!imagePart?.inlineData?.data) {
+      if (!imagePart || !('inlineData' in imagePart) || !imagePart.inlineData) {
         this.logger.warn('Gemini did not return an image — skipping');
         continue;
       }
@@ -81,7 +78,6 @@ export class GeminiImageService {
   ): string {
     const parts: string[] = [prompt];
     if (aspectRatio) {
-      // Gemini doesn't expose aspect ratio as a separate param; we ask in the prompt.
       const aspectHint: Record<string, string> = {
         '1:1': 'Square composition (1:1 aspect ratio).',
         '4:5': 'Portrait composition (4:5 aspect ratio).',

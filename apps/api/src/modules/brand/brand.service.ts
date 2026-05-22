@@ -50,10 +50,14 @@ export class BrandService {
     bannedWords?: string[];
     styleNotes?: string;
   }) {
+    const { glossary, ...rest } = data;
     return this.prisma.brandVoice.create({
       data: {
         workspaceId,
-        ...data,
+        ...rest,
+        // Prisma's Json type is stricter than Record<string, unknown> — cast
+        // is the documented way to opt out of the narrowing.
+        glossary: glossary as never,
         embeddingNamespace: `voice-${workspaceId}-${Date.now()}`,
       },
     });
