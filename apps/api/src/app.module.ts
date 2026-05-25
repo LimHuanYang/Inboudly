@@ -25,6 +25,7 @@ import { IntelligenceModule } from './modules/intelligence/intelligence.module';
 import { ConnectorsModule } from './modules/connectors/connectors.module';
 import { OAuthModule } from './modules/oauth/oauth.module';
 import { KolModule } from './modules/kol/kol.module';
+import { CompetitorsModule } from './modules/competitors/competitors.module';
 
 @Module({
   imports: [
@@ -74,6 +75,7 @@ import { KolModule } from './modules/kol/kol.module';
     ConnectorsModule,
     OAuthModule,
     KolModule,
+    CompetitorsModule,
   ],
 })
 export class AppModule {}

@@ -39,8 +39,10 @@ export class AiController {
   async generateText(@Body() body: unknown) {
     const input = GenerateTextSchema.parse(body);
     const { provider, apiKey } = await this.resolveTextProvider(input.workspaceId);
+    // resolveTextProvider returns 'claude' but the credentials store keys it as 'anthropic'.
+    const modelProvider = provider === 'claude' ? 'anthropic' : provider;
     // Respect user's custom model override (e.g. claude-haiku-4-5 for cheaper)
-    const model = await this.credentials.getModel(input.workspaceId, provider);
+    const model = await this.credentials.getModel(input.workspaceId, modelProvider);
     if (provider === 'claude') {
       return this.claude.generatePostText(apiKey, { ...input, model });
     }

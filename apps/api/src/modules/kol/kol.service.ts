@@ -50,12 +50,15 @@ export class KolService {
       }),
       // niche is a string[] in Postgres — `hasSome` matches if ANY filter niche is in the row
       ...(filters.niches?.length && { niche: { hasSome: filters.niches } }),
-      // free-text search across handle / displayName / bio
+      // free-text search across handle / displayName / bio / niche tags
       ...(filters.searchQuery && {
         OR: [
           { handle:      { contains: filters.searchQuery, mode: 'insensitive' } },
           { displayName: { contains: filters.searchQuery, mode: 'insensitive' } },
           { bio:         { contains: filters.searchQuery, mode: 'insensitive' } },
+          // Postgres array contains-element: matches if any niche tag equals
+          // the search query (lowercased) or contains it as a substring.
+          { niche:       { has: filters.searchQuery.toLowerCase() } },
         ],
       }),
     };
