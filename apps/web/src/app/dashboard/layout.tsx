@@ -12,6 +12,7 @@ import {
   Users,
   Target,
 } from 'lucide-react';
+import { WorkspaceGuard } from '@/components/providers/workspace-guard';
 
 const nav = [
   { href: '/dashboard', label: 'Overview', icon: LayoutDashboard },
@@ -29,26 +30,28 @@ const nav = [
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-screen">
-      <aside className="w-60 border-r bg-secondary/20 p-4">
-        <Link href="/dashboard" className="mb-8 flex items-center gap-2 px-2 font-semibold">
-          <span className="inline-block h-7 w-7 rounded-md bg-primary" />
-          <span>Inboudly</span>
-        </Link>
-        <nav className="space-y-1">
-          {nav.map(({ href, label, icon: Icon }) => (
-            <Link
-              key={href}
-              href={href}
-              className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-background hover:text-foreground"
-            >
-              <Icon className="h-4 w-4" />
-              {label}
-            </Link>
-          ))}
-        </nav>
-      </aside>
-      <main className="flex-1 overflow-y-auto">{children}</main>
-    </div>
+    <WorkspaceGuard>
+      <div className="flex min-h-screen">
+        <aside className="w-60 border-r bg-secondary/20 p-4">
+          <Link href="/dashboard" className="mb-8 flex items-center gap-2 px-2 font-semibold">
+            <span className="inline-block h-7 w-7 rounded-md bg-primary" />
+            <span>Inboudly</span>
+          </Link>
+          <nav className="space-y-1">
+            {nav.map(({ href, label, icon: Icon }) => (
+              <Link
+                key={href}
+                href={href}
+                className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-background hover:text-foreground"
+              >
+                <Icon className="h-4 w-4" />
+                {label}
+              </Link>
+            ))}
+          </nav>
+        </aside>
+        <main className="flex-1 overflow-y-auto">{children}</main>
+      </div>
+    </WorkspaceGuard>
   );
 }
