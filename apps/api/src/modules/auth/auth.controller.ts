@@ -31,7 +31,23 @@ export class AuthController {
   @Get('me')
   @UseGuards(SupabaseAuthGuard)
   @ApiBearerAuth()
-  async me(@CurrentUser() user: { supabaseUserId: string }) {
-    return this.auth.getCurrentUserContext(user.supabaseUserId);
+  async me(@CurrentUser() user: { supabaseUserId: string; email: string }) {
+    const ctx = await this.auth.getCurrentUserContext(user.supabaseUserId);
+    // Always return a JSON object — never a bare `null` — so the response
+    // body is never empty (NestJS otherwise sends a 200 with 0-byte body,
+    // which the web client can't `.json()`). When no Prisma User row
+    // exists yet, fall back to the Supabase identity so the WorkspaceGuard
+    // can prefill a sensible workspace name.
+    if (!ctx) {
+      return {
+        id: null,
+        supabaseUserId: user.supabaseUserId,
+        email: user.email,
+        fullName: null,
+        memberships: [],
+        needsProvisioning: true,
+      };
+    }
+    return ctx;
   }
 }

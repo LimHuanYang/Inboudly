@@ -9,10 +9,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface MeResponse {
-  id: string;
+  // null when the Supabase user has no Prisma row yet
+  id: string | null;
+  supabaseUserId?: string;
   email: string;
   fullName?: string | null;
   memberships?: Array<{ workspace: { id: string; name: string } }>;
+  needsProvisioning?: boolean;
 }
 
 /**
@@ -25,6 +28,18 @@ interface MeResponse {
  * Without this guard, every component using `me.data?.memberships?.[0]?.workspace?.id`
  * silently gets `undefined`, and any POST that sends it back as workspaceId
  * fails with 403 ("Not a member of this workspace").
+ *
+ * State machine:
+ *   isLoading           → spinner
+ *   isError (401/500)   → "Session expired"  (auth actually failed)
+ *   data === null       → "Create workspace" (auth ok, no Prisma User row yet)
+ *   data.memberships=0  → "Create workspace" (User exists, no membership)
+ *   otherwise           → children
+ *
+ * The data === null case is critical: /auth/me returns 200 with `null` body
+ * when the Supabase user has no matching Prisma User row. Treating that as
+ * an auth error (the bug we just fixed) shows "Session expired" right after
+ * a successful sign-in.
  */
 export function WorkspaceGuard({ children }: { children: React.ReactNode }) {
   const qc = useQueryClient();
@@ -32,7 +47,8 @@ export function WorkspaceGuard({ children }: { children: React.ReactNode }) {
 
   const me = useQuery({
     queryKey: ['me'],
-    queryFn: () => api.get<MeResponse>('/auth/me'),
+    // The endpoint returns null when the Supabase user has no Prisma row yet.
+    queryFn: () => api.get<MeResponse | null>('/auth/me'),
     // Don't retry on 401 — the user's just not authed yet
     retry: false,
   });
@@ -64,32 +80,67 @@ export function WorkspaceGuard({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Auth error (most often 401 — token expired or invalid)
-  if (me.isError || !me.data) {
+  // Real error path. Distinguish three sub-cases so the UI doesn't
+  // misleadingly say "Session expired" when in fact the API is down or
+  // the user lost network — both common in local dev.
+  if (me.isError) {
+    const errMsg = (me.error as Error | null)?.message ?? '';
+    const isNetworkError =
+      errMsg.toLowerCase().includes('failed to fetch') ||
+      errMsg.toLowerCase().includes('network') ||
+      errMsg.toLowerCase().includes('connection');
+    const isAuthError = errMsg.toLowerCase().includes('token') || errMsg.includes('401');
+
     return (
       <div className="flex min-h-screen items-center justify-center p-4">
         <Card className="w-full max-w-md">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <AlertCircle className="h-5 w-5 text-amber-500" />
-              Session expired
+              {isNetworkError
+                ? "Can't reach the API"
+                : isAuthError
+                  ? 'Session expired'
+                  : 'Something went wrong'}
             </CardTitle>
             <CardDescription>
-              Please sign in again to continue.
+              {isNetworkError ? (
+                <>
+                  The API server at <code className="rounded bg-muted px-1 py-0.5 text-xs">{process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'}</code>{' '}
+                  isn't responding. Start it with{' '}
+                  <code className="rounded bg-muted px-1 py-0.5 text-xs">pnpm dev:api</code> in
+                  your terminal, then click Retry.
+                </>
+              ) : isAuthError ? (
+                'Please sign in again to continue.'
+              ) : (
+                errMsg || 'Failed to load your account.'
+              )}
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <Button asChild className="w-full">
-              <a href="/sign-in">Sign in</a>
-            </Button>
+          <CardContent className="flex gap-2">
+            {isNetworkError ? (
+              <Button className="w-full" onClick={() => me.refetch()}>
+                Retry
+              </Button>
+            ) : (
+              <Button asChild className="w-full">
+                <a href="/sign-in">Sign in</a>
+              </Button>
+            )}
           </CardContent>
         </Card>
       </div>
     );
   }
 
-  // The case that was biting you — auth fine, but no workspace exists
-  if (!me.data.memberships?.length) {
+  // Auth ok, but either:
+  //   (a) no Prisma User row yet (data === null) — typical first sign-in for
+  //       accounts created directly in Supabase admin, OR
+  //   (b) User row exists but no membership (data && memberships empty).
+  // Both cases need the same fix: call /auth/provision to create the
+  // tenant + workspace + membership.
+  if (!me.data || !me.data.memberships?.length) {
     return (
       <div className="flex min-h-screen items-center justify-center p-4">
         <Card className="w-full max-w-md">
@@ -124,9 +175,11 @@ export function WorkspaceGuard({ children }: { children: React.ReactNode }) {
                 'Create workspace'
               )}
             </Button>
-            <p className="text-xs text-muted-foreground">
-              Signed in as <strong>{me.data.email}</strong>
-            </p>
+            {me.data?.email && (
+              <p className="text-xs text-muted-foreground">
+                Signed in as <strong>{me.data.email}</strong>
+              </p>
+            )}
           </CardContent>
         </Card>
       </div>

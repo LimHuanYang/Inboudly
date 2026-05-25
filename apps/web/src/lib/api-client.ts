@@ -38,12 +38,28 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     const text = await res.text();
     throw new Error(extractErrorMessage(res.status, text));
   }
-  return res.json() as Promise<T>;
+
+  // NestJS sometimes returns 200 OK with an empty body when a handler
+  // returns `null` or `undefined` — calling `res.json()` on that throws
+  // "Unexpected end of JSON input". Treat empty/whitespace body and
+  // 204 No Content as `null` so callers can do `data ?? fallback`.
+  if (res.status === 204) return null as T;
+  const text = await res.text();
+  if (!text.trim()) return null as T;
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    throw new Error(
+      `Invalid JSON response (status ${res.status}): ${text.slice(0, 200)}`,
+    );
+  }
 }
 
 export const api = {
   get: <T>(p: string) => request<T>(p),
   post: <T>(p: string, body?: unknown) => request<T>(p, { method: 'POST', body: JSON.stringify(body) }),
+  put: <T>(p: string, body?: unknown) =>
+    request<T>(p, { method: 'PUT', body: JSON.stringify(body) }),
   patch: <T>(p: string, body?: unknown) =>
     request<T>(p, { method: 'PATCH', body: JSON.stringify(body) }),
   delete: <T>(p: string) => request<T>(p, { method: 'DELETE' }),
