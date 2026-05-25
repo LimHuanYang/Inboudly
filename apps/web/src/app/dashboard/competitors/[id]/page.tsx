@@ -1,6 +1,6 @@
 'use client';
 
-import { use, useMemo } from 'react';
+import { use, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
@@ -44,6 +44,14 @@ interface GapAnalysisResult {
   modelUsed?: string;
   message?: string;
 }
+
+interface AiCredentialsView {
+  gemini: { configured: boolean };
+  anthropic: { configured: boolean };
+  preferredTextProvider: 'claude' | 'gemini' | null;
+}
+
+type ProviderChoice = 'auto' | 'claude' | 'gemini';
 
 const PLATFORM_LABEL: Record<Platform, string> = {
   INSTAGRAM: 'Instagram',
@@ -109,6 +117,16 @@ export default function CompetitorDetailPage({
   const me = useQuery({ queryKey: ['me'], queryFn: () => api.get<any>('/auth/me') });
   const workspaceId = me.data?.memberships?.[0]?.workspace?.id;
 
+  // Tells us which providers have keys configured — drives the selector
+  // so users can't pick a provider they haven't set up.
+  const creds = useQuery({
+    queryKey: ['ai-credentials', workspaceId],
+    queryFn: () => api.get<AiCredentialsView>(`/workspaces/${workspaceId}/ai-credentials`),
+    enabled: !!workspaceId,
+  });
+
+  const [provider, setProvider] = useState<ProviderChoice>('auto');
+
   const detail = useQuery({
     queryKey: ['competitor', id, workspaceId],
     queryFn: () => api.get<CompetitorDetail>(`/competitors/${id}?workspaceId=${workspaceId}`),
@@ -117,13 +135,25 @@ export default function CompetitorDetailPage({
 
   const analyze = useMutation({
     mutationFn: () =>
-      api.post<GapAnalysisResult>(`/competitors/${id}/analyze-gap`, { workspaceId }),
+      api.post<GapAnalysisResult>(`/competitors/${id}/analyze-gap`, {
+        workspaceId,
+        // Only send `provider` if user picked one explicitly; otherwise
+        // let the backend's resolver decide (workspace preferred → first available).
+        ...(provider !== 'auto' && { provider }),
+      }),
     onSuccess: (r) => {
-      if (r.ok) toast.success(`Found ${r.gaps.length} content gap${r.gaps.length === 1 ? '' : 's'}`);
+      if (r.ok)
+        toast.success(
+          `Found ${r.gaps.length} content gap${r.gaps.length === 1 ? '' : 's'} (via ${r.modelUsed ?? 'AI'})`,
+        );
       else toast.error(r.message ?? 'Analysis failed');
     },
     onError: (err: any) => toast.error(err.message),
   });
+
+  const claudeOk = !!creds.data?.anthropic?.configured;
+  const geminiOk = !!creds.data?.gemini?.configured;
+  const noProvider = !claudeOk && !geminiOk;
 
   // Snapshots ordered oldest-first for charting
   const snapsAsc = useMemo(() => {
@@ -238,27 +268,59 @@ export default function CompetitorDetailPage({
                 <Sparkles className="h-4 w-4" /> Content gap analysis
               </CardTitle>
               <CardDescription>
-                Claude compares their top posts to your recent posts, finds topics they win on but
-                you don't cover, and suggests on-brand angles you could take.
+                Your configured AI provider (Claude or Gemini) compares their top posts to your
+                recent posts, finds topics they win on but you don't cover, and suggests on-brand
+                angles you could take.
               </CardDescription>
             </div>
-            <Button onClick={() => analyze.mutate()} disabled={analyze.isPending}>
-              {analyze.isPending ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Analyzing
-                </>
-              ) : (
-                'Analyze gap'
-              )}
-            </Button>
+            <div className="flex items-center gap-2">
+              <select
+                value={provider}
+                onChange={(e) => setProvider(e.target.value as ProviderChoice)}
+                disabled={analyze.isPending || noProvider}
+                className="rounded-md border bg-background px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                title="Pick which AI to use, or Auto for the workspace default"
+              >
+                <option value="auto">
+                  Auto{creds.data?.preferredTextProvider ? ` (${creds.data.preferredTextProvider === 'claude' ? 'Claude' : 'Gemini'})` : ''}
+                </option>
+                <option value="claude" disabled={!claudeOk}>
+                  Claude{!claudeOk ? ' — no key' : ''}
+                </option>
+                <option value="gemini" disabled={!geminiOk}>
+                  Gemini{!geminiOk ? ' — no key' : ''}
+                </option>
+              </select>
+              <Button
+                onClick={() => analyze.mutate()}
+                disabled={analyze.isPending || noProvider}
+              >
+                {analyze.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Analyzing
+                  </>
+                ) : (
+                  'Analyze gap'
+                )}
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
-          {!analyze.data && !analyze.isPending && (
+          {noProvider && !analyze.isPending && (
+            <p className="rounded bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-300">
+              No AI provider configured for this workspace.{' '}
+              <Link href="/dashboard/settings" className="font-medium underline">
+                Add an Anthropic or Google API key in Settings
+              </Link>
+              .
+            </p>
+          )}
+          {!noProvider && !analyze.data && !analyze.isPending && (
             <p className="text-sm text-muted-foreground">
-              Click "Analyze gap" to run Claude on this competitor. Uses your workspace's Anthropic
-              key (BYOK).
+              Pick a provider (or leave on Auto), then click <strong>Analyze gap</strong>.
+              Available: {claudeOk && 'Claude'}{claudeOk && geminiOk && ', '}{geminiOk && 'Gemini'}.
             </p>
           )}
           {analyze.data && !analyze.data.ok && (

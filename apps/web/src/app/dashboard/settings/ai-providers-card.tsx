@@ -29,6 +29,11 @@ interface TestResult {
 
 type ProviderId = 'gemini' | 'openai' | 'anthropic';
 
+interface ProviderModelOption {
+  value: string;
+  label: string; // shown in the dropdown
+}
+
 interface ProviderMeta {
   id: ProviderId;
   keyField: 'geminiKey' | 'openaiKey' | 'anthropicKey';
@@ -38,7 +43,9 @@ interface ProviderMeta {
   signupCopy: string;
   keyPlaceholder: string;
   defaultModel: string;
-  modelExamples: string;
+  // Curated dropdown options. Users can also pick "Use default" (empty) to
+  // clear their override and follow whatever DEFAULT_MODELS says server-side.
+  models: ProviderModelOption[];
 }
 
 const PROVIDERS: ProviderMeta[] = [
@@ -51,7 +58,13 @@ const PROVIDERS: ProviderMeta[] = [
     signupCopy: 'Get a key ($5 starter credit)',
     keyPlaceholder: 'sk-ant-...',
     defaultModel: 'claude-sonnet-4-6',
-    modelExamples: 'claude-sonnet-4-6 (smart) · claude-haiku-4-5 (cheap)',
+    models: [
+      { value: 'claude-opus-4-7',   label: 'claude-opus-4-7 — most capable, expensive' },
+      { value: 'claude-sonnet-4-7', label: 'claude-sonnet-4-7 — newest balanced' },
+      { value: 'claude-sonnet-4-6', label: 'claude-sonnet-4-6 — smart, balanced cost (default)' },
+      { value: 'claude-sonnet-4-5', label: 'claude-sonnet-4-5 — previous smart' },
+      { value: 'claude-haiku-4-5',  label: 'claude-haiku-4-5 — fastest & cheapest' },
+    ],
   },
   {
     id: 'gemini',
@@ -62,7 +75,13 @@ const PROVIDERS: ProviderMeta[] = [
     signupCopy: 'Get a key (free tier)',
     keyPlaceholder: 'AIzaSy...',
     defaultModel: 'gemini-2.5-flash',
-    modelExamples: 'gemini-2.5-flash (free, fast) · gemini-2.5-pro (better)',
+    models: [
+      { value: 'gemini-2.5-pro',            label: 'gemini-2.5-pro — best quality, slower' },
+      { value: 'gemini-2.5-flash',          label: 'gemini-2.5-flash — fast & free (default)' },
+      { value: 'gemini-2.5-flash-lite',     label: 'gemini-2.5-flash-lite — cheapest' },
+      { value: 'gemini-2.0-flash',          label: 'gemini-2.0-flash — older free tier' },
+      { value: 'gemini-2.0-flash-thinking', label: 'gemini-2.0-flash-thinking — reasoning' },
+    ],
   },
   {
     id: 'openai',
@@ -73,7 +92,11 @@ const PROVIDERS: ProviderMeta[] = [
     signupCopy: 'Get a key ($5 min credit)',
     keyPlaceholder: 'sk-proj-...',
     defaultModel: 'gpt-image-1',
-    modelExamples: 'gpt-image-1 (image gen) · whisper-1 (audio)',
+    models: [
+      { value: 'gpt-image-1', label: 'gpt-image-1 — image gen, latest (default)' },
+      { value: 'dall-e-3',    label: 'dall-e-3 — image gen, older' },
+      { value: 'dall-e-2',    label: 'dall-e-2 — image gen, cheapest' },
+    ],
   },
 ];
 
@@ -223,15 +246,26 @@ export function AiProvidersCard({ workspaceId }: { workspaceId: string }) {
                 </div>
                 <div>
                   <label className="text-xs font-medium">Model</label>
-                  <input
-                    type="text"
-                    placeholder={p.defaultModel}
+                  <select
                     value={modelDraft}
                     onChange={(e) =>
                       setModelDrafts((d) => ({ ...d, [p.id]: e.target.value }))
                     }
                     className="mt-1 w-full rounded-md border bg-background px-3 py-2 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                  />
+                  >
+                    <option value="">Use default ({p.defaultModel})</option>
+                    {p.models.map((m) => (
+                      <option key={m.value} value={m.value}>
+                        {m.label}
+                      </option>
+                    ))}
+                    {/* If the saved value isn't in our curated list, surface it
+                        so the dropdown still shows what's actually stored. */}
+                    {modelDraft &&
+                      !p.models.some((m) => m.value === modelDraft) && (
+                        <option value={modelDraft}>{modelDraft} (custom)</option>
+                      )}
+                  </select>
                 </div>
                 <div className="flex items-end">
                   <Button
@@ -325,9 +359,9 @@ export function AiProvidersCard({ workspaceId }: { workspaceId: string }) {
                   {test.message}
                 </p>
               )}
-              {!test && (
+              {!test && state?.configured && state.model && state.model !== p.defaultModel && (
                 <p className="mt-2 text-xs text-muted-foreground">
-                  Model examples: <span className="font-mono">{p.modelExamples}</span>
+                  Active model: <span className="font-mono">{state.model}</span>
                 </p>
               )}
             </div>

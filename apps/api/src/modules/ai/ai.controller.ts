@@ -8,7 +8,6 @@ import { AiCredentialsService } from '../ai-credentials/ai-credentials.service';
 import { SupabaseAuthGuard } from '../../common/auth/auth.guard';
 import { GenerateTextSchema, GenerateImageSchema } from '@inboudly/shared';
 
-type TextProvider = 'claude' | 'gemini';
 type ImageProvider = 'openai' | 'gemini';
 
 /**
@@ -38,11 +37,9 @@ export class AiController {
   @Post('text')
   async generateText(@Body() body: unknown) {
     const input = GenerateTextSchema.parse(body);
-    const { provider, apiKey } = await this.resolveTextProvider(input.workspaceId);
-    // resolveTextProvider returns 'claude' but the credentials store keys it as 'anthropic'.
-    const modelProvider = provider === 'claude' ? 'anthropic' : provider;
-    // Respect user's custom model override (e.g. claude-haiku-4-5 for cheaper)
-    const model = await this.credentials.getModel(input.workspaceId, modelProvider);
+    // Shared resolver — same logic powers Composer, Repurpose, and
+    // CompetitorAnalysisService. Throws 400 if no provider configured.
+    const { provider, apiKey, model } = await this.credentials.requireTextProvider(input.workspaceId);
     if (provider === 'claude') {
       return this.claude.generatePostText(apiKey, { ...input, model });
     }
@@ -61,25 +58,6 @@ export class AiController {
     };
     if (provider === 'openai') return this.openaiImage.generate(apiKey, args);
     return this.geminiImage.generate(apiKey, args);
-  }
-
-  private async resolveTextProvider(
-    workspaceId: string,
-  ): Promise<{ provider: TextProvider; apiKey: string }> {
-    const record = await this.credentials.getRecord(workspaceId);
-    const claudeKey = await this.credentials.getDecryptedKey(workspaceId, 'anthropicKey');
-    const geminiKey = await this.credentials.getDecryptedKey(workspaceId, 'geminiKey');
-
-    const preferred = record?.preferredTextProvider as TextProvider | null | undefined;
-    if (preferred === 'claude' && claudeKey) return { provider: 'claude', apiKey: claudeKey };
-    if (preferred === 'gemini' && geminiKey) return { provider: 'gemini', apiKey: geminiKey };
-
-    if (claudeKey) return { provider: 'claude', apiKey: claudeKey };
-    if (geminiKey) return { provider: 'gemini', apiKey: geminiKey };
-
-    throw new BadRequestException(
-      'No text AI provider configured for this workspace. Go to Settings → AI Providers and add either an Anthropic (Claude) or Google (Gemini) API key.',
-    );
   }
 
   private async resolveImageProvider(

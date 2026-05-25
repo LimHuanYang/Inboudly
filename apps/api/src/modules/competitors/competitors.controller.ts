@@ -112,11 +112,11 @@ export class CompetitorsController {
   @Post(':id/analyze-gap')
   async analyzeGap(
     @Param('id') id: string,
-    @Body() body: { workspaceId: string },
+    @Body() body: { workspaceId: string; provider?: 'claude' | 'gemini' },
     @CurrentUser() user: { supabaseUserId: string },
   ) {
     await this.workspaces.assertMember(body.workspaceId, user.supabaseUserId);
     await this.competitors.getById(id, body.workspaceId);
-    return this.analysis.analyzeContentGap(body.workspaceId, id);
+    return this.analysis.analyzeContentGap(body.workspaceId, id, body.provider);
   }
 }

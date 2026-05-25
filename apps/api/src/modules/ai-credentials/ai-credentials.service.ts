@@ -1,6 +1,12 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { EncryptionService } from '../../common/crypto/encryption.service';
+
+export type ResolvedTextProvider = {
+  provider: 'claude' | 'gemini';
+  apiKey: string;
+  model: string;
+};
 
 export type AiProviderKeyName =
   | 'geminiKey'
@@ -87,6 +93,52 @@ export class AiCredentialsService {
 
   async getRecord(workspaceId: string) {
     return this.prisma.workspaceAiCredentials.findUnique({ where: { workspaceId } });
+  }
+
+  /**
+   * Single source of truth for "which text AI should we use for this workspace?"
+   * Used by AiController (Composer), CompetitorAnalysisService (gap analysis),
+   * and any future feature that needs to generate text.
+   *
+   * Resolution order:
+   *   1. Workspace's preferred provider if its key is configured
+   *   2. Anthropic key if available
+   *   3. Gemini key if available
+   *   4. null (caller decides: throw or return graceful error)
+   *
+   * Returns the matching model (user override OR default) so callers don't
+   * have to make a second roundtrip.
+   */
+  async resolveTextProvider(workspaceId: string): Promise<ResolvedTextProvider | null> {
+    const record = await this.getRecord(workspaceId);
+    const claudeKey = await this.getDecryptedKey(workspaceId, 'anthropicKey');
+    const geminiKey = await this.getDecryptedKey(workspaceId, 'geminiKey');
+
+    const preferred = record?.preferredTextProvider as 'claude' | 'gemini' | null | undefined;
+    if (preferred === 'claude' && claudeKey) {
+      return { provider: 'claude', apiKey: claudeKey, model: await this.getModel(workspaceId, 'anthropic') };
+    }
+    if (preferred === 'gemini' && geminiKey) {
+      return { provider: 'gemini', apiKey: geminiKey, model: await this.getModel(workspaceId, 'gemini') };
+    }
+    if (claudeKey) {
+      return { provider: 'claude', apiKey: claudeKey, model: await this.getModel(workspaceId, 'anthropic') };
+    }
+    if (geminiKey) {
+      return { provider: 'gemini', apiKey: geminiKey, model: await this.getModel(workspaceId, 'gemini') };
+    }
+    return null;
+  }
+
+  /** Same as resolveTextProvider but throws 400 if no provider is configured. */
+  async requireTextProvider(workspaceId: string): Promise<ResolvedTextProvider> {
+    const resolved = await this.resolveTextProvider(workspaceId);
+    if (!resolved) {
+      throw new BadRequestException(
+        'No text AI provider configured for this workspace. Go to Settings → AI Providers and add either an Anthropic (Claude) or Google (Gemini) API key.',
+      );
+    }
+    return resolved;
   }
 
   async view(workspaceId: string): Promise<AiCredentialsView> {
