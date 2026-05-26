@@ -97,6 +97,7 @@ model Workspace {
   brandVoices       BrandVoice[]
   competitors       Competitor[]
   trends            Trend[]
+  nicheAnalyses     NicheAnalysis[]
   kolCampaigns      KolCampaign[]
   agentRuns         AgentRun[]
   approvalWorkflows ApprovalWorkflow[]
@@ -739,6 +740,45 @@ enum TrendSource {
   AI_GENERATED  // generated via BYOK AI provider
   API_SCRAPER   // future: real trend APIs (TrendsAPI, RisingWave, etc.)
   MANUAL        // user added it
+}
+
+// Niche Intelligence (Phase 2A.4) — cached AI analysis of a niche's
+// monetization potential, market health, and adjacent opportunities.
+// Cache key is (workspaceId, niche, platform). 7-day TTL via analyzedAt.
+model NicheAnalysis {
+  id                     String         @id @default(cuid())
+  workspaceId            String
+  niche                  String         // free-text e.g. "vegan baking", "indie hacker tools"
+  platform               SocialPlatform?  // null = cross-platform analysis
+
+  // RPM (revenue per 1000 views) — estimated, ranges by source
+  estimatedRpmMin        Decimal?       @db.Decimal(8, 2)
+  estimatedRpmMax        Decimal?       @db.Decimal(8, 2)
+  rpmBreakdownJson       Json?          // { ads, brandDeals, affiliate, products } in $ ranges
+
+  // Health (0-100 scores)
+  saturationScore        Int?           // higher = more saturated (worse)
+  growthScore            Int?           // higher = niche growing fast (better)
+  monetizationDifficulty Int?           // higher = harder to monetize (worse)
+  overallScore           Int?           // composite 0-100 (higher = better opportunity)
+
+  // AI-generated insights
+  summary                String?        @db.Text  // one-paragraph executive summary
+  opportunities          String[]       // 3-5 actionable opportunities
+  threats                String[]       // 2-3 risks to watch
+  topFormats             String[]       // best-performing content formats for this niche
+
+  // Adjacent niches for the recommender
+  adjacentNichesJson     Json?          // [{ niche, reason, monetizationDelta, audienceOverlap }]
+
+  // Meta
+  modelUsed              String?        // which BYOK model produced this
+  analyzedAt             DateTime       @default(now())
+
+  workspace              Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, niche, platform])
+  @@index([workspaceId, analyzedAt])
 }
 
 // ============================================================

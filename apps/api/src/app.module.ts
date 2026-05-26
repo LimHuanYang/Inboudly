@@ -27,6 +27,7 @@ import { OAuthModule } from './modules/oauth/oauth.module';
 import { KolModule } from './modules/kol/kol.module';
 import { CompetitorsModule } from './modules/competitors/competitors.module';
 import { TrendsModule } from './modules/trends/trends.module';
+import { NichesModule } from './modules/niches/niches.module';
 
 @Module({
   imports: [
@@ -78,6 +79,7 @@ import { TrendsModule } from './modules/trends/trends.module';
     KolModule,
     CompetitorsModule,
     TrendsModule,
+    NichesModule,
   ],
 })
 export class AppModule {}
