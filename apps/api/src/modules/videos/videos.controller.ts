@@ -67,6 +67,28 @@ export class VideosController {
     return this.videos.getProject(id, body.workspaceId);
   }
 
+  @Post(':id/generate-voice')
+  async generateVoice(
+    @Param('id') id: string,
+    @Body() body: { workspaceId: string },
+    @CurrentUser() user: { supabaseUserId: string },
+  ) {
+    await this.workspaces.assertMember(body.workspaceId, user.supabaseUserId);
+    // Run in-band — ~5-10 sec per scene. v3 will move to Bull queue.
+    await this.videos.generateVoiceAll(id, body.workspaceId);
+    return this.videos.getProject(id, body.workspaceId);
+  }
+
+  @Post('scenes/:sceneId/generate-voice')
+  async generateSceneVoice(
+    @Param('sceneId') sceneId: string,
+    @Body() body: { workspaceId: string },
+    @CurrentUser() user: { supabaseUserId: string },
+  ) {
+    await this.workspaces.assertMember(body.workspaceId, user.supabaseUserId);
+    return this.videos.generateSceneVoice(sceneId, body.workspaceId);
+  }
+
   @Patch('scenes/:sceneId')
   async updateScene(
     @Param('sceneId') sceneId: string,

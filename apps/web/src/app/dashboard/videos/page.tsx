@@ -107,12 +107,12 @@ export default function VideosPage() {
             Faceless Video Engine
           </h1>
           <p className="text-sm text-muted-foreground">
-            Topic → AI-scripted short-form video. v1 ships script generation;
-            voice + video clips land next sprint.
+            Topic → AI-scripted short-form video → ElevenLabs voiceover per scene.
+            v3 layers in video clips + downloadable MP4 export.
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Badge variant="warning" className="text-xs">v1 · Script-only</Badge>
+          <Badge variant="warning" className="text-xs">v2 · Script + Voice</Badge>
           <Badge variant="info" className="text-xs">Phase 2B · Flagship</Badge>
         </div>
       </div>

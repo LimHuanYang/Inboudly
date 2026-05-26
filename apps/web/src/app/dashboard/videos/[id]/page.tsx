@@ -97,6 +97,16 @@ function SceneEditor({
     onError: (err: any) => toast.error(err.message),
   });
 
+  const regenVoice = useMutation({
+    mutationFn: () =>
+      api.post(`/videos/scenes/${scene.id}/generate-voice`, { workspaceId }),
+    onSuccess: () => {
+      toast.success(`Voice regenerated for scene ${scene.order + 1}`);
+      onSaved();
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
+
   return (
     <Card>
       <CardContent className="space-y-3 pt-6">
@@ -152,6 +162,32 @@ function SceneEditor({
             className="w-16 rounded-md border bg-background px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
           />
         </div>
+
+        {/* Voice (v2) — audio player + per-scene regen */}
+        {scene.voiceUrl ? (
+          <div className="rounded-md border bg-muted/30 p-2">
+            <div className="mb-1 flex items-center justify-between">
+              <span className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+                <Mic2 className="h-3 w-3" />
+                Voiceover
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => regenVoice.mutate()}
+                disabled={regenVoice.isPending}
+                className="h-6 px-2 text-[10px]"
+              >
+                {regenVoice.isPending ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <><RefreshCw className="mr-1 h-2.5 w-2.5" />Regen</>
+                )}
+              </Button>
+            </div>
+            <audio controls src={scene.voiceUrl} className="h-7 w-full" />
+          </div>
+        ) : null}
       </CardContent>
     </Card>
   );
@@ -183,6 +219,18 @@ export default function VideoDetailPage({
     mutationFn: () => api.post(`/videos/${id}/regenerate-script`, { workspaceId }),
     onSuccess: () => {
       toast.success('Regenerated script');
+      qc.invalidateQueries({ queryKey: ['video', id, workspaceId] });
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
+
+  // v2 voice slice — generates ElevenLabs voiceover for every ready scene.
+  // Sequential server-side (~5-10 sec per scene); the project endpoint
+  // poll above picks up the status flip automatically.
+  const generateVoice = useMutation({
+    mutationFn: () => api.post(`/videos/${id}/generate-voice`, { workspaceId }),
+    onSuccess: () => {
+      toast.success('Voice generation complete');
       qc.invalidateQueries({ queryKey: ['video', id, workspaceId] });
     },
     onError: (err: any) => toast.error(err.message),
@@ -235,11 +283,11 @@ export default function VideoDetailPage({
         </CardHeader>
       </Card>
 
-      {/* Pipeline status row — voice + video + export show v2 status */}
+      {/* Pipeline status row — Script + Voice now live; Video + Export still v2 */}
       <div className="mt-4 grid grid-cols-4 gap-2">
         {[
           { label: 'Script', status: p.scriptStatus, icon: Sparkles, v2: false },
-          { label: 'Voice',  status: p.voiceStatus,  icon: Mic2,     v2: true },
+          { label: 'Voice',  status: p.voiceStatus,  icon: Mic2,     v2: false },
           { label: 'Video',  status: p.videoStatus,  icon: Film,     v2: true },
           { label: 'Export', status: p.exportStatus, icon: Download, v2: true },
         ].map(({ label, status, icon: Icon, v2 }) => {
@@ -248,12 +296,12 @@ export default function VideoDetailPage({
             <div
               key={label}
               className={`rounded-lg border bg-background p-3 ${v2 ? 'opacity-60' : ''}`}
-              title={v2 ? 'v2 — coming next sprint' : undefined}
+              title={v2 ? 'v3 — coming next sprint' : undefined}
             >
               <div className="flex items-center justify-between">
                 <Icon className="h-4 w-4 text-muted-foreground" />
                 <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${meta.className}`}>
-                  {v2 ? 'v2' : meta.label}
+                  {v2 ? 'v3' : meta.label}
                 </span>
               </div>
               <div className="mt-2 text-xs font-medium">{label}</div>
@@ -261,6 +309,41 @@ export default function VideoDetailPage({
           );
         })}
       </div>
+
+      {/* Voice generation panel — appears once script is READY */}
+      {p.scriptStatus === 'READY' && p.scenes.length > 0 && (
+        <Card className="mt-4">
+          <CardContent className="flex items-center justify-between py-4">
+            <div>
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <Mic2 className="h-4 w-4 text-primary" />
+                Voiceover
+                <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${STATUS_PILL[p.voiceStatus].className}`}>
+                  {STATUS_PILL[p.voiceStatus].label}
+                </span>
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Generates an ElevenLabs voice for every scene using your BYOK
+                ElevenLabs key. Voice tone is picked based on the niche preset.
+                Sequential — ~5-10 sec per scene.
+              </p>
+            </div>
+            <Button
+              size="sm"
+              onClick={() => generateVoice.mutate()}
+              disabled={generateVoice.isPending || p.voiceStatus === 'GENERATING'}
+            >
+              {generateVoice.isPending || p.voiceStatus === 'GENERATING' ? (
+                <><Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />Generating</>
+              ) : p.voiceStatus === 'READY' ? (
+                <><RefreshCw className="mr-2 h-3.5 w-3.5" />Regenerate all</>
+              ) : (
+                <><Mic2 className="mr-2 h-3.5 w-3.5" />Generate voice</>
+              )}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {p.errorMessage && (
         <Card className="mt-4">
@@ -309,14 +392,14 @@ export default function VideoDetailPage({
             />
           ))}
 
-          {/* v2 stub */}
+          {/* v3 stub — video + export still to come */}
           <Card className="border-dashed">
             <CardContent className="py-6 text-center">
               <Clock className="mx-auto mb-2 h-6 w-6 text-muted-foreground opacity-50" />
               <p className="text-xs text-muted-foreground">
-                <strong>v2 ships next sprint:</strong> per-scene ElevenLabs voiceover,
-                Runway/Kling video clips, stock-footage fallback, and ffmpeg stitching
-                into a downloadable MP4.
+                <strong>v3 ships next sprint:</strong> Runway/Kling AI video clips per
+                scene, Pexels/Pixabay stock-footage fallback, ffmpeg stitching into a
+                downloadable MP4, and bulk mode (30 videos for one niche in one batch).
               </p>
             </CardContent>
           </Card>

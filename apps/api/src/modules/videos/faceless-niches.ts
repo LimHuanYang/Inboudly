@@ -132,3 +132,23 @@ export const FACELESS_NICHES: FacelessNiche[] = [
 export function findNiche(slug: string): FacelessNiche | undefined {
   return FACELESS_NICHES.find((n) => n.slug === slug);
 }
+
+/**
+ * Map a niche's voice tone to a stock ElevenLabs voice. These voice IDs are
+ * ElevenLabs's built-in defaults — available on every account, no clone
+ * needed. v3 will let users override per project from their cloned voices.
+ */
+const VOICE_BY_TONE: Record<FacelessNiche['voiceTone'], { voiceId: string; name: string }> = {
+  dramatic:       { voiceId: 'pNInz6obpgDQGcFmaJgB', name: 'Adam (deep, intense)' },
+  calm:           { voiceId: '21m00Tcm4TlvDq8ikWAM', name: 'Rachel (calm, conversational)' },
+  authoritative:  { voiceId: 'VR6AewLTigWG4xSOukaG', name: 'Arnold (narrator)' },
+  energetic:      { voiceId: 'EXAVITQu4vr4xnSDxMAI', name: 'Bella (warm, energetic)' },
+  mysterious:     { voiceId: 'TxGEqnHWrfWFTfGW9XjX', name: 'Josh (deep, soft)' },
+  conversational: { voiceId: 'ErXwobaYiN019PkySvjV', name: 'Antoni (well-rounded)' },
+};
+
+/** Returns the ElevenLabs voice for a niche (or Rachel as safe fallback). */
+export function voiceForNiche(slug: string): { voiceId: string; name: string } {
+  const n = findNiche(slug);
+  return n ? VOICE_BY_TONE[n.voiceTone] : VOICE_BY_TONE.calm;
+}

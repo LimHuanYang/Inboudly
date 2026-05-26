@@ -14,10 +14,17 @@ interface ProviderState {
   model: string | null;
 }
 
+// Key-only providers (voice / video) don't have a model concept yet.
+interface KeyOnlyState {
+  configured: boolean;
+  masked: string | null;
+}
+
 interface AiCredentialsView {
   gemini: ProviderState;
   openai: ProviderState;
   anthropic: ProviderState;
+  elevenLabs: KeyOnlyState;
 }
 
 interface TestResult {
@@ -27,7 +34,7 @@ interface TestResult {
   message?: string;
 }
 
-type ProviderId = 'gemini' | 'openai' | 'anthropic';
+type ProviderId = 'gemini' | 'openai' | 'anthropic' | 'elevenLabs';
 
 interface ProviderModelOption {
   value: string;
@@ -36,16 +43,22 @@ interface ProviderModelOption {
 
 interface ProviderMeta {
   id: ProviderId;
-  keyField: 'geminiKey' | 'openaiKey' | 'anthropicKey';
-  modelField: 'geminiModel' | 'openaiModel' | 'anthropicModel';
+  keyField: 'geminiKey' | 'openaiKey' | 'anthropicKey' | 'elevenLabsKey';
+  // Key-only providers (voice/video) omit modelField / defaultModel / models.
+  modelField?: 'geminiModel' | 'openaiModel' | 'anthropicModel';
   name: string;
   signupUrl: string;
   signupCopy: string;
   keyPlaceholder: string;
-  defaultModel: string;
+  defaultModel?: string;
   // Curated dropdown options. Users can also pick "Use default" (empty) to
   // clear their override and follow whatever DEFAULT_MODELS says server-side.
-  models: ProviderModelOption[];
+  // Omitted for key-only providers like ElevenLabs.
+  models?: ProviderModelOption[];
+  // Set true to hide the Test button (no test endpoint yet for this provider).
+  noTest?: boolean;
+  // Optional one-line helper text shown under the key input.
+  helpText?: string;
 }
 
 const PROVIDERS: ProviderMeta[] = [
@@ -98,6 +111,16 @@ const PROVIDERS: ProviderMeta[] = [
       { value: 'dall-e-2',    label: 'dall-e-2 — image gen, cheapest' },
     ],
   },
+  {
+    id: 'elevenLabs',
+    keyField: 'elevenLabsKey',
+    name: 'ElevenLabs (voice)',
+    signupUrl: 'https://elevenlabs.io/app/settings/api-keys',
+    signupCopy: 'Get a key (free tier: 10k chars/mo)',
+    keyPlaceholder: 'sk_...',
+    noTest: true, // no /test endpoint for voice providers yet
+    helpText: 'Used by Faceless Videos to generate scene voiceovers. Voice picked automatically per niche (calm/dramatic/authoritative/etc).',
+  },
 ];
 
 export function AiProvidersCard({ workspaceId }: { workspaceId: string }) {
@@ -106,16 +129,19 @@ export function AiProvidersCard({ workspaceId }: { workspaceId: string }) {
     gemini: '',
     openai: '',
     anthropic: '',
+    elevenLabs: '',
   });
   const [modelDrafts, setModelDrafts] = useState<Record<ProviderId, string>>({
     gemini: '',
     openai: '',
     anthropic: '',
+    elevenLabs: '', // unused — ElevenLabs is key-only — kept for type uniformity
   });
   const [testResults, setTestResults] = useState<Record<ProviderId, TestResult | null>>({
     gemini: null,
     openai: null,
     anthropic: null,
+    elevenLabs: null,
   });
 
   const { data } = useQuery({
@@ -124,13 +150,15 @@ export function AiProvidersCard({ workspaceId }: { workspaceId: string }) {
     enabled: !!workspaceId,
   });
 
-  // Seed model drafts with the saved value (or default) whenever data loads
+  // Seed model drafts with the saved value (or default) whenever data loads.
+  // ElevenLabs has no model — kept empty.
   useEffect(() => {
     if (!data) return;
     setModelDrafts({
       gemini: data.gemini?.model ?? '',
       openai: data.openai?.model ?? '',
       anthropic: data.anthropic?.model ?? '',
+      elevenLabs: '',
     });
   }, [data]);
 
@@ -192,10 +220,10 @@ export function AiProvidersCard({ workspaceId }: { workspaceId: string }) {
       <CardHeader>
         <CardTitle className="text-base">AI integrations</CardTitle>
         <CardDescription>
-          Provide your own API keys for one or more providers. Inboudly tries them in order{' '}
-          <strong>Anthropic → Gemini</strong> for text and <strong>OpenAI → Gemini</strong> for
-          image; any provider without a key is skipped. Keys are encrypted at rest. You pay your
-          AI provider directly.
+          Provide your own API keys for one or more providers. Resolver order:{' '}
+          <strong>Anthropic → Gemini</strong> for text, <strong>OpenAI → Gemini</strong> for
+          image, <strong>ElevenLabs</strong> for voice. Any provider without a key is skipped.
+          Keys are encrypted at rest. You pay each AI provider directly.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -211,8 +239,11 @@ export function AiProvidersCard({ workspaceId }: { workspaceId: string }) {
 
           // The "Save" button is enabled if there's a new key draft, OR if the
           // key is configured and the model draft differs from the saved value.
+          // Key-only providers (no p.models) never have a "model changed" state.
+          const hasModels = !!p.models?.length;
+          const stateModel = hasModels && state && 'model' in state ? state.model : null;
           const modelChanged =
-            state?.configured && modelDraft.trim() !== (state.model ?? '');
+            hasModels && state?.configured && modelDraft.trim() !== (stateModel ?? '');
           const canSaveAll = keyDraft.trim().length >= 10;
 
           return (
@@ -229,8 +260,13 @@ export function AiProvidersCard({ workspaceId }: { workspaceId: string }) {
                 )}
               </div>
 
-              {/* Inputs row: API key + Model side-by-side */}
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_1fr_auto]">
+              {/* Inputs row — 3 cols (key + model + save) for full providers,
+                  2 cols (key + save) for key-only like ElevenLabs. */}
+              <div
+                className={`grid grid-cols-1 gap-3 ${
+                  hasModels ? 'sm:grid-cols-[1fr_1fr_auto]' : 'sm:grid-cols-[1fr_auto]'
+                }`}
+              >
                 <div>
                   <label className="text-xs font-medium">API key</label>
                   <input
@@ -243,30 +279,35 @@ export function AiProvidersCard({ workspaceId }: { workspaceId: string }) {
                     }
                     className="mt-1 w-full rounded-md border bg-background px-3 py-2 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                   />
+                  {p.helpText && (
+                    <p className="mt-1 text-[11px] text-muted-foreground">{p.helpText}</p>
+                  )}
                 </div>
-                <div>
-                  <label className="text-xs font-medium">Model</label>
-                  <select
-                    value={modelDraft}
-                    onChange={(e) =>
-                      setModelDrafts((d) => ({ ...d, [p.id]: e.target.value }))
-                    }
-                    className="mt-1 w-full rounded-md border bg-background px-3 py-2 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                  >
-                    <option value="">Use default ({p.defaultModel})</option>
-                    {p.models.map((m) => (
-                      <option key={m.value} value={m.value}>
-                        {m.label}
-                      </option>
-                    ))}
-                    {/* If the saved value isn't in our curated list, surface it
-                        so the dropdown still shows what's actually stored. */}
-                    {modelDraft &&
-                      !p.models.some((m) => m.value === modelDraft) && (
-                        <option value={modelDraft}>{modelDraft} (custom)</option>
-                      )}
-                  </select>
-                </div>
+                {hasModels && (
+                  <div>
+                    <label className="text-xs font-medium">Model</label>
+                    <select
+                      value={modelDraft}
+                      onChange={(e) =>
+                        setModelDrafts((d) => ({ ...d, [p.id]: e.target.value }))
+                      }
+                      className="mt-1 w-full rounded-md border bg-background px-3 py-2 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                    >
+                      <option value="">Use default ({p.defaultModel})</option>
+                      {p.models!.map((m) => (
+                        <option key={m.value} value={m.value}>
+                          {m.label}
+                        </option>
+                      ))}
+                      {/* If the saved value isn't in our curated list, surface
+                          it so the dropdown still shows what's actually stored. */}
+                      {modelDraft &&
+                        !p.models!.some((m) => m.value === modelDraft) && (
+                          <option value={modelDraft}>{modelDraft} (custom)</option>
+                        )}
+                    </select>
+                  </div>
+                )}
                 <div className="flex items-end">
                   <Button
                     disabled={(!canSaveAll && !modelChanged) || savingKey || savingModel}
@@ -290,21 +331,23 @@ export function AiProvidersCard({ workspaceId }: { workspaceId: string }) {
 
               {/* Action row: Test, Clear + Works indicator + Get a key link */}
               <div className="mt-3 flex flex-wrap items-center gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={!state?.configured || testing}
-                  onClick={() => testKey.mutate(p)}
-                >
-                  {testing ? (
-                    <>
-                      <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-                      Testing
-                    </>
-                  ) : (
-                    'Test'
-                  )}
-                </Button>
+                {!p.noTest && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={!state?.configured || testing}
+                    onClick={() => testKey.mutate(p)}
+                  >
+                    {testing ? (
+                      <>
+                        <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                        Testing
+                      </>
+                    ) : (
+                      'Test'
+                    )}
+                  </Button>
+                )}
 
                 {state?.configured && (
                   <Button
@@ -359,9 +402,9 @@ export function AiProvidersCard({ workspaceId }: { workspaceId: string }) {
                   {test.message}
                 </p>
               )}
-              {!test && state?.configured && state.model && state.model !== p.defaultModel && (
+              {!test && state?.configured && hasModels && stateModel && stateModel !== p.defaultModel && (
                 <p className="mt-2 text-xs text-muted-foreground">
-                  Active model: <span className="font-mono">{state.model}</span>
+                  Active model: <span className="font-mono">{stateModel}</span>
                 </p>
               )}
             </div>

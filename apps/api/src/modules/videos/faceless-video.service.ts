@@ -3,7 +3,10 @@ import Anthropic from '@anthropic-ai/sdk';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { AiCredentialsService } from '../ai-credentials/ai-credentials.service';
-import { FACELESS_NICHES, findNiche, type FacelessNiche } from './faceless-niches';
+import { R2StorageService } from '../media/r2-storage.service';
+import {
+  FACELESS_NICHES, findNiche, voiceForNiche, type FacelessNiche,
+} from './faceless-niches';
 import type { VideoProject, VideoScene } from '@inboudly/database';
 
 interface AiScene {
@@ -47,6 +50,7 @@ export class FacelessVideoService {
   constructor(
     private prisma: PrismaService,
     private credentials: AiCredentialsService,
+    private r2: R2StorageService,
   ) {}
 
   listNiches(): FacelessNiche[] {
@@ -303,6 +307,151 @@ CRITICAL:
 - Match the niche's voice tone (${niche.voiceTone}) — if "dramatic", be dramatic; if "calm", be measured.
 - visualPrompt must be SPECIFIC enough for an AI video gen model to use as a prompt.`;
   }
+
+  // ================================================================
+  // VOICE GENERATION (v2 slice — ElevenLabs)
+  // ================================================================
+
+  /**
+   * Generate voiceover for EVERY scene in a project. Sequential to respect
+   * ElevenLabs rate limits; ~5-10 sec per scene. Stores each MP3 in R2
+   * under videos/{projectId}/scene-{order}.mp3 and writes the public URL
+   * back to the scene.
+   *
+   * Idempotent per scene: re-running overwrites the previous MP3 at the
+   * same R2 key (deterministic path = no orphan files).
+   */
+  async generateVoiceAll(projectId: string, workspaceId: string): Promise<void> {
+    const project = await this.prisma.videoProject.findFirst({
+      where: { id: projectId, workspaceId },
+      include: { scenes: { orderBy: { order: 'asc' } } },
+    });
+    if (!project) throw new NotFoundException('Project not found');
+    if (project.scriptStatus !== 'READY') {
+      throw new BadRequestException('Script must be READY before generating voice');
+    }
+    if (!project.scenes.length) throw new BadRequestException('Project has no scenes');
+
+    const apiKey = await this.credentials.getDecryptedKey(workspaceId, 'elevenLabsKey');
+    if (!apiKey) {
+      await this.prisma.videoProject.update({
+        where: { id: projectId },
+        data: {
+          voiceStatus: 'FAILED',
+          errorMessage:
+            'Voice generation needs an ElevenLabs API key. Add one in Settings → AI Providers.',
+        },
+      });
+      return;
+    }
+
+    await this.prisma.videoProject.update({
+      where: { id: projectId },
+      data: { voiceStatus: 'GENERATING', errorMessage: null },
+    });
+
+    const voice = voiceForNiche(project.niche);
+    let failed = 0;
+    for (const scene of project.scenes) {
+      try {
+        const url = await this.synthesizeToR2(apiKey, voice.voiceId, scene.text, projectId, scene.order);
+        await this.prisma.videoScene.update({
+          where: { id: scene.id },
+          data: { voiceUrl: url },
+        });
+      } catch (err) {
+        failed++;
+        this.logger.error(`Voice gen failed for scene ${scene.order}: ${err instanceof Error ? err.message : err}`);
+      }
+    }
+
+    await this.prisma.videoProject.update({
+      where: { id: projectId },
+      data: {
+        voiceStatus: failed === project.scenes.length ? 'FAILED' : 'READY',
+        errorMessage:
+          failed === 0
+            ? null
+            : failed === project.scenes.length
+              ? 'All scenes failed. Check your ElevenLabs key + quota.'
+              : `${failed} of ${project.scenes.length} scenes failed. Re-run to retry.`,
+      },
+    });
+  }
+
+  /**
+   * Regenerate voice for a single scene (after editing the script text).
+   * Lighter than full project regen — handy when the user tweaks one line.
+   */
+  async generateSceneVoice(sceneId: string, workspaceId: string): Promise<VideoScene> {
+    const scene = await this.prisma.videoScene.findUnique({
+      where: { id: sceneId },
+      include: { project: { select: { workspaceId: true, niche: true, id: true } } },
+    });
+    if (!scene || scene.project.workspaceId !== workspaceId) {
+      throw new NotFoundException('Scene not found');
+    }
+
+    const apiKey = await this.credentials.getDecryptedKey(workspaceId, 'elevenLabsKey');
+    if (!apiKey) {
+      throw new BadRequestException(
+        'Voice generation needs an ElevenLabs API key. Add one in Settings → AI Providers.',
+      );
+    }
+
+    const voice = voiceForNiche(scene.project.niche);
+    const url = await this.synthesizeToR2(
+      apiKey, voice.voiceId, scene.text, scene.project.id, scene.order,
+    );
+    return this.prisma.videoScene.update({
+      where: { id: sceneId },
+      data: { voiceUrl: url },
+    });
+  }
+
+  /**
+   * Calls ElevenLabs text-to-speech, uploads the returned MP3 to R2, and
+   * returns the public URL. Throws on any failure (caller decides how to
+   * recover — mark scene failed, mark project failed, etc.).
+   */
+  private async synthesizeToR2(
+    apiKey: string,
+    voiceId: string,
+    text: string,
+    projectId: string,
+    sceneOrder: number,
+  ): Promise<string> {
+    // ElevenLabs v1 text-to-speech endpoint. Returns binary MP3.
+    const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+      method: 'POST',
+      headers: {
+        'xi-api-key': apiKey,
+        'Content-Type': 'application/json',
+        Accept: 'audio/mpeg',
+      },
+      body: JSON.stringify({
+        text,
+        model_id: 'eleven_multilingual_v2',
+        voice_settings: {
+          stability: 0.55,
+          similarity_boost: 0.75,
+          style: 0.4,
+          use_speaker_boost: true,
+        },
+      }),
+    });
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      throw new Error(`ElevenLabs ${res.status}: ${body.slice(0, 200)}`);
+    }
+    const buf = Buffer.from(await res.arrayBuffer());
+
+    // Deterministic R2 key — re-runs overwrite, no orphans.
+    const key = `videos/${projectId}/scene-${sceneOrder}.mp3`;
+    return this.r2.putObject(key, buf, 'audio/mpeg');
+  }
+
+  // ================================================================
 
   private parseScript(raw: string): AiScriptResponse | null {
     const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '').trim();
