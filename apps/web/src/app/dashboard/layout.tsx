@@ -13,6 +13,7 @@ import {
   Target,
   Radar,
   Compass,
+  Clapperboard,
 } from 'lucide-react';
 import { WorkspaceGuard } from '@/components/providers/workspace-guard';
 
@@ -26,6 +27,7 @@ const nav = [
   { href: '/dashboard/competitors', label: 'Competitors', icon: Target }, // Phase 2A.2
   { href: '/dashboard/trends', label: 'Trend Radar', icon: Radar }, // Phase 2A.3
   { href: '/dashboard/niches', label: 'Niche Intelligence', icon: Compass }, // Phase 2A.4
+  { href: '/dashboard/videos', label: 'Faceless Videos', icon: Clapperboard }, // Phase 2B
   { href: '/dashboard/media', label: 'Media', icon: ImageIcon },
   { href: '/dashboard/inbox', label: 'Inbox', icon: MessageSquare },
   { href: '/dashboard/analytics', label: 'Analytics', icon: BarChart3 },

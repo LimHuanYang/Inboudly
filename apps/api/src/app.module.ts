@@ -28,6 +28,7 @@ import { KolModule } from './modules/kol/kol.module';
 import { CompetitorsModule } from './modules/competitors/competitors.module';
 import { TrendsModule } from './modules/trends/trends.module';
 import { NichesModule } from './modules/niches/niches.module';
+import { VideosModule } from './modules/videos/videos.module';
 
 @Module({
   imports: [
@@ -80,6 +81,7 @@ import { NichesModule } from './modules/niches/niches.module';
     CompetitorsModule,
     TrendsModule,
     NichesModule,
+    VideosModule,
   ],
 })
 export class AppModule {}

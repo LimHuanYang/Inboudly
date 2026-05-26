@@ -98,6 +98,7 @@ model Workspace {
   competitors       Competitor[]
   trends            Trend[]
   nicheAnalyses     NicheAnalysis[]
+  videoProjects     VideoProject[]
   kolCampaigns      KolCampaign[]
   agentRuns         AgentRun[]
   approvalWorkflows ApprovalWorkflow[]
@@ -724,6 +725,7 @@ model Trend {
   metadata        Json?
 
   workspace       Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  videoProjects   VideoProject[]
 
   @@index([workspaceId, platform, freshnessScore])
   @@index([workspaceId, isDismissed, expiresAt])
@@ -779,6 +781,74 @@ model NicheAnalysis {
 
   @@unique([workspaceId, niche, platform])
   @@index([workspaceId, analyzedAt])
+}
+
+// ============================================================
+// FACELESS VIDEO ENGINE (Phase 2B — flagship differentiator)
+// ============================================================
+// Pipeline (v1 = script only; v2 = + voice + video):
+//   topic + niche → AI script (scenes) → ElevenLabs voice → Runway/Kling
+//   video per scene → ffmpeg stitch → final MP4 in storage
+// Each stage has its own status so the UI can show partial progress.
+
+model VideoProject {
+  id              String         @id @default(cuid())
+  workspaceId     String
+  niche           String         // preset niche slug: "motivational", "fitness", etc.
+  topic           String         // user-input or trend-derived
+  trendId         String?        // optional source — analytics: how many videos came from trends
+  title           String?        // editable display title
+
+  // Per-stage status. Each stage runs independently; downstream stages
+  // unlock once their upstream is READY.
+  scriptStatus    VideoStatus    @default(PENDING)
+  voiceStatus     VideoStatus    @default(PENDING)
+  videoStatus     VideoStatus    @default(PENDING)
+  exportStatus    VideoStatus    @default(PENDING)
+
+  finalUrl        String?        // URL to final MP4 (set when exportStatus=READY)
+  thumbnailUrl    String?        // first-frame thumb
+  durationSec     Int?           // total duration sum across scenes
+  modelUsed       String?        // which BYOK model generated the script
+  errorMessage    String?        @db.Text
+
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  workspace       Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  trend           Trend?         @relation(fields: [trendId], references: [id], onDelete: SetNull)
+  scenes          VideoScene[]
+
+  @@index([workspaceId, createdAt])
+  @@index([workspaceId, scriptStatus])
+}
+
+model VideoScene {
+  id              String         @id @default(cuid())
+  projectId       String
+  order           Int            // 0-indexed position in the final video
+  text            String         @db.Text  // the spoken script for this scene
+  visualPrompt    String?        @db.Text  // what the visual should depict (for v2 video gen)
+  durationSec     Int?           // estimated duration based on script length
+
+  // V2 outputs — null in v1
+  voiceUrl        String?        // ElevenLabs MP3 output
+  videoUrl        String?        // Runway/Kling MP4 output for this scene
+
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  project         VideoProject   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, order])
+  @@index([projectId, order])
+}
+
+enum VideoStatus {
+  PENDING       // not started
+  GENERATING    // in progress
+  READY         // done, output available
+  FAILED        // errored out, see errorMessage
 }
 
 // ============================================================
