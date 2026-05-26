@@ -1,10 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { CommentIntent, CommentReplyStatus } from '@inboudly/database';
+import { CommentIntelligenceService } from './comment-intelligence.service';
 
 @Injectable()
 export class CommentsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private intel: CommentIntelligenceService,
+  ) {}
 
   list(workspaceId: string, filters: { intent?: CommentIntent; replyStatus?: CommentReplyStatus }) {
     return this.prisma.comment.findMany({
@@ -19,16 +23,26 @@ export class CommentsService {
     });
   }
 
-  // Phase 2 implementation: Claude-powered reply suggestion
-  // For Phase 1, returns a stub — wired up so the UI surface exists.
-  async suggestReplies(commentId: string): Promise<{ suggestions: string[] }> {
-    void commentId;
-    return {
-      suggestions: [
-        'Thanks for the kind words! 🙏',
-        'Appreciate you sharing that.',
-        'Glad this resonated — what part stood out most?',
-      ],
-    };
+  /**
+   * Real intent-aware reply suggestions backed by the workspace's BYOK AI +
+   * brand voice. Replaces the Phase 1 stub that returned hardcoded strings.
+   */
+  suggestReplies(workspaceId: string, commentId: string) {
+    return this.intel.suggestReplies(workspaceId, commentId);
+  }
+
+  /**
+   * Classify a comment (intent + sentiment + confidence) and persist the
+   * result back to the row.
+   */
+  classify(workspaceId: string, commentId: string) {
+    return this.intel.classify(workspaceId, commentId);
+  }
+
+  /**
+   * Bulk classify — handy for "Analyse all unclassified" inbox button.
+   */
+  classifyBatch(workspaceId: string, commentIds: string[]) {
+    return this.intel.classifyBatch(workspaceId, commentIds);
   }
 }
