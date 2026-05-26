@@ -26,6 +26,7 @@ import { ConnectorsModule } from './modules/connectors/connectors.module';
 import { OAuthModule } from './modules/oauth/oauth.module';
 import { KolModule } from './modules/kol/kol.module';
 import { CompetitorsModule } from './modules/competitors/competitors.module';
+import { TrendsModule } from './modules/trends/trends.module';
 
 @Module({
   imports: [
@@ -76,6 +77,7 @@ import { CompetitorsModule } from './modules/competitors/competitors.module';
     OAuthModule,
     KolModule,
     CompetitorsModule,
+    TrendsModule,
   ],
 })
 export class AppModule {}

@@ -11,6 +11,7 @@ import {
   CheckCircle2,
   Users,
   Target,
+  Radar,
 } from 'lucide-react';
 import { WorkspaceGuard } from '@/components/providers/workspace-guard';
 
@@ -21,7 +22,8 @@ const nav = [
   { href: '/dashboard/calendar', label: 'Calendar', icon: Calendar },
   { href: '/dashboard/approvals', label: 'Approvals', icon: CheckCircle2 },
   { href: '/dashboard/kol', label: 'KOL Discovery', icon: Users },
-  { href: '/dashboard/competitors', label: 'Competitors', icon: Target }, // Phase 2
+  { href: '/dashboard/competitors', label: 'Competitors', icon: Target }, // Phase 2A.2
+  { href: '/dashboard/trends', label: 'Trend Radar', icon: Radar }, // Phase 2A.3
   { href: '/dashboard/media', label: 'Media', icon: ImageIcon },
   { href: '/dashboard/inbox', label: 'Inbox', icon: MessageSquare },
   { href: '/dashboard/analytics', label: 'Analytics', icon: BarChart3 },

@@ -19,7 +19,8 @@
     "db:migrate": "pnpm --filter @inboudly/database db:migrate",
     "db:studio": "pnpm --filter @inboudly/database db:studio",
     "db:seed:kols": "pnpm --filter @inboudly/database db:seed:kols",
-    "db:seed:competitors": "pnpm --filter @inboudly/database db:seed:competitors"
+    "db:seed:competitors": "pnpm --filter @inboudly/database db:seed:competitors",
+    "db:seed:trends": "pnpm --filter @inboudly/database db:seed:trends"
   },
   "devDependencies": {
     "@types/node": "^22.7.4",

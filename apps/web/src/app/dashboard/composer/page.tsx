@@ -1,6 +1,7 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { api } from '@/lib/api-client';
@@ -45,6 +46,35 @@ export default function ComposerPage() {
     queryFn: () => api.get<any>('/auth/me'),
   });
   const workspaceId = me.data?.memberships?.[0]?.workspace?.id;
+
+  // Trend Radar deep-link: ?trendId=… on this URL means the user clicked
+  // "Use in Composer" on a trend card. Fetch the prefilled prompt once
+  // (workspace-scoped), then apply it to the AI prompt / platform / hashtags.
+  // Guarded with a ref so React's strict-mode double-render doesn't double-apply.
+  const searchParams = useSearchParams();
+  const trendId = searchParams.get('trendId');
+  const appliedTrendRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!trendId || !workspaceId || appliedTrendRef.current === trendId) return;
+    appliedTrendRef.current = trendId;
+    api
+      .get<{ platform: SocialPlatform; prompt: string; hashtags: string[] }>(
+        `/trends/${trendId}/composer-prompt?workspaceId=${workspaceId}`,
+      )
+      .then((data) => {
+        setAiPrompt(data.prompt);
+        setSelectedPlatforms([data.platform]);
+        setActivePlatform(data.platform);
+        if (data.hashtags.length) {
+          setHashtags((prev) => ({
+            ...prev,
+            [data.platform]: data.hashtags.map((h) => `#${h}`).join(' '),
+          }));
+        }
+        toast.success(`Loaded trend into Composer for ${data.platform}`);
+      })
+      .catch((err) => toast.error(`Couldn't load trend: ${err.message}`));
+  }, [trendId, workspaceId]);
 
   const generateImage = useMutation({
     mutationFn: (input: { prompt: string; aspectRatio: string; count: number }) =>

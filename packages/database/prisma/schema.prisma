@@ -96,6 +96,7 @@ model Workspace {
   brandKits         BrandKit[]
   brandVoices       BrandVoice[]
   competitors       Competitor[]
+  trends            Trend[]
   kolCampaigns      KolCampaign[]
   agentRuns         AgentRun[]
   approvalWorkflows ApprovalWorkflow[]
@@ -694,6 +695,50 @@ model TrendSignal {
 
   @@index([platform, signalType, scoredAt])
   @@index([niche])
+}
+
+// Trend Radar (Phase 2A.3) — curated, AI-enriched, user-facing trends.
+// Distinct from TrendSignal which is the low-level raw signal store
+// (machine-detected hashtags/sounds). A Trend has a topic, description,
+// suggested angles, and is dismissable per workspace.
+model Trend {
+  id              String          @id @default(cuid())
+  workspaceId     String
+  platform        SocialPlatform
+  topic           String          // "5-day fast challenge"
+  category        String          // fitness, lifestyle, tech, beauty, food, finance, education
+  description     String          @db.Text  // 1-3 sentences explaining what's trending
+  velocity        TrendVelocity   @default(RISING)
+  // 0-100, decays each day. <30 = stale, hidden from default list.
+  freshnessScore  Int             @default(100)
+  // Hypothetical engagement potential if you posted today
+  estimatedReach  Int?
+  suggestedAngles String[]        // 3-5 angles a brand could take
+  hashtags        String[]
+  exampleHandles  String[]        // who's already winning on this trend
+  source          TrendSource     @default(AI_GENERATED)
+  detectedAt      DateTime        @default(now())
+  expiresAt       DateTime        // ~7 days TTL
+  isDismissed     Boolean         @default(false)
+  metadata        Json?
+
+  workspace       Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, platform, freshnessScore])
+  @@index([workspaceId, isDismissed, expiresAt])
+}
+
+enum TrendVelocity {
+  BREAKOUT     // brand new, exploding right now
+  RISING       // steady growth, getting bigger
+  SUSTAINED    // long-running, still relevant
+  DECLINING    // past peak, fading
+}
+
+enum TrendSource {
+  AI_GENERATED  // generated via BYOK AI provider
+  API_SCRAPER   // future: real trend APIs (TrendsAPI, RisingWave, etc.)
+  MANUAL        // user added it
 }
 
 // ============================================================
