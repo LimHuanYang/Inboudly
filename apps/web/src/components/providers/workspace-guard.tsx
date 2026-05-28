@@ -49,8 +49,21 @@ export function WorkspaceGuard({ children }: { children: React.ReactNode }) {
     queryKey: ['me'],
     // The endpoint returns null when the Supabase user has no Prisma row yet.
     queryFn: () => api.get<MeResponse | null>('/auth/me'),
-    // Don't retry on 401 — the user's just not authed yet
-    retry: false,
+    // While the API is still booting (cold compile can take ~1 min), the fetch
+    // fails with a NETWORK error. Auto-retry those so the dashboard loads itself
+    // once the API is up — no manual refresh needed. NEVER retry auth errors
+    // (401) — those are real and need a sign-in, not a wait.
+    retry: (failureCount, error) => {
+      const msg = (error as Error)?.message?.toLowerCase() ?? '';
+      const isNetwork =
+        msg.includes('failed to fetch') ||
+        msg.includes('network') ||
+        msg.includes('load failed') ||
+        msg.includes('connection') ||
+        msg.includes('fetch');
+      return isNetwork && failureCount < 40; // ~40 × 2s ≈ 80s of cold-start tolerance
+    },
+    retryDelay: 2000,
   });
 
   const provision = useMutation({
@@ -71,11 +84,28 @@ export function WorkspaceGuard({ children }: { children: React.ReactNode }) {
     }
   }, [me.data?.fullName, me.data?.email]);
 
-  // Loading state — short, only while /auth/me resolves
+  // Loading state. On a normal load this is a brief spinner. But if the API
+  // is still cold-booting, the query auto-retries — `failureCount > 0` tells
+  // us we're waiting on the API, so show reassuring "starting up" copy instead
+  // of a bare spinner. It loads itself the moment the API answers.
   if (me.isLoading) {
+    const waitingOnApi = me.failureCount > 0;
     return (
-      <div className="flex min-h-screen items-center justify-center">
+      <div className="flex min-h-screen flex-col items-center justify-center gap-3 p-4 text-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        {waitingOnApi ? (
+          <div className="max-w-sm">
+            <p className="text-sm font-medium">Starting the API…</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              First boot compiles the server (can take ~1 min). This page loads
+              automatically once it's ready — no need to refresh.
+              <br />
+              <span className="opacity-60">Attempt {me.failureCount}</span>
+            </p>
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">Loading…</p>
+        )}
       </div>
     );
   }
