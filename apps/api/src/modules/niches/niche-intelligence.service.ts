@@ -3,6 +3,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { AiCredentialsService } from '../ai-credentials/ai-credentials.service';
+import { Prisma } from '@inboudly/database';
 import type { SocialPlatform, NicheAnalysis } from '@inboudly/database';
 
 export interface RpmBreakdown {
@@ -104,12 +105,12 @@ export class NicheIntelligenceService {
     const normalized = niche.trim().toLowerCase();
     if (!normalized) throw new BadRequestException('Niche is required');
 
-    // Cache lookup unless force=true
+    // Cache lookup unless force=true. We use findFirst (not findUnique) because
+    // `platform` is nullable in the compound key — Prisma's findUnique input
+    // type rejects null, and SQL treats NULL as distinct anyway.
     if (!force) {
-      const cached = await this.prisma.nicheAnalysis.findUnique({
-        where: {
-          workspaceId_niche_platform: { workspaceId, niche: normalized, platform },
-        },
+      const cached = await this.prisma.nicheAnalysis.findFirst({
+        where: { workspaceId, niche: normalized, platform },
       });
       if (cached && Date.now() - cached.analyzedAt.getTime() < this.CACHE_TTL_MS) {
         return this.toResult(cached, true);
@@ -205,46 +206,38 @@ export class NicheIntelligenceService {
       };
     }
 
-    // Upsert cache
-    const saved = await this.prisma.nicheAnalysis.upsert({
-      where: {
-        workspaceId_niche_platform: { workspaceId, niche: normalized, platform },
-      },
-      update: {
-        estimatedRpmMin: parsed.rpm.min,
-        estimatedRpmMax: parsed.rpm.max,
-        rpmBreakdownJson: parsed.rpm.breakdown as unknown as Record<string, unknown>,
-        saturationScore: parsed.scores.saturation,
-        growthScore: parsed.scores.growth,
-        monetizationDifficulty: parsed.scores.monetizationDifficulty,
-        overallScore: parsed.scores.overall,
-        summary: parsed.summary,
-        opportunities: parsed.opportunities.slice(0, 5),
-        threats: parsed.threats.slice(0, 4),
-        topFormats: parsed.topFormats.slice(0, 6),
-        adjacentNichesJson: parsed.adjacentNiches.slice(0, 5) as unknown as Record<string, unknown>[],
-        modelUsed,
-        analyzedAt: new Date(),
-      },
-      create: {
-        workspaceId,
-        niche: normalized,
-        platform,
-        estimatedRpmMin: parsed.rpm.min,
-        estimatedRpmMax: parsed.rpm.max,
-        rpmBreakdownJson: parsed.rpm.breakdown as unknown as Record<string, unknown>,
-        saturationScore: parsed.scores.saturation,
-        growthScore: parsed.scores.growth,
-        monetizationDifficulty: parsed.scores.monetizationDifficulty,
-        overallScore: parsed.scores.overall,
-        summary: parsed.summary,
-        opportunities: parsed.opportunities.slice(0, 5),
-        threats: parsed.threats.slice(0, 4),
-        topFormats: parsed.topFormats.slice(0, 6),
-        adjacentNichesJson: parsed.adjacentNiches.slice(0, 5) as unknown as Record<string, unknown>[],
-        modelUsed,
-      },
+    // Manual upsert — can't use prisma.upsert() because the compound unique
+    // key includes the nullable `platform` field (see cache-lookup note above).
+    // Shared field payload, cast JSON to Prisma.InputJsonValue.
+    const fields = {
+      estimatedRpmMin: parsed.rpm.min,
+      estimatedRpmMax: parsed.rpm.max,
+      rpmBreakdownJson: parsed.rpm.breakdown as unknown as Prisma.InputJsonValue,
+      saturationScore: parsed.scores.saturation,
+      growthScore: parsed.scores.growth,
+      monetizationDifficulty: parsed.scores.monetizationDifficulty,
+      overallScore: parsed.scores.overall,
+      summary: parsed.summary,
+      opportunities: parsed.opportunities.slice(0, 5),
+      threats: parsed.threats.slice(0, 4),
+      topFormats: parsed.topFormats.slice(0, 6),
+      adjacentNichesJson: parsed.adjacentNiches.slice(0, 5) as unknown as Prisma.InputJsonValue,
+      modelUsed,
+    };
+
+    const existing = await this.prisma.nicheAnalysis.findFirst({
+      where: { workspaceId, niche: normalized, platform },
+      select: { id: true },
     });
+
+    const saved = existing
+      ? await this.prisma.nicheAnalysis.update({
+          where: { id: existing.id },
+          data: { ...fields, analyzedAt: new Date() },
+        })
+      : await this.prisma.nicheAnalysis.create({
+          data: { workspaceId, niche: normalized, platform, ...fields },
+        });
 
     return this.toResult(saved, false);
   }

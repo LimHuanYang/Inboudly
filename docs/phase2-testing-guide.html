@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Inboudly · Phase 2 Testing Guide</title>
+<style>
+  :root {
+    --pink: #ec4899;
+    --pink-dark: #db2777;
+    --pink-soft: #fce7f3;
+    --ink: #18181b;
+    --muted: #71717a;
+    --line: #e4e4e7;
+    --bg: #fafafa;
+    --card: #ffffff;
+    --green: #10b981;
+    --green-soft: #d1fae5;
+    --amber: #f59e0b;
+    --amber-soft: #fef3c7;
+    --red: #ef4444;
+    --blue: #3b82f6;
+    --blue-soft: #dbeafe;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+    line-height: 1.55;
+  }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 0 20px 80px; }
+
+  /* Header */
+  header {
+    background: linear-gradient(135deg, var(--pink) 0%, var(--pink-dark) 100%);
+    color: white;
+    padding: 40px 20px 28px;
+    text-align: center;
+  }
+  header .logo {
+    display: inline-flex; align-items: center; gap: 10px;
+    font-weight: 700; font-size: 15px; letter-spacing: .3px;
+    opacity: .92; margin-bottom: 14px;
+  }
+  header .logo .dot { width: 22px; height: 22px; background: white; border-radius: 6px; }
+  header h1 { margin: 0 0 6px; font-size: 30px; font-weight: 800; }
+  header p { margin: 0; opacity: .9; font-size: 15px; }
+
+  /* Sticky progress bar */
+  .progress-shell {
+    position: sticky; top: 0; z-index: 20;
+    background: rgba(255,255,255,.92); backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--line);
+    padding: 12px 20px;
+  }
+  .progress-inner { max-width: 920px; margin: 0 auto; display: flex; align-items: center; gap: 14px; }
+  .progress-track { flex: 1; height: 10px; background: var(--line); border-radius: 99px; overflow: hidden; }
+  .progress-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--pink), var(--pink-dark)); border-radius: 99px; transition: width .35s ease; }
+  .progress-label { font-size: 13px; font-weight: 600; color: var(--muted); white-space: nowrap; min-width: 116px; text-align: right; }
+  .progress-label b { color: var(--pink-dark); }
+  .reset-btn {
+    border: 1px solid var(--line); background: var(--card); color: var(--muted);
+    font-size: 12px; padding: 5px 10px; border-radius: 7px; cursor: pointer;
+  }
+  .reset-btn:hover { border-color: var(--pink); color: var(--pink-dark); }
+
+  /* Callouts */
+  .callout {
+    border: 1px solid var(--line); border-left: 4px solid var(--blue);
+    background: var(--card); border-radius: 10px; padding: 14px 18px; margin: 22px 0;
+    font-size: 14.5px;
+  }
+  .callout.warn { border-left-color: var(--amber); background: #fffdf7; }
+  .callout h3 { margin: 0 0 6px; font-size: 14px; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); }
+
+  /* Order steps */
+  .order { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 6px; }
+  .order .chip {
+    display: inline-flex; align-items: center; gap: 7px;
+    background: var(--pink-soft); color: var(--pink-dark);
+    font-size: 13px; font-weight: 600; padding: 6px 12px; border-radius: 99px;
+  }
+  .order .chip .n { background: var(--pink); color: white; width: 18px; height: 18px; border-radius: 50%; font-size: 11px; display: inline-flex; align-items: center; justify-content: center; }
+
+  /* Feature card */
+  .feature {
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    margin: 20px 0; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.04);
+  }
+  .feature > summary {
+    list-style: none; cursor: pointer; padding: 18px 22px;
+    display: flex; align-items: center; gap: 14px;
+  }
+  .feature > summary::-webkit-details-marker { display: none; }
+  .feature > summary:hover { background: #fcfcfd; }
+  .feature .badge-num {
+    width: 34px; height: 34px; border-radius: 9px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 15px; color: white; background: var(--pink);
+  }
+  .feature .ttl { flex: 1; }
+  .feature .ttl h2 { margin: 0; font-size: 18px; }
+  .feature .ttl .path { font-family: var(--mono); font-size: 12.5px; color: var(--pink-dark); }
+  .feature .tier {
+    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px;
+    padding: 4px 9px; border-radius: 6px;
+  }
+  .tier.t1 { background: var(--green-soft); color: #047857; }
+  .tier.t2 { background: var(--amber-soft); color: #b45309; }
+  .feature .caret { color: var(--muted); transition: transform .2s; }
+  .feature[open] .caret { transform: rotate(90deg); }
+  .feature .body { padding: 0 22px 22px; border-top: 1px solid var(--line); }
+  .feature .body > p.lead { color: var(--muted); font-size: 14px; margin: 14px 0 4px; }
+
+  .section-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); margin: 18px 0 8px; }
+
+  .prereq { background: #fafafa; border-radius: 8px; padding: 10px 14px; font-size: 13.5px; }
+  .prereq code, .body code { font-family: var(--mono); font-size: 12.5px; background: #f4f4f5; padding: 1px 6px; border-radius: 5px; }
+
+  /* Steps with checkboxes */
+  ol.steps { list-style: none; counter-reset: step; padding: 0; margin: 6px 0; }
+  ol.steps li {
+    counter-increment: step; position: relative;
+    padding: 9px 12px 9px 44px; border-radius: 9px; margin-bottom: 4px;
+    display: flex; align-items: flex-start; gap: 10px;
+    transition: background .15s;
+  }
+  ol.steps li:hover { background: #fcfcfd; }
+  ol.steps li::before {
+    content: counter(step); position: absolute; left: 12px; top: 9px;
+    width: 22px; height: 22px; border-radius: 50%; background: var(--line); color: var(--muted);
+    font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center;
+  }
+  ol.steps li label { flex: 1; cursor: pointer; font-size: 14.5px; }
+  ol.steps input[type=checkbox] { display: none; }
+  ol.steps input[type=checkbox]:checked + label { color: var(--muted); text-decoration: line-through; }
+  ol.steps li:has(input:checked) { background: var(--green-soft); }
+  ol.steps li:has(input:checked)::before { background: var(--green); color: white; content: "✓"; }
+
+  /* Expected result */
+  .expected {
+    background: #f6fdf9; border: 1px solid var(--green-soft); border-radius: 10px;
+    padding: 12px 16px; margin: 10px 0; font-size: 14px;
+  }
+  .expected ul { margin: 6px 0 0; padding-left: 20px; }
+  .expected li { margin: 3px 0; }
+
+  .breaks {
+    background: #fff7f7; border: 1px solid #fde2e2; border-radius: 10px;
+    padding: 10px 16px; margin-top: 10px; font-size: 13.5px; color: #7f1d1d;
+  }
+  .breaks b { color: #b91c1c; }
+
+  footer { text-align: center; color: var(--muted); font-size: 13px; padding-top: 30px; }
+  kbd { font-family: var(--mono); font-size: 12px; background: #f4f4f5; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; padding: 1px 6px; }
+
+  @media print {
+    .progress-shell, .reset-btn, .caret { display: none; }
+    .feature { break-inside: avoid; }
+    .feature .body { display: block !important; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo"><span class="dot"></span> INBOUDLY</div>
+  <h1>Phase 2 Testing Guide</h1>
+  <p>5 features built this session, awaiting your validation</p>
+</header>
+
+<div class="progress-shell">
+  <div class="progress-inner">
+    <div class="progress-track"><div class="progress-fill" id="bar"></div></div>
+    <span class="progress-label" id="label"><b>0</b> / 0 steps</span>
+    <button class="reset-btn" onclick="resetAll()">Reset</button>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <div class="callout warn">
+    <h3>⚙ Before you start — prerequisites</h3>
+    <ol class="steps" data-group="prereq">
+      <li><input type="checkbox" id="pre-1"><label for="pre-1">Both dev servers running — web on <code>localhost:3000</code>, API on <code>localhost:3002</code>. Start with <code>pnpm dev</code> (or <code>pnpm dev:api</code> + <code>pnpm dev:web</code> in two terminals).</label></li>
+      <li><input type="checkbox" id="pre-2"><label for="pre-2">Signed in &amp; workspace created (you should land on the dashboard, not "Create your workspace").</label></li>
+      <li><input type="checkbox" id="pre-3"><label for="pre-3"><b>Gemini API key saved</b> in Settings → AI Providers (covers all Tier 1 tests — they all use your BYOK text AI).</label></li>
+      <li><input type="checkbox" id="pre-4"><label for="pre-4">API restarted at least once today so the new modules (Niches, Videos) are loaded. If a page 404s, restart <code>pnpm dev:api</code>.</label></li>
+    </ol>
+  </div>
+
+  <h3 class="section-label">Recommended order</h3>
+  <div class="order">
+    <span class="chip"><span class="n">1</span> Niche Intelligence</span>
+    <span class="chip"><span class="n">2</span> Trend Radar</span>
+    <span class="chip"><span class="n">3</span> Faceless Video — Script</span>
+    <span class="chip"><span class="n">4</span> Inbox / Comment Intent</span>
+    <span class="chip"><span class="n">5</span> Faceless Video — Voice</span>
+  </div>
+  <p style="color:var(--muted); font-size:13.5px;">Tiers 1–4 need only your Gemini key. Tier 5 (voice) additionally needs an ElevenLabs key + Cloudflare R2 configured.</p>
+
+  <!-- FEATURE 1 -->
+  <details class="feature" open>
+    <summary>
+      <span class="badge-num">1</span>
+      <span class="ttl"><h2>Niche Intelligence</h2><span class="path">/dashboard/niches</span></span>
+      <span class="tier t1">Tier 1</span>
+      <span class="caret">▸</span>
+    </summary>
+    <div class="body">
+      <p class="lead">Analyse any niche's RPM potential, market health, and adjacent opportunities in one AI call. Cached 7 days.</p>
+      <div class="prereq">Prereq: Gemini (or Claude) key configured.</div>
+
+      <div class="section-label">Steps</div>
+      <ol class="steps" data-group="niches">
+        <li><input type="checkbox" id="n-1"><label for="n-1">Click <b>Niche Intelligence</b> in the sidebar (Compass icon).</label></li>
+        <li><input type="checkbox" id="n-2"><label for="n-2">Type <code>vegan baking</code> in the Niche field.</label></li>
+        <li><input type="checkbox" id="n-3"><label for="n-3">Leave Platform as <b>All platforms</b> (or pick one).</label></li>
+        <li><input type="checkbox" id="n-4"><label for="n-4">Click <b>Analyse</b> and wait ~10–20 sec.</label></li>
+        <li><input type="checkbox" id="n-5"><label for="n-5">Click one of the <b>Adjacent niches</b> → it should auto-analyse that niche.</label></li>
+        <li><input type="checkbox" id="n-6"><label for="n-6">Analyse <code>vegan baking</code> again → toast should say <b>"cached"</b> and return instantly.</label></li>
+      </ol>
+
+      <div class="expected">
+        <b>Expected result:</b>
+        <ul>
+          <li>Header card: niche name + big <b>overall score</b> + 1-paragraph summary</li>
+          <li><b>RPM card</b>: $ range + breakdown (ads / brand deals / affiliate / products)</li>
+          <li><b>Health card</b>: 3 gauges (growth, saturation, monetization difficulty)</li>
+          <li><b>Opportunities</b> (green ▸) + <b>Threats</b> (amber ▸) columns</li>
+          <li><b>Top formats</b> chips + <b>Adjacent niches</b> list (clickable)</li>
+          <li>Entry appears in <b>Recent analyses</b> on the left</li>
+        </ul>
+      </div>
+      <div class="breaks"><b>If it breaks:</b> "needs a text AI provider" → add Gemini key in Settings. Blank/spinner forever → check the API terminal for errors.</div>
+    </div>
+  </details>
+
+  <!-- FEATURE 2 -->
+  <details class="feature">
+    <summary>
+      <span class="badge-num">2</span>
+      <span class="ttl"><h2>Trend Radar</h2><span class="path">/dashboard/trends</span></span>
+      <span class="tier t1">Tier 1</span>
+      <span class="caret">▸</span>
+    </summary>
+    <div class="body">
+      <p class="lead">AI-discovered trending topics per platform, with one-click hand-off into the Composer. 45 trends pre-seeded.</p>
+      <div class="prereq">Prereq: none to view (45 seeded). "Refresh all" needs Gemini.</div>
+
+      <div class="section-label">Steps</div>
+      <ol class="steps" data-group="trends">
+        <li><input type="checkbox" id="t-1"><label for="t-1">Click <b>Trend Radar</b> in the sidebar (Radar icon). Confirm ~45 cards load.</label></li>
+        <li><input type="checkbox" id="t-2"><label for="t-2">Click the <b>TikTok</b> platform chip → list narrows to TikTok trends.</label></li>
+        <li><input type="checkbox" id="t-3"><label for="t-3">Type <code>fit</code> in the category box → narrows to fitness (partial match). Match count shows.</label></li>
+        <li><input type="checkbox" id="t-4"><label for="t-4">Click a suggestion chip like <code>crypto</code> or <code>pets</code> → filter applies instantly.</label></li>
+        <li><input type="checkbox" id="t-5"><label for="t-5">Click the <b>×</b> in the category box → filter clears.</label></li>
+        <li><input type="checkbox" id="t-6"><label for="t-6">Click <b>Use in Composer</b> on any card → lands in Composer with prompt + platform + hashtags prefilled.</label></li>
+        <li><input type="checkbox" id="t-7"><label for="t-7">(Optional) Back to Trends → <b>Refresh all trends</b> → generates ~60 more via Gemini (~30–60 sec).</label></li>
+      </ol>
+
+      <div class="expected">
+        <b>Expected result:</b>
+        <ul>
+          <li>Cards show velocity badge — 🔥 Breakout / 📈 Rising / ⚡ Sustained / 📉 Declining</li>
+          <li>Freshness bar (green/amber/red), hashtag chips, estimated reach</li>
+          <li>Composer prefills the prompt textarea, locks platform, fills hashtags + green toast</li>
+        </ul>
+      </div>
+      <div class="breaks"><b>If it breaks:</b> empty list → API not restarted (Trends module). Refresh fails → Gemini key missing or rate-limited.</div>
+    </div>
+  </details>
+
+  <!-- FEATURE 3 -->
+  <details class="feature">
+    <summary>
+      <span class="badge-num">3</span>
+      <span class="ttl"><h2>Faceless Video — Script</h2><span class="path">/dashboard/videos</span></span>
+      <span class="tier t1">Tier 1</span>
+      <span class="caret">▸</span>
+    </summary>
+    <div class="body">
+      <p class="lead">Topic + niche preset → AI-scripted, scene-by-scene short-form video. The flagship's first stage.</p>
+      <div class="prereq">Prereq: Gemini key.</div>
+
+      <div class="section-label">Steps</div>
+      <ol class="steps" data-group="video-script">
+        <li><input type="checkbox" id="v-1"><label for="v-1">Click <b>Faceless Videos</b> in the sidebar (Clapperboard icon).</label></li>
+        <li><input type="checkbox" id="v-2"><label for="v-2">Pick niche <b>Motivational</b> from the dropdown (note the tone preview text).</label></li>
+        <li><input type="checkbox" id="v-3"><label for="v-3">Topic: <code>Why most people quit right before success</code>.</label></li>
+        <li><input type="checkbox" id="v-4"><label for="v-4">Click <b>Create project + generate script</b> → redirects to detail page.</label></li>
+        <li><input type="checkbox" id="v-5"><label for="v-5">Watch the status pill flip <b>GENERATING → READY</b> (~10 sec, polls automatically).</label></li>
+        <li><input type="checkbox" id="v-6"><label for="v-6">Edit a scene's text → a <b>Save</b> button appears → save it.</label></li>
+        <li><input type="checkbox" id="v-7"><label for="v-7">Click <b>Regenerate script</b> → new scenes replace the old.</label></li>
+      </ol>
+
+      <div class="expected">
+        <b>Expected result:</b>
+        <ul>
+          <li>~5 scene editor cards: spoken text + visual prompt + duration each</li>
+          <li>Pipeline row: <b>Script ✓</b> · Voice pending · Video v3 · Export v3</li>
+          <li>Project title auto-set from the AI-generated title</li>
+        </ul>
+      </div>
+      <div class="breaks"><b>If it breaks:</b> stuck on GENERATING → check API logs; status FAILED shows the error inline (usually missing AI key).</div>
+    </div>
+  </details>
+
+  <!-- FEATURE 4 -->
+  <details class="feature">
+    <summary>
+      <span class="badge-num">4</span>
+      <span class="ttl"><h2>Comment Intent AI v2</h2><span class="path">/dashboard/inbox</span></span>
+      <span class="tier t1">Tier 1</span>
+      <span class="caret">▸</span>
+    </summary>
+    <div class="body">
+      <p class="lead">Real intent + sentiment + urgency classification, plus brand-voice-aware reply suggestions.</p>
+      <div class="prereq">Prereq: Gemini key + at least some comments in the inbox (may be empty if none seeded).</div>
+
+      <div class="section-label">Steps</div>
+      <ol class="steps" data-group="inbox">
+        <li><input type="checkbox" id="i-1"><label for="i-1">Click <b>Inbox</b> in the sidebar.</label></li>
+        <li><input type="checkbox" id="i-2"><label for="i-2">If comments exist: click <b>Classify unclassified</b> (top-right) → intents update live.</label></li>
+        <li><input type="checkbox" id="i-3"><label for="i-3">Select a comment → click the per-comment <b>Classify</b> button (shown on UNCLASSIFIED ones).</label></li>
+        <li><input type="checkbox" id="i-4"><label for="i-4">Click <b>AI suggest replies</b> → 3–4 picker cards appear.</label></li>
+        <li><input type="checkbox" id="i-5"><label for="i-5">Click a suggestion card → its text loads into the reply textarea.</label></li>
+      </ol>
+
+      <div class="expected">
+        <b>Expected result:</b>
+        <ul>
+          <li>Classify toast: "Classified as PURCHASE_INTENT (87% confident)" etc.</li>
+          <li>Suggestion cards each show: tone tag + reply text + char count + italic rationale</li>
+          <li>Urgency badge next to suggestions (🔥 urgent / ⚡ medium / low)</li>
+          <li>Replies reflect your brand voice (tone, emoji rules, banned words)</li>
+        </ul>
+      </div>
+      <div class="breaks"><b>If empty:</b> no comments seeded yet — that's expected, the surface still loads. <b>If error:</b> "needs a text AI provider" → add Gemini key.</div>
+    </div>
+  </details>
+
+  <!-- FEATURE 5 -->
+  <details class="feature">
+    <summary>
+      <span class="badge-num">5</span>
+      <span class="ttl"><h2>Faceless Video — Voice</h2><span class="path">/dashboard/videos/[id]</span></span>
+      <span class="tier t2">Tier 2</span>
+      <span class="caret">▸</span>
+    </summary>
+    <div class="body">
+      <p class="lead">ElevenLabs voiceover per scene, niche-matched voice, MP3s hosted on R2 with inline players.</p>
+      <div class="prereq">Prereq: <b>ElevenLabs API key</b> (free tier: 10k chars/mo) + <b>Cloudflare R2</b> env vars set (<code>R2_ACCOUNT_ID</code>, <code>R2_ACCESS_KEY_ID</code>, <code>R2_SECRET_ACCESS_KEY</code>, <code>R2_BUCKET</code>, <code>R2_PUBLIC_URL</code>).</div>
+
+      <div class="section-label">Steps</div>
+      <ol class="steps" data-group="video-voice">
+        <li><input type="checkbox" id="vv-1"><label for="vv-1">Settings → AI Providers → scroll to the new <b>ElevenLabs (voice)</b> section.</label></li>
+        <li><input type="checkbox" id="vv-2"><label for="vv-2">Paste your ElevenLabs key (<code>sk_...</code>) → click <b>Save</b> → status flips to "✓ Configured".</label></li>
+        <li><input type="checkbox" id="vv-3"><label for="vv-3">Open a video project with a <b>READY</b> script.</label></li>
+        <li><input type="checkbox" id="vv-4"><label for="vv-4">In the <b>Voiceover</b> panel, click <b>Generate voice</b> → ~5–10 sec per scene.</label></li>
+        <li><input type="checkbox" id="vv-5"><label for="vv-5">Once done, each scene shows an inline <b>audio player</b> → press play.</label></li>
+        <li><input type="checkbox" id="vv-6"><label for="vv-6">Edit one scene's text, then click its <b>Regen</b> button → just that scene's audio updates.</label></li>
+      </ol>
+
+      <div class="expected">
+        <b>Expected result:</b>
+        <ul>
+          <li>Voice pipeline tile flips to <b>READY</b></li>
+          <li>HTML5 audio player under each scene plays the script in the niche-matched voice (Motivational → Adam, dramatic)</li>
+        </ul>
+      </div>
+      <div class="breaks"><b>If it breaks:</b> "Cloudflare R2 not configured" → set the R2 env vars + restart API. "ElevenLabs 401" → bad/expired key. "All scenes failed" → check ElevenLabs quota.</div>
+    </div>
+  </details>
+
+  <div class="callout">
+    <h3>📋 When you're done</h3>
+    Tell me which checkboxes you couldn't tick and what you saw (error text / screenshot). Everything green → we move to <b>Phase 2B.v3</b> (video clips + MP4 export) or <b>Phase 2C</b> (Facebook / LinkedIn / YouTube / Pinterest connectors).
+  </div>
+
+  <footer>
+    Inboudly · Phase 2 Testing Guide · generated <span id="date"></span><br/>
+    Your progress is saved in this browser automatically.
+  </footer>
+</div>
+
+<script>
+  // Persist checkbox state in localStorage so progress survives refreshes.
+  const KEY = 'inboudly-phase2-test-progress';
+  const boxes = Array.from(document.querySelectorAll('input[type=checkbox]'));
+  const saved = JSON.parse(localStorage.getItem(KEY) || '{}');
+
+  function update() {
+    const done = boxes.filter(b => b.checked).length;
+    const total = boxes.length;
+    const pct = total ? Math.round((done / total) * 100) : 0;
+    document.getElementById('bar').style.width = pct + '%';
+    document.getElementById('label').innerHTML = '<b>' + done + '</b> / ' + total + ' steps · ' + pct + '%';
+  }
+
+  boxes.forEach(b => {
+    if (saved[b.id]) b.checked = true;
+    b.addEventListener('change', () => {
+      saved[b.id] = b.checked;
+      localStorage.setItem(KEY, JSON.stringify(saved));
+      update();
+    });
+  });
+
+  function resetAll() {
+    if (!confirm('Reset all testing progress?')) return;
+    boxes.forEach(b => { b.checked = false; });
+    localStorage.removeItem(KEY);
+    update();
+  }
+  window.resetAll = resetAll;
+
+  document.getElementById('date').textContent = new Date().toLocaleDateString();
+  update();
+</script>
+</body>
+</html>
