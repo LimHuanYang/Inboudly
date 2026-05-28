@@ -1,6 +1,17 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException, ForbiddenException, Injectable, NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { UserRole } from '@inboudly/database';
+
+// Supported ISO 4217 currencies. Must stay in sync with the web app's
+// lib/currencies.ts (the dropdown source). Validated here so a bad code
+// can't be persisted.
+const SUPPORTED_CURRENCIES = new Set([
+  'USD', 'EUR', 'GBP', 'JPY', 'CNY', 'AUD', 'CAD', 'CHF', 'HKD', 'SGD',
+  'MYR', 'INR', 'IDR', 'THB', 'PHP', 'VND', 'KRW', 'TWD', 'NZD', 'SEK',
+  'NOK', 'DKK', 'AED', 'SAR', 'BRL', 'MXN', 'ZAR',
+]);
 
 @Injectable()
 export class WorkspacesService {
@@ -32,6 +43,34 @@ export class WorkspacesService {
     });
     if (!workspace) throw new NotFoundException();
     return workspace;
+  }
+
+  /**
+   * Update workspace-level settings. Currently just currency, but shaped to
+   * grow (timezone, locale, etc.). Any member can change it — it's a display
+   * preference, not a destructive op.
+   */
+  async updateSettings(
+    workspaceId: string,
+    supabaseUserId: string,
+    settings: { currency?: string },
+  ) {
+    await this.assertMember(workspaceId, supabaseUserId);
+
+    const data: { currency?: string } = {};
+    if (settings.currency !== undefined) {
+      const code = settings.currency.toUpperCase();
+      if (!SUPPORTED_CURRENCIES.has(code)) {
+        throw new BadRequestException(`Unsupported currency "${settings.currency}"`);
+      }
+      data.currency = code;
+    }
+
+    if (Object.keys(data).length === 0) {
+      throw new BadRequestException('No settings to update');
+    }
+
+    return this.prisma.workspace.update({ where: { id: workspaceId }, data });
   }
 
   async invite(workspaceId: string, supabaseUserId: string, email: string, role: UserRole) {

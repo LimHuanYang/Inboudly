@@ -85,6 +85,7 @@ model Workspace {
   description String?
   timezone    String   @default("UTC")
   locale      String   @default("en")
+  currency    String   @default("USD") // ISO 4217 — drives money displays + AI RPM estimates
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -753,10 +754,13 @@ model NicheAnalysis {
   niche                  String         // free-text e.g. "vegan baking", "indie hacker tools"
   platform               SocialPlatform?  // null = cross-platform analysis
 
-  // RPM (revenue per 1000 views) — estimated, ranges by source
+  // RPM (revenue per 1000 views) — estimated, ranges by source.
+  // `currency` records which ISO 4217 currency the figures are in (the
+  // workspace currency at analysis time) so re-display stays consistent.
+  currency               String         @default("USD")
   estimatedRpmMin        Decimal?       @db.Decimal(8, 2)
   estimatedRpmMax        Decimal?       @db.Decimal(8, 2)
-  rpmBreakdownJson       Json?          // { ads, brandDeals, affiliate, products } in $ ranges
+  rpmBreakdownJson       Json?          // { ads, brandDeals, affiliate, products } ranges in `currency`
 
   // Health (0-100 scores)
   saturationScore        Int?           // higher = more saturated (worse)

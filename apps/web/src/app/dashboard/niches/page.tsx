@@ -8,6 +8,7 @@ import {
   Lightbulb, Layers, ArrowRight, RefreshCw, Trash2,
 } from 'lucide-react';
 import { api } from '@/lib/api-client';
+import { formatCurrency } from '@/lib/currencies';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -34,6 +35,7 @@ interface NicheAnalysisResult {
   cached: boolean;
   niche: string;
   platform: Platform | null;
+  currency: string;
   rpm: { min: number; max: number; breakdown: RpmBreakdown } | null;
   scores: {
     saturation: number;
@@ -115,7 +117,9 @@ export default function NichesPage() {
   });
 
   const analyze = useMutation({
-    mutationFn: (force = false) =>
+    // Explicit boolean variable type — a defaulted param makes react-query
+    // infer TVariables as `void`, which then rejects mutate(true)/mutate(false).
+    mutationFn: (force: boolean) =>
       api.post<NicheAnalysisResult>('/niches/analyze', {
         workspaceId,
         niche: nicheInput,
@@ -360,11 +364,14 @@ export default function NichesPage() {
                       <CardTitle className="flex items-center gap-2 text-base">
                         <DollarSign className="h-4 w-4 text-emerald-500" />
                         RPM estimate (per 1,000 views)
+                        <span className="ml-auto rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+                          {result.currency}
+                        </span>
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
                       <div className="mb-3 text-2xl font-bold">
-                        ${result.rpm.min.toFixed(2)} – ${result.rpm.max.toFixed(2)}
+                        {formatCurrency(result.rpm.min, result.currency)} – {formatCurrency(result.rpm.max, result.currency)}
                       </div>
                       <div className="space-y-2">
                         {Object.entries(result.rpm.breakdown).map(([source, range]) => (
@@ -373,7 +380,7 @@ export default function NichesPage() {
                               {source.replace(/([A-Z])/g, ' $1').trim()}
                             </span>
                             <span className="font-mono">
-                              ${range.min.toFixed(2)} – ${range.max.toFixed(2)}
+                              {formatCurrency(range.min, result.currency)} – {formatCurrency(range.max, result.currency)}
                             </span>
                           </div>
                         ))}

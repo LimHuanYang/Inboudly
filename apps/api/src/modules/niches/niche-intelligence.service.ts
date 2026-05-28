@@ -26,6 +26,7 @@ export interface NicheAnalysisResult {
   cached: boolean;
   niche: string;
   platform: SocialPlatform | null;
+  currency: string; // ISO 4217 — what currency the RPM figures are in
   rpm: {
     min: number;
     max: number;
@@ -105,14 +106,28 @@ export class NicheIntelligenceService {
     const normalized = niche.trim().toLowerCase();
     if (!normalized) throw new BadRequestException('Niche is required');
 
+    // The workspace currency drives the AI's RPM estimates. Read it once;
+    // default to USD if the workspace somehow lacks one.
+    const ws = await this.prisma.workspace.findUnique({
+      where: { id: workspaceId },
+      select: { currency: true },
+    });
+    const currency = ws?.currency ?? 'USD';
+
     // Cache lookup unless force=true. We use findFirst (not findUnique) because
     // `platform` is nullable in the compound key — Prisma's findUnique input
     // type rejects null, and SQL treats NULL as distinct anyway.
+    // Also bypass the cache if the stored currency differs from the current
+    // workspace currency — the figures would be in the wrong currency.
     if (!force) {
       const cached = await this.prisma.nicheAnalysis.findFirst({
         where: { workspaceId, niche: normalized, platform },
       });
-      if (cached && Date.now() - cached.analyzedAt.getTime() < this.CACHE_TTL_MS) {
+      if (
+        cached &&
+        cached.currency === currency &&
+        Date.now() - cached.analyzedAt.getTime() < this.CACHE_TTL_MS
+      ) {
         return this.toResult(cached, true);
       }
     }
@@ -125,6 +140,7 @@ export class NicheIntelligenceService {
         cached: false,
         niche: normalized,
         platform,
+        currency,
         rpm: null,
         scores: null,
         summary: '',
@@ -137,7 +153,7 @@ export class NicheIntelligenceService {
       };
     }
 
-    const prompt = this.buildPrompt(normalized, platform);
+    const prompt = this.buildPrompt(normalized, platform, currency);
 
     let raw: string;
     let modelUsed: string;
@@ -175,6 +191,7 @@ export class NicheIntelligenceService {
         cached: false,
         niche: normalized,
         platform,
+        currency,
         rpm: null,
         scores: null,
         summary: '',
@@ -194,6 +211,7 @@ export class NicheIntelligenceService {
         cached: false,
         niche: normalized,
         platform,
+        currency,
         rpm: null,
         scores: null,
         summary: '',
@@ -210,6 +228,7 @@ export class NicheIntelligenceService {
     // key includes the nullable `platform` field (see cache-lookup note above).
     // Shared field payload, cast JSON to Prisma.InputJsonValue.
     const fields = {
+      currency,
       estimatedRpmMin: parsed.rpm.min,
       estimatedRpmMax: parsed.rpm.max,
       rpmBreakdownJson: parsed.rpm.breakdown as unknown as Prisma.InputJsonValue,
@@ -260,6 +279,7 @@ export class NicheIntelligenceService {
       cached,
       niche: row.niche,
       platform: row.platform,
+      currency: row.currency,
       rpm:
         row.estimatedRpmMin !== null && row.estimatedRpmMax !== null && breakdown
           ? {
@@ -290,7 +310,7 @@ export class NicheIntelligenceService {
     };
   }
 
-  private buildPrompt(niche: string, platform: SocialPlatform | null): string {
+  private buildPrompt(niche: string, platform: SocialPlatform | null, currency: string): string {
     const platformLine = platform
       ? `Focus on ${platform} specifically — RPM, formats, and opportunities should reflect ${platform}'s monetization model.`
       : 'Cross-platform analysis — give the typical range across major social platforms.';
@@ -299,6 +319,8 @@ export class NicheIntelligenceService {
 
 Analyse this niche: "${niche}"
 ${platformLine}
+
+ALL monetary values (RPM + breakdown) MUST be estimated natively in ${currency} — NOT converted from USD. Reason about what creators in this niche actually earn in ${currency} markets, accounting for regional ad rates and brand-deal economics. Output raw numbers only (no currency symbols in the JSON).
 
 Return a strict JSON object with these fields:
 
@@ -342,7 +364,7 @@ Return a strict JSON object with these fields:
 }
 
 GUIDELINES
-- Use realistic, current (2026) RPM ranges. Examples: YouTube long-form gaming $2-8, finance $15-35, kids $0.50-2 (limited monetization); TikTok creator fund ~$0.02-0.04 per 1k views regardless of niche.
+- Use realistic, current (2026) RPM ranges in ${currency}. As a RELATIVE-magnitude reference (these are USD figures — scale to ${currency} market rates): YouTube long-form gaming ~$2-8, finance ~$15-35, kids ~$0.50-2 (limited monetization); TikTok creator fund ~$0.02-0.04 per 1k views regardless of niche. Preserve the relative spread between niches, but express final numbers in ${currency}.
 - "saturation" scoring: <30 = blue-ocean opportunity, 30-60 = competitive but findable, 60-85 = crowded, >85 = saturated.
 - "growth" scoring: >70 = rising fast (breakout window), 40-70 = steady, <40 = flat or declining.
 - Adjacent niches should be GENUINELY adjacent (audience would care about both), not just random alternatives.

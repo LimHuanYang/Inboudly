@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Plus } from 'lucide-react';
 import { AiProvidersCard } from './ai-providers-card';
+import { CurrencyCard } from './currency-card';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
 
@@ -29,6 +30,7 @@ export default function SettingsPage() {
   const me = useQuery({ queryKey: ['me'], queryFn: () => api.get<any>('/auth/me') });
   const workspaceId = me.data?.memberships?.[0]?.workspace?.id;
   const workspaceName = me.data?.memberships?.[0]?.workspace?.name;
+  const workspaceCurrency = me.data?.memberships?.[0]?.workspace?.currency;
 
   const accounts = useQuery({
     queryKey: ['social-accounts', workspaceId],
@@ -59,6 +61,13 @@ export default function SettingsPage() {
       {workspaceId && (
         <div className="mb-4">
           <AiProvidersCard workspaceId={workspaceId} />
+        </div>
+      )}
+
+      {/* Currency — workspace money display + AI RPM estimation currency. */}
+      {workspaceId && (
+        <div className="mb-4">
+          <CurrencyCard workspaceId={workspaceId} currentCurrency={workspaceCurrency} />
         </div>
       )}
 
