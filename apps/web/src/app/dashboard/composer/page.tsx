@@ -120,8 +120,18 @@ export default function ComposerPage() {
       if (v) {
         setCaptions((prev) => ({ ...prev, [vars.platform]: v.caption }));
         setHashtags((prev) => ({ ...prev, [vars.platform]: (v.hashtags ?? []).join(' ') }));
+        // The AI also drafts a matching image-generation prompt. Pre-fill the
+        // "Generate image with AI" box so the user can produce on-brand
+        // imagery in one click — especially valuable for image-first RedNote.
+        if (v.imagePrompt && typeof v.imagePrompt === 'string') {
+          setImagePrompt(v.imagePrompt);
+        }
       }
-      toast.success(`Generated ${vars.platform} caption`);
+      toast.success(
+        v?.imagePrompt
+          ? `Generated ${vars.platform} caption + image prompt`
+          : `Generated ${vars.platform} caption`,
+      );
     },
     onError: (err: any) => toast.error(err.message),
   });

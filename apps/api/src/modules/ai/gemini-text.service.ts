@@ -12,6 +12,10 @@ interface GeneratedVariant {
   cta?: string;
   hook?: string;
   rationale?: string;
+  // A ready-to-use AI image-generation prompt for a visual that matches
+  // this post. The Composer pre-fills its "Generate image with AI" box
+  // with this so the user can produce on-brand imagery in one click.
+  imagePrompt?: string;
 }
 
 /**
@@ -127,7 +131,8 @@ OUTPUT FORMAT — strict JSON only, no prose around it:
       "hashtags": ["...", "..."],
       "cta": "...",
       "hook": "the first 3 seconds / first line",
-      "rationale": "why this will perform well per the platform algorithm"
+      "rationale": "why this will perform well per the platform algorithm",
+      "imagePrompt": "a vivid, detailed prompt for an AI image generator that produces a scroll-stopping visual matching this post. Describe subject, setting, lighting, mood, composition, and style. 20-40 words. NO text/words in the image. Match the platform aesthetic (${spec.displayName} — e.g. RedNote favours clean, bright, aspirational lifestyle photography; TikTok favours bold, high-energy framing)."
     }
   ]
 }`;
