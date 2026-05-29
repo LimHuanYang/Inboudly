@@ -9,7 +9,8 @@ export type ResolvedTextProvider = {
 };
 
 export type ResolvedImageProvider = {
-  provider: 'openai' | 'gemini';
+  provider: 'openai' | 'gemini' | 'pollinations';
+  // Empty string for keyless providers (Pollinations).
   apiKey: string;
   model: string;
 };
@@ -28,7 +29,8 @@ export type AiProviderModelName =
   | 'geminiModel'
   | 'geminiImageModel'
   | 'openaiModel'
-  | 'anthropicModel';
+  | 'anthropicModel'
+  | 'pollinationsModel';
 
 const KEY_FIELDS: AiProviderKeyName[] = [
   'geminiKey',
@@ -52,6 +54,7 @@ export const DEFAULT_MODELS = {
 export const DEFAULT_IMAGE_MODELS = {
   openai: 'gpt-image-1',
   gemini: 'gemini-2.5-flash-image', // "Nano Banana"
+  pollinations: 'flux', // free, keyless
 } as const;
 
 interface ProviderStateView {
@@ -66,13 +69,15 @@ export interface AiCredentialsView {
   anthropic:  ProviderStateView;
   // Gemini's IMAGE model override (separate from gemini.model which is text).
   geminiImageModel: string | null;
+  // Pollinations IMAGE model override (free, keyless provider).
+  pollinationsModel: string | null;
   runway:     { configured: boolean; masked: string | null };
   kling:      { configured: boolean; masked: string | null };
   elevenLabs: { configured: boolean; masked: string | null };
   suno:       { configured: boolean; masked: string | null };
   pinecone:   { configured: boolean; masked: string | null };
   preferredTextProvider:  'claude' | 'gemini' | null;
-  preferredImageProvider: 'openai' | 'gemini' | null;
+  preferredImageProvider: 'openai' | 'gemini' | 'pollinations' | null;
 }
 
 @Injectable()
@@ -116,10 +121,13 @@ export class AiCredentialsService {
    */
   async getImageModel(
     workspaceId: string,
-    provider: 'openai' | 'gemini',
+    provider: 'openai' | 'gemini' | 'pollinations',
   ): Promise<string> {
     const row = await this.getRecord(workspaceId);
-    const field: AiProviderModelName = provider === 'openai' ? 'openaiModel' : 'geminiImageModel';
+    const field: AiProviderModelName =
+      provider === 'openai' ? 'openaiModel'
+        : provider === 'gemini' ? 'geminiImageModel'
+          : 'pollinationsModel';
     const custom = row?.[field];
     return custom?.trim() || DEFAULT_IMAGE_MODELS[provider];
   }
@@ -176,37 +184,42 @@ export class AiCredentialsService {
 
   /**
    * Image-generation equivalent of resolveTextProvider. Honours
-   * preferredImageProvider, falls back OpenAI > Gemini, and returns the
-   * provider's image model so callers don't make a second roundtrip.
+   * preferredImageProvider, then falls back OpenAI > Gemini > Pollinations.
+   * Pollinations is free and keyless, so this ALWAYS resolves — a workspace
+   * can generate images at $0 before adding any paid provider key.
    */
-  async resolveImageProvider(workspaceId: string): Promise<ResolvedImageProvider | null> {
+  async resolveImageProvider(workspaceId: string): Promise<ResolvedImageProvider> {
     const record = await this.getRecord(workspaceId);
     const openaiKey = await this.getDecryptedKey(workspaceId, 'openaiKey');
     const geminiKey = await this.getDecryptedKey(workspaceId, 'geminiKey');
 
-    const pick = async (provider: 'openai' | 'gemini', apiKey: string): Promise<ResolvedImageProvider> => ({
+    const pick = async (
+      provider: ResolvedImageProvider['provider'],
+      apiKey: string,
+    ): Promise<ResolvedImageProvider> => ({
       provider,
       apiKey,
       model: await this.getImageModel(workspaceId, provider),
     });
 
-    const preferred = record?.preferredImageProvider as 'openai' | 'gemini' | null | undefined;
+    const preferred = record?.preferredImageProvider as
+      | 'openai' | 'gemini' | 'pollinations' | null | undefined;
+    if (preferred === 'pollinations') return pick('pollinations', '');
     if (preferred === 'openai' && openaiKey) return pick('openai', openaiKey);
     if (preferred === 'gemini' && geminiKey) return pick('gemini', geminiKey);
     if (openaiKey) return pick('openai', openaiKey);
     if (geminiKey) return pick('gemini', geminiKey);
-    return null;
+    // Free, keyless fallback so image gen works without any configured key.
+    return pick('pollinations', '');
   }
 
-  /** Same as resolveImageProvider but throws 400 if no provider is configured. */
+  /**
+   * Alias of resolveImageProvider. Pollinations guarantees a provider is always
+   * available, so this never throws — kept for call-site symmetry with
+   * requireTextProvider.
+   */
   async requireImageProvider(workspaceId: string): Promise<ResolvedImageProvider> {
-    const resolved = await this.resolveImageProvider(workspaceId);
-    if (!resolved) {
-      throw new BadRequestException(
-        'No image AI provider configured for this workspace. Go to Settings → AI Providers and add either an OpenAI or Google (Gemini) API key. Note: Gemini image generation requires paid Google Cloud billing.',
-      );
-    }
-    return resolved;
+    return this.resolveImageProvider(workspaceId);
   }
 
   async view(workspaceId: string): Promise<AiCredentialsView> {
@@ -238,13 +251,14 @@ export class AiCredentialsService {
       openai:     safeProvider('openaiKey', 'openaiModel'),
       anthropic:  safeProvider('anthropicKey', 'anthropicModel'),
       geminiImageModel: (row?.geminiImageModel as string | null) ?? null,
+      pollinationsModel: (row?.pollinationsModel as string | null) ?? null,
       runway:     safeKey('runwayKey'),
       kling:      safeKey('klingKey'),
       elevenLabs: safeKey('elevenLabsKey'),
       suno:       safeKey('sunoKey'),
       pinecone:   safeKey('pineconeKey'),
       preferredTextProvider:  (row?.preferredTextProvider as 'claude' | 'gemini' | null) ?? null,
-      preferredImageProvider: (row?.preferredImageProvider as 'openai' | 'gemini' | null) ?? null,
+      preferredImageProvider: (row?.preferredImageProvider as 'openai' | 'gemini' | 'pollinations' | null) ?? null,
     };
   }
 
@@ -289,7 +303,7 @@ export class AiCredentialsService {
     workspaceId: string,
     prefs: {
       preferredTextProvider?: 'claude' | 'gemini' | null;
-      preferredImageProvider?: 'openai' | 'gemini' | null;
+      preferredImageProvider?: 'openai' | 'gemini' | 'pollinations' | null;
     },
   ): Promise<void> {
     await this.prisma.workspaceAiCredentials.upsert({

@@ -18,8 +18,9 @@ interface CredsView {
   openai: ProviderState;
   anthropic: ProviderState;
   geminiImageModel: string | null;
+  pollinationsModel: string | null;
   preferredTextProvider: 'claude' | 'gemini' | null;
-  preferredImageProvider: 'openai' | 'gemini' | null;
+  preferredImageProvider: 'openai' | 'gemini' | 'pollinations' | null;
 }
 
 type ModelOption = { value: string; label: string };
@@ -46,6 +47,13 @@ const OPENAI_IMAGE_MODELS: ModelOption[] = [
 const GEMINI_IMAGE_MODELS: ModelOption[] = [
   { value: 'gemini-2.5-flash-image', label: 'gemini-2.5-flash-image — Nano Banana (default)' },
 ];
+const POLLINATIONS_IMAGE_MODELS: ModelOption[] = [
+  { value: 'flux',         label: 'flux — best quality (default)' },
+  { value: 'flux-realism', label: 'flux-realism — photorealistic' },
+  { value: 'flux-anime',   label: 'flux-anime — anime / illustration' },
+  { value: 'flux-3d',      label: 'flux-3d — 3D render' },
+  { value: 'turbo',        label: 'turbo — fastest' },
+];
 
 // Map (task, provider) → the credentials model field the PATCH endpoint expects.
 const MODEL_FIELD: Record<string, string> = {
@@ -53,6 +61,7 @@ const MODEL_FIELD: Record<string, string> = {
   'caption:gemini': 'geminiModel',
   'image:openai': 'openaiModel',
   'image:gemini': 'geminiImageModel',
+  'image:pollinations': 'pollinationsModel',
 };
 
 export function AiDefaultsCard({ workspaceId }: { workspaceId: string }) {
@@ -66,7 +75,7 @@ export function AiDefaultsCard({ workspaceId }: { workspaceId: string }) {
   // Local state mirrors the server but updates instantly on change.
   const [captionProvider, setCaptionProvider] = useState<'claude' | 'gemini' | ''>('');
   const [captionModel, setCaptionModel] = useState('');
-  const [imageProvider, setImageProvider] = useState<'openai' | 'gemini' | ''>('');
+  const [imageProvider, setImageProvider] = useState<'openai' | 'gemini' | 'pollinations' | ''>('');
   const [imageModel, setImageModel] = useState('');
 
   useEffect(() => {
@@ -79,11 +88,12 @@ export function AiDefaultsCard({ workspaceId }: { workspaceId: string }) {
         : cp === 'gemini' ? (data.gemini.model ?? 'gemini-2.5-flash') : '',
     );
     const ip = data.preferredImageProvider
-      ?? (data.openai.configured ? 'openai' : data.gemini.configured ? 'gemini' : '');
+      ?? (data.openai.configured ? 'openai' : data.gemini.configured ? 'gemini' : 'pollinations');
     setImageProvider(ip);
     setImageModel(
       ip === 'openai' ? (data.openai.model ?? 'gpt-image-1')
-        : ip === 'gemini' ? (data.geminiImageModel ?? 'gemini-2.5-flash-image') : '',
+        : ip === 'gemini' ? (data.geminiImageModel ?? 'gemini-2.5-flash-image')
+          : (data.pollinationsModel ?? 'flux'),
     );
   }, [data]);
 
@@ -117,10 +127,12 @@ export function AiDefaultsCard({ workspaceId }: { workspaceId: string }) {
   }
 
   const captionConfigured = data.anthropic.configured || data.gemini.configured;
-  const imageConfigured = data.openai.configured || data.gemini.configured;
 
   const captionModels = captionProvider === 'claude' ? CLAUDE_MODELS : GEMINI_TEXT_MODELS;
-  const imageModels = imageProvider === 'openai' ? OPENAI_IMAGE_MODELS : GEMINI_IMAGE_MODELS;
+  const imageModels =
+    imageProvider === 'openai' ? OPENAI_IMAGE_MODELS
+      : imageProvider === 'pollinations' ? POLLINATIONS_IMAGE_MODELS
+        : GEMINI_IMAGE_MODELS;
 
   return (
     <Card>
@@ -191,24 +203,20 @@ export function AiDefaultsCard({ workspaceId }: { workspaceId: string }) {
           <h3 className="mb-3 flex items-center gap-2 text-sm font-medium">
             <ImageIcon className="h-4 w-4 text-primary" /> Image generation
           </h3>
-          {!imageConfigured ? (
-            <p className="text-xs text-muted-foreground">
-              Add an OpenAI or Google (Gemini) key below to enable. (Gemini image
-              gen needs paid Google Cloud billing.)
-            </p>
-          ) : (
+          {(
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <label className="text-xs font-medium">Provider</label>
                 <select
                   value={imageProvider}
                   onChange={(e) => {
-                    const p = e.target.value as 'openai' | 'gemini';
+                    const p = e.target.value as 'openai' | 'gemini' | 'pollinations';
                     setImageProvider(p);
                     savePref.mutate({ preferredImageProvider: p });
                   }}
                   className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 >
+                  <option value="pollinations">Free — Pollinations (no key)</option>
                   <option value="openai" disabled={!data.openai.configured}>
                     OpenAI{!data.openai.configured ? ' — no key' : ''}
                   </option>

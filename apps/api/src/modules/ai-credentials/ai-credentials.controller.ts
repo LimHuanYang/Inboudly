@@ -37,6 +37,7 @@ const ALLOWED_MODEL_FIELDS: AiProviderModelName[] = [
   'geminiImageModel',
   'openaiModel',
   'anthropicModel',
+  'pollinationsModel',
 ];
 
 @ApiTags('ai-credentials')
@@ -116,7 +117,7 @@ export class AiCredentialsController {
     @Body()
     body: {
       preferredTextProvider?: 'claude' | 'gemini' | null;
-      preferredImageProvider?: 'openai' | 'gemini' | null;
+      preferredImageProvider?: 'openai' | 'gemini' | 'pollinations' | null;
     },
     @CurrentUser() user: { supabaseUserId: string },
   ) {

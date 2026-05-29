@@ -4,6 +4,7 @@ import { ClaudeTextService } from './claude-text.service';
 import { OpenAiImageService } from './openai-image.service';
 import { GeminiTextService } from './gemini-text.service';
 import { GeminiImageService } from './gemini-image.service';
+import { PollinationsImageService } from './pollinations-image.service';
 import { EmbeddingsService } from './embeddings.service';
 import { MediaModule } from '../media/media.module';
 import { BrandModule } from '../brand/brand.module';
@@ -17,6 +18,7 @@ import { AiCredentialsModule } from '../ai-credentials/ai-credentials.module';
     OpenAiImageService,
     GeminiTextService,
     GeminiImageService,
+    PollinationsImageService,
     EmbeddingsService,
   ],
   exports: [
@@ -24,6 +26,7 @@ import { AiCredentialsModule } from '../ai-credentials/ai-credentials.module';
     OpenAiImageService,
     GeminiTextService,
     GeminiImageService,
+    PollinationsImageService,
     EmbeddingsService,
   ],
 })

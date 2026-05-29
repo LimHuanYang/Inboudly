@@ -169,7 +169,7 @@
 <header>
   <div class="logo"><span class="dot"></span> INBOUDLY</div>
   <h1>Phase 2 Testing Guide</h1>
-  <p>5 features built this session, awaiting your validation</p>
+  <p>6 features built — awaiting your validation</p>
 </header>
 
 <div class="progress-shell">
@@ -199,8 +199,9 @@
     <span class="chip"><span class="n">3</span> Faceless Video — Script</span>
     <span class="chip"><span class="n">4</span> Inbox / Comment Intent</span>
     <span class="chip"><span class="n">5</span> Faceless Video — Voice</span>
+    <span class="chip"><span class="n">6</span> Free Image Gen</span>
   </div>
-  <p style="color:var(--muted); font-size:13.5px;">Tiers 1–4 need only your Gemini key. Tier 5 (voice) additionally needs an ElevenLabs key + Cloudflare R2 configured.</p>
+  <p style="color:var(--muted); font-size:13.5px;">Tiers 1–4 need only your Gemini key. Tier 5 (voice) additionally needs an ElevenLabs key + Cloudflare R2 configured. <b>#6 (free image gen) needs no key at all</b> — start there if you just want to see images.</p>
 
   <!-- FEATURE 1 -->
   <details class="feature" open>
@@ -373,6 +374,42 @@
         </ul>
       </div>
       <div class="breaks"><b>If it breaks:</b> "Cloudflare R2 not configured" → set the R2 env vars + restart API. "ElevenLabs 401" → bad/expired key. "All scenes failed" → check ElevenLabs quota.</div>
+    </div>
+  </details>
+
+  <!-- FEATURE 6 -->
+  <details class="feature">
+    <summary>
+      <span class="badge-num">6</span>
+      <span class="ttl"><h2>Free Image Generation — Pollinations</h2><span class="path">/dashboard/composer</span></span>
+      <span class="tier t1">No key</span>
+      <span class="caret">▸</span>
+    </summary>
+    <div class="body">
+      <p class="lead">Generate images at <b>$0</b> with zero setup. Pollinations.ai is keyless, so image gen works even before you add any OpenAI or Gemini key — it's now the automatic fallback provider.</p>
+      <div class="prereq">Prereq: <b>none.</b> No API key, no billing, no signup. Works on a brand-new workspace.</div>
+
+      <div class="section-label">Steps</div>
+      <ol class="steps" data-group="pollinations">
+        <li><input type="checkbox" id="pol-1"><label for="pol-1">Settings → <b>AI defaults</b> → <b>Image generation</b> → Provider dropdown → pick <b>Free — Pollinations (no key)</b>. Toast: "Preference saved".</label></li>
+        <li><input type="checkbox" id="pol-2"><label for="pol-2">(Optional) In the <b>Model</b> dropdown try <code>flux-realism</code> or <code>turbo</code> → toast "Model saved".</label></li>
+        <li><input type="checkbox" id="pol-3"><label for="pol-3">Go to <b>Composer</b> in the sidebar.</label></li>
+        <li><input type="checkbox" id="pol-4"><label for="pol-4">In <b>Generate image with AI</b>, type a prompt, e.g. <code>Sunlit minimalist skincare bottle on marble with rosemary sprig</code>.</label></li>
+        <li><input type="checkbox" id="pol-5"><label for="pol-5">Pick an aspect ratio (e.g. <b>Portrait 4:5</b>) and <b>1 image</b>.</label></li>
+        <li><input type="checkbox" id="pol-6"><label for="pol-6">Click <b>Generate 1 image</b> → wait ~5–20 sec.</label></li>
+        <li><input type="checkbox" id="pol-7"><label for="pol-7">Click the returned image → it attaches to the active platform variant.</label></li>
+      </ol>
+
+      <div class="expected">
+        <b>Expected result:</b>
+        <ul>
+          <li>An image is generated <b>with no API key configured</b> — the whole point</li>
+          <li>Image appears in the results grid; clicking it attaches to the post</li>
+          <li>Different models (<code>flux</code> vs <code>turbo</code>) produce visibly different styles/speeds</li>
+          <li>Asset is saved to your media library with <code>aiModel: flux</code></li>
+        </ul>
+      </div>
+      <div class="breaks"><b>If it breaks:</b> Pollinations is a free public service — it can be slow or rate-limited. The toast says "Free (Pollinations)… try again in a moment" → just retry. <b>If a different provider runs instead:</b> you have an OpenAI/Gemini key set as the preferred image provider — explicitly pick <b>Free — Pollinations</b> in AI defaults.</div>
     </div>
   </details>
 

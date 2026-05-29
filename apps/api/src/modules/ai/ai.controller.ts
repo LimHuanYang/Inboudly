@@ -6,11 +6,12 @@ import { ClaudeTextService } from './claude-text.service';
 import { OpenAiImageService } from './openai-image.service';
 import { GeminiTextService } from './gemini-text.service';
 import { GeminiImageService } from './gemini-image.service';
+import { PollinationsImageService } from './pollinations-image.service';
 import { AiCredentialsService } from '../ai-credentials/ai-credentials.service';
 import { SupabaseAuthGuard } from '../../common/auth/auth.guard';
 import { GenerateTextSchema, GenerateImageSchema } from '@inboudly/shared';
 
-type ImageProvider = 'openai' | 'gemini';
+type ImageProvider = 'openai' | 'gemini' | 'pollinations';
 
 /**
  * BYOK provider resolution:
@@ -33,6 +34,7 @@ export class AiController {
     private openaiImage: OpenAiImageService,
     private gemini: GeminiTextService,
     private geminiImage: GeminiImageService,
+    private pollinationsImage: PollinationsImageService,
     private credentials: AiCredentialsService,
   ) {}
 
@@ -71,7 +73,9 @@ export class AiController {
       const result =
         provider === 'openai'
           ? await this.openaiImage.generate(apiKey, args)
-          : await this.geminiImage.generate(apiKey, args);
+          : provider === 'gemini'
+            ? await this.geminiImage.generate(apiKey, args)
+            : await this.pollinationsImage.generate(apiKey, args);
 
       if (!result?.assets?.length) {
         throw new BadRequestException(this.imageHint(provider, 'returned no image'));
@@ -90,7 +94,10 @@ export class AiController {
   /** Build a clear, provider-aware error message for image-gen failures. */
   private imageHint(provider: ImageProvider, detail: string): string {
     if (provider === 'gemini') {
-      return `Gemini image generation failed (${detail}). Gemini's free tier does NOT include image generation — enable paid Google Cloud billing on your key's project, OR add an OpenAI key in Settings → AI Providers (Inboudly prefers OpenAI for images).`;
+      return `Gemini image generation failed (${detail}). Gemini's free tier does NOT include image generation — enable paid Google Cloud billing on your key's project, OR switch to the free Pollinations provider in Settings → AI defaults.`;
+    }
+    if (provider === 'pollinations') {
+      return `Free (Pollinations) image generation failed (${detail}). This is a free public service and can be slow or rate-limited — try again in a moment, or add an OpenAI key in Settings → AI Providers for more reliable generation.`;
     }
     return `OpenAI image generation failed (${detail}). Check your OpenAI key has image (gpt-image-1 / DALL·E) access and available credit.`;
   }

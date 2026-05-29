@@ -130,14 +130,15 @@ model WorkspaceAiCredentials {
   // for better quality). Plain text — model names aren't secrets.
   // Task split: anthropicModel + geminiModel = TEXT (captions); openaiModel +
   // geminiImageModel = IMAGE. Gemini does both, so it needs two model fields.
-  geminiModel      String? // Gemini TEXT model (captions)
-  geminiImageModel String? // Gemini IMAGE model (image gen)
-  openaiModel      String? // OpenAI IMAGE model
-  anthropicModel   String? // Claude TEXT model (captions)
+  geminiModel       String? // Gemini TEXT model (captions)
+  geminiImageModel  String? // Gemini IMAGE model (image gen)
+  openaiModel       String? // OpenAI IMAGE model
+  anthropicModel    String? // Claude TEXT model (captions)
+  pollinationsModel String? // Pollinations IMAGE model (free, keyless)
   // Hint for the controller when both Gemini and OpenAI/Anthropic are set.
-  // null = auto-select (Anthropic > Gemini for text, OpenAI > Gemini for image).
+  // null = auto-select (Anthropic > Gemini for text, OpenAI > Gemini > Pollinations for image).
   preferredTextProvider  String?  // 'claude' | 'gemini'
-  preferredImageProvider String?  // 'openai' | 'gemini'
+  preferredImageProvider String?  // 'openai' | 'gemini' | 'pollinations'
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
