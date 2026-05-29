@@ -3,7 +3,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { MediaService } from '../media/media.service';
 import { MediaType, MediaSource } from '@inboudly/database';
 
-const MODEL = 'gemini-2.5-flash-image'; // "Nano Banana"
+const DEFAULT_MODEL = 'gemini-2.5-flash-image'; // "Nano Banana"
 
 /**
  * BYOK: per-call API key. Note: Gemini's free tier does NOT include image
@@ -23,6 +23,7 @@ export class GeminiImageService {
       prompt: string;
       aspectRatio?: string;
       count?: number;
+      model?: string;
       brandKit?: {
         primaryColor?: string | null;
         secondaryColor?: string | null;
@@ -32,6 +33,7 @@ export class GeminiImageService {
   ) {
     const client = new GoogleGenerativeAI(apiKey);
     const count = params.count ?? 1;
+    const MODEL = params.model?.trim() || DEFAULT_MODEL;
     const enrichedPrompt = this.enrichPromptWithBrand(params.prompt, params.brandKit, params.aspectRatio);
 
     const model = client.getGenerativeModel({

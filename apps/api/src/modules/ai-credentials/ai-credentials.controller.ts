@@ -34,6 +34,7 @@ const ALLOWED_KEY_FIELDS: AiProviderKeyName[] = [
 
 const ALLOWED_MODEL_FIELDS: AiProviderModelName[] = [
   'geminiModel',
+  'geminiImageModel',
   'openaiModel',
   'anthropicModel',
 ];

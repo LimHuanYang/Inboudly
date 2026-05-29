@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Plus } from 'lucide-react';
 import { AiProvidersCard } from './ai-providers-card';
+import { AiDefaultsCard } from './ai-defaults-card';
 import { CurrencyCard } from './currency-card';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
@@ -61,6 +62,13 @@ export default function SettingsPage() {
       {workspaceId && (
         <div className="mb-4">
           <AiProvidersCard workspaceId={workspaceId} />
+        </div>
+      )}
+
+      {/* AI defaults — pick provider + model per task (captions / images). */}
+      {workspaceId && (
+        <div className="mb-4">
+          <AiDefaultsCard workspaceId={workspaceId} />
         </div>
       )}
 

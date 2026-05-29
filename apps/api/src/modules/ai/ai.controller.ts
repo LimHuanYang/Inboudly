@@ -51,12 +51,15 @@ export class AiController {
   @Post('image')
   async generateImage(@Body() body: unknown) {
     const input = GenerateImageSchema.parse(body);
-    const { provider, apiKey } = await this.resolveImageProvider(input.workspaceId);
+    // Shared resolver — honours preferredImageProvider + returns the chosen
+    // image model. Throws 400 if no image provider is configured.
+    const { provider, apiKey, model } = await this.credentials.requireImageProvider(input.workspaceId);
     const args = {
       workspaceId: input.workspaceId,
       prompt: input.prompt,
       aspectRatio: input.aspectRatio,
       count: input.count,
+      model,
     };
 
     // Provider SDK errors (bad key, quota, billing-not-enabled) would
@@ -90,24 +93,5 @@ export class AiController {
       return `Gemini image generation failed (${detail}). Gemini's free tier does NOT include image generation — enable paid Google Cloud billing on your key's project, OR add an OpenAI key in Settings → AI Providers (Inboudly prefers OpenAI for images).`;
     }
     return `OpenAI image generation failed (${detail}). Check your OpenAI key has image (gpt-image-1 / DALL·E) access and available credit.`;
-  }
-
-  private async resolveImageProvider(
-    workspaceId: string,
-  ): Promise<{ provider: ImageProvider; apiKey: string }> {
-    const record = await this.credentials.getRecord(workspaceId);
-    const openaiKey = await this.credentials.getDecryptedKey(workspaceId, 'openaiKey');
-    const geminiKey = await this.credentials.getDecryptedKey(workspaceId, 'geminiKey');
-
-    const preferred = record?.preferredImageProvider as ImageProvider | null | undefined;
-    if (preferred === 'openai' && openaiKey) return { provider: 'openai', apiKey: openaiKey };
-    if (preferred === 'gemini' && geminiKey) return { provider: 'gemini', apiKey: geminiKey };
-
-    if (openaiKey) return { provider: 'openai', apiKey: openaiKey };
-    if (geminiKey) return { provider: 'gemini', apiKey: geminiKey };
-
-    throw new BadRequestException(
-      'No image AI provider configured for this workspace. Go to Settings → AI Providers and add either an OpenAI or Google (Gemini) API key. Note: Gemini image generation requires paid Google Cloud billing.',
-    );
   }
 }

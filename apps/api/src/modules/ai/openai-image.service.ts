@@ -3,15 +3,30 @@ import OpenAI from 'openai';
 import { MediaService } from '../media/media.service';
 import { MediaType, MediaSource } from '@inboudly/database';
 
-const ASPECT_TO_SIZE: Record<string, '1024x1024' | '1024x1536' | '1536x1024'> = {
-  '1:1': '1024x1024',
-  '4:5': '1024x1536',
-  '9:16': '1024x1536',
-  '3:4': '1024x1536',
-  '2:3': '1024x1536',
-  '16:9': '1536x1024',
-  '1.91:1': '1536x1024',
-};
+const DEFAULT_MODEL = 'gpt-image-1';
+
+const LANDSCAPE = new Set(['16:9', '1.91:1']);
+const PORTRAIT = new Set(['4:5', '9:16', '3:4', '2:3']);
+
+/**
+ * Valid output sizes differ per model, so map per-model to avoid API errors:
+ *   gpt-image-1 → 1024² / 1024×1536 / 1536×1024
+ *   dall-e-3    → 1024² / 1024×1792 / 1792×1024
+ *   dall-e-2    → 1024² only (square)
+ */
+function sizeForModel(model: string, aspectRatio?: string): string {
+  const ar = aspectRatio ?? '1:1';
+  if (model === 'dall-e-2') return '1024x1024';
+  if (model === 'dall-e-3') {
+    if (LANDSCAPE.has(ar)) return '1792x1024';
+    if (PORTRAIT.has(ar)) return '1024x1792';
+    return '1024x1024';
+  }
+  // gpt-image-1 (default)
+  if (LANDSCAPE.has(ar)) return '1536x1024';
+  if (PORTRAIT.has(ar)) return '1024x1536';
+  return '1024x1024';
+}
 
 /**
  * BYOK: per-call API key. The caller (AiController) decrypts the workspace's
@@ -28,6 +43,7 @@ export class OpenAiImageService {
       prompt: string;
       aspectRatio?: string;
       count?: number;
+      model?: string;
       brandKit?: {
         primaryColor?: string | null;
         secondaryColor?: string | null;
@@ -36,15 +52,17 @@ export class OpenAiImageService {
     },
   ) {
     const client = new OpenAI({ apiKey });
-    const size = ASPECT_TO_SIZE[params.aspectRatio ?? '1:1'] ?? '1024x1024';
-    const count = params.count ?? 1;
+    const model = params.model?.trim() || DEFAULT_MODEL;
+    const size = sizeForModel(model, params.aspectRatio);
+    // dall-e-3 only supports n=1; others allow batches.
+    const count = model === 'dall-e-3' ? 1 : (params.count ?? 1);
 
     const enrichedPrompt = this.enrichPromptWithBrand(params.prompt, params.brandKit);
 
     const result = await client.images.generate({
-      model: 'gpt-image-1',
+      model,
       prompt: enrichedPrompt,
-      size,
+      size: size as '1024x1024',
       n: count,
     });
 
@@ -60,12 +78,12 @@ export class OpenAiImageService {
           mimeType: 'image/png',
           sizeBytes: 0,
           aiPrompt: enrichedPrompt,
-          aiModel: 'gpt-image-1',
+          aiModel: model,
         });
       }),
     );
 
-    return { assets, model: 'gpt-image-1', count: assets.length };
+    return { assets, model, count: assets.length };
   }
 
   private enrichPromptWithBrand(

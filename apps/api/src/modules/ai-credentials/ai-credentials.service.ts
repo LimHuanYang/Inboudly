@@ -8,6 +8,12 @@ export type ResolvedTextProvider = {
   model: string;
 };
 
+export type ResolvedImageProvider = {
+  provider: 'openai' | 'gemini';
+  apiKey: string;
+  model: string;
+};
+
 export type AiProviderKeyName =
   | 'geminiKey'
   | 'openaiKey'
@@ -18,7 +24,11 @@ export type AiProviderKeyName =
   | 'sunoKey'
   | 'pineconeKey';
 
-export type AiProviderModelName = 'geminiModel' | 'openaiModel' | 'anthropicModel';
+export type AiProviderModelName =
+  | 'geminiModel'
+  | 'geminiImageModel'
+  | 'openaiModel'
+  | 'anthropicModel';
 
 const KEY_FIELDS: AiProviderKeyName[] = [
   'geminiKey',
@@ -31,11 +41,17 @@ const KEY_FIELDS: AiProviderKeyName[] = [
   'pineconeKey',
 ];
 
-/** Default models when no user override is saved. */
+/** Default TEXT models when no user override is saved. */
 export const DEFAULT_MODELS = {
   gemini: 'gemini-2.5-flash',
-  openai: 'gpt-image-1', // image gen default
+  openai: 'gpt-image-1', // (openai is image-only here; kept for getModel uniformity)
   anthropic: 'claude-sonnet-4-6',
+} as const;
+
+/** Default IMAGE models when no user override is saved. */
+export const DEFAULT_IMAGE_MODELS = {
+  openai: 'gpt-image-1',
+  gemini: 'gemini-2.5-flash-image', // "Nano Banana"
 } as const;
 
 interface ProviderStateView {
@@ -48,6 +64,8 @@ export interface AiCredentialsView {
   gemini:     ProviderStateView;
   openai:     ProviderStateView;
   anthropic:  ProviderStateView;
+  // Gemini's IMAGE model override (separate from gemini.model which is text).
+  geminiImageModel: string | null;
   runway:     { configured: boolean; masked: string | null };
   kling:      { configured: boolean; masked: string | null };
   elevenLabs: { configured: boolean; masked: string | null };
@@ -89,6 +107,21 @@ export class AiCredentialsService {
     const field = `${provider}Model` as AiProviderModelName;
     const custom = row?.[field];
     return custom?.trim() || DEFAULT_MODELS[provider];
+  }
+
+  /**
+   * Image model for a provider. Gemini's image model lives in its own field
+   * (geminiImageModel) because geminiModel is the TEXT model. OpenAI's image
+   * model is openaiModel (OpenAI is image-only here).
+   */
+  async getImageModel(
+    workspaceId: string,
+    provider: 'openai' | 'gemini',
+  ): Promise<string> {
+    const row = await this.getRecord(workspaceId);
+    const field: AiProviderModelName = provider === 'openai' ? 'openaiModel' : 'geminiImageModel';
+    const custom = row?.[field];
+    return custom?.trim() || DEFAULT_IMAGE_MODELS[provider];
   }
 
   async getRecord(workspaceId: string) {
@@ -141,6 +174,41 @@ export class AiCredentialsService {
     return resolved;
   }
 
+  /**
+   * Image-generation equivalent of resolveTextProvider. Honours
+   * preferredImageProvider, falls back OpenAI > Gemini, and returns the
+   * provider's image model so callers don't make a second roundtrip.
+   */
+  async resolveImageProvider(workspaceId: string): Promise<ResolvedImageProvider | null> {
+    const record = await this.getRecord(workspaceId);
+    const openaiKey = await this.getDecryptedKey(workspaceId, 'openaiKey');
+    const geminiKey = await this.getDecryptedKey(workspaceId, 'geminiKey');
+
+    const pick = async (provider: 'openai' | 'gemini', apiKey: string): Promise<ResolvedImageProvider> => ({
+      provider,
+      apiKey,
+      model: await this.getImageModel(workspaceId, provider),
+    });
+
+    const preferred = record?.preferredImageProvider as 'openai' | 'gemini' | null | undefined;
+    if (preferred === 'openai' && openaiKey) return pick('openai', openaiKey);
+    if (preferred === 'gemini' && geminiKey) return pick('gemini', geminiKey);
+    if (openaiKey) return pick('openai', openaiKey);
+    if (geminiKey) return pick('gemini', geminiKey);
+    return null;
+  }
+
+  /** Same as resolveImageProvider but throws 400 if no provider is configured. */
+  async requireImageProvider(workspaceId: string): Promise<ResolvedImageProvider> {
+    const resolved = await this.resolveImageProvider(workspaceId);
+    if (!resolved) {
+      throw new BadRequestException(
+        'No image AI provider configured for this workspace. Go to Settings → AI Providers and add either an OpenAI or Google (Gemini) API key. Note: Gemini image generation requires paid Google Cloud billing.',
+      );
+    }
+    return resolved;
+  }
+
   async view(workspaceId: string): Promise<AiCredentialsView> {
     const row = await this.prisma.workspaceAiCredentials.findUnique({
       where: { workspaceId },
@@ -169,6 +237,7 @@ export class AiCredentialsService {
       gemini:     safeProvider('geminiKey', 'geminiModel'),
       openai:     safeProvider('openaiKey', 'openaiModel'),
       anthropic:  safeProvider('anthropicKey', 'anthropicModel'),
+      geminiImageModel: (row?.geminiImageModel as string | null) ?? null,
       runway:     safeKey('runwayKey'),
       kling:      safeKey('klingKey'),
       elevenLabs: safeKey('elevenLabsKey'),
