@@ -15,6 +15,14 @@ export type ResolvedImageProvider = {
   model: string;
 };
 
+export type VideoProviderName = 'demo' | 'pollinations' | 'runway' | 'kling' | 'veo';
+
+export type ResolvedVideoProvider = {
+  provider: VideoProviderName;
+  apiKey: string; // '' for keyless / demo
+  model: string;
+};
+
 export type AiProviderKeyName =
   | 'geminiKey'
   | 'openaiKey'
@@ -30,7 +38,11 @@ export type AiProviderModelName =
   | 'geminiImageModel'
   | 'openaiModel'
   | 'anthropicModel'
-  | 'pollinationsModel';
+  | 'pollinationsModel'
+  | 'pollinationsVideoModel'
+  | 'runwayModel'
+  | 'klingModel'
+  | 'veoVideoModel';
 
 const KEY_FIELDS: AiProviderKeyName[] = [
   'geminiKey',
@@ -57,6 +69,18 @@ export const DEFAULT_IMAGE_MODELS = {
   pollinations: 'flux', // free, keyless
 } as const;
 
+/** Default VIDEO models when no user override is saved. */
+export const DEFAULT_VIDEO_MODELS: Record<VideoProviderName, string> = {
+  demo: 'demo',
+  pollinations: 'pollinations-t2v',
+  runway: 'runway-gen3',
+  kling: 'kling-v2',
+  veo: 'veo-3',
+} as const;
+
+/** Providers with a working adapter in THIS build. Plans 2/3 extend this list. */
+export const IMPLEMENTED_VIDEO_PROVIDERS: VideoProviderName[] = ['demo'];
+
 interface ProviderStateView {
   configured: boolean;
   masked: string | null;
@@ -71,6 +95,10 @@ export interface AiCredentialsView {
   geminiImageModel: string | null;
   // Pollinations IMAGE model override (free, keyless provider).
   pollinationsModel: string | null;
+  pollinationsVideoModel: string | null;
+  runwayModel: string | null;
+  klingModel: string | null;
+  veoVideoModel: string | null;
   runway:     { configured: boolean; masked: string | null };
   kling:      { configured: boolean; masked: string | null };
   elevenLabs: { configured: boolean; masked: string | null };
@@ -78,6 +106,7 @@ export interface AiCredentialsView {
   pinecone:   { configured: boolean; masked: string | null };
   preferredTextProvider:  'claude' | 'gemini' | null;
   preferredImageProvider: 'openai' | 'gemini' | 'pollinations' | null;
+  preferredVideoProvider: 'demo' | 'pollinations' | 'runway' | 'kling' | 'veo' | null;
 }
 
 @Injectable()
@@ -222,6 +251,69 @@ export class AiCredentialsService {
     return this.resolveImageProvider(workspaceId);
   }
 
+  /**
+   * Video model for a provider. Demo is a fixed clip (no override field), so it
+   * always returns the default. Veo uses the Google/Gemini key but its own model
+   * field (veoVideoModel).
+   */
+  async getVideoModel(workspaceId: string, provider: VideoProviderName): Promise<string> {
+    const row = await this.getRecord(workspaceId);
+    const field: AiProviderModelName | null =
+      provider === 'pollinations' ? 'pollinationsVideoModel'
+        : provider === 'runway' ? 'runwayModel'
+          : provider === 'kling' ? 'klingModel'
+            : provider === 'veo' ? 'veoVideoModel'
+              : null; // demo
+    const custom = field ? (row?.[field] as string | null) : null;
+    return custom?.trim() || DEFAULT_VIDEO_MODELS[provider];
+  }
+
+  /**
+   * Video equivalent of resolveImageProvider. Demo is keyless and always
+   * available, so this NEVER throws. Honours an explicit per-request override
+   * first, then the saved preferredVideoProvider — but only for providers that
+   * (a) have a working adapter in this build and (b) have their key when keyed.
+   * Everything else falls back to the always-works Demo provider.
+   */
+  async resolveVideoProvider(
+    workspaceId: string,
+    override?: VideoProviderName,
+  ): Promise<ResolvedVideoProvider> {
+    const record = await this.getRecord(workspaceId);
+    const preferred = (override ?? (record?.preferredVideoProvider as VideoProviderName | null))
+      ?? undefined;
+
+    const keyFieldFor: Partial<Record<VideoProviderName, AiProviderKeyName>> = {
+      runway: 'runwayKey',
+      kling: 'klingKey',
+      veo: 'geminiKey', // Google Veo authenticates with the Gemini/Google key
+    };
+
+    const pick = async (provider: VideoProviderName, apiKey: string): Promise<ResolvedVideoProvider> => ({
+      provider,
+      apiKey,
+      model: await this.getVideoModel(workspaceId, provider),
+    });
+
+    if (preferred && IMPLEMENTED_VIDEO_PROVIDERS.includes(preferred)) {
+      if (preferred === 'demo' || preferred === 'pollinations') return pick(preferred, '');
+      const keyField = keyFieldFor[preferred];
+      const key = keyField ? await this.getDecryptedKey(workspaceId, keyField) : null;
+      if (key) return pick(preferred, key);
+    }
+
+    // Always-works, zero-setup default.
+    return pick('demo', '');
+  }
+
+  /** Alias for symmetry — Demo guarantees a provider, so this never throws. */
+  async requireVideoProvider(
+    workspaceId: string,
+    override?: VideoProviderName,
+  ): Promise<ResolvedVideoProvider> {
+    return this.resolveVideoProvider(workspaceId, override);
+  }
+
   async view(workspaceId: string): Promise<AiCredentialsView> {
     const row = await this.prisma.workspaceAiCredentials.findUnique({
       where: { workspaceId },
@@ -252,6 +344,10 @@ export class AiCredentialsService {
       anthropic:  safeProvider('anthropicKey', 'anthropicModel'),
       geminiImageModel: (row?.geminiImageModel as string | null) ?? null,
       pollinationsModel: (row?.pollinationsModel as string | null) ?? null,
+      pollinationsVideoModel: (row?.pollinationsVideoModel as string | null) ?? null,
+      runwayModel: (row?.runwayModel as string | null) ?? null,
+      klingModel: (row?.klingModel as string | null) ?? null,
+      veoVideoModel: (row?.veoVideoModel as string | null) ?? null,
       runway:     safeKey('runwayKey'),
       kling:      safeKey('klingKey'),
       elevenLabs: safeKey('elevenLabsKey'),
@@ -259,6 +355,8 @@ export class AiCredentialsService {
       pinecone:   safeKey('pineconeKey'),
       preferredTextProvider:  (row?.preferredTextProvider as 'claude' | 'gemini' | null) ?? null,
       preferredImageProvider: (row?.preferredImageProvider as 'openai' | 'gemini' | 'pollinations' | null) ?? null,
+      preferredVideoProvider:
+        (row?.preferredVideoProvider as 'demo' | 'pollinations' | 'runway' | 'kling' | 'veo' | null) ?? null,
     };
   }
 
@@ -304,6 +402,7 @@ export class AiCredentialsService {
     prefs: {
       preferredTextProvider?: 'claude' | 'gemini' | null;
       preferredImageProvider?: 'openai' | 'gemini' | 'pollinations' | null;
+      preferredVideoProvider?: 'demo' | 'pollinations' | 'runway' | 'kling' | 'veo' | null;
     },
   ): Promise<void> {
     await this.prisma.workspaceAiCredentials.upsert({
@@ -319,6 +418,7 @@ export class AiCredentialsService {
     );
     reset.preferredTextProvider = null;
     reset.preferredImageProvider = null;
+    reset.preferredVideoProvider = null;
     await this.prisma.workspaceAiCredentials
       .update({ where: { workspaceId }, data: reset as never })
       .catch(() => {
