@@ -93,7 +93,11 @@ export default function ComposerPage() {
       setGeneratedImages((prev) => [...newImages, ...prev]);
       toast.success(`Generated ${newImages.length} image${newImages.length === 1 ? '' : 's'}`);
     },
-    onError: (err: any) => toast.error(err.message),
+    onError: (err: any) =>
+      toast.error("Couldn't generate image", {
+        description: err?.message ?? 'Something went wrong. Please try again in a moment.',
+        duration: 8000,
+      }),
   });
 
   const toggleAttachImage = (imageId: string) => {

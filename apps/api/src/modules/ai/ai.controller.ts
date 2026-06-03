@@ -78,27 +78,32 @@ export class AiController {
             : await this.pollinationsImage.generate(apiKey, args);
 
       if (!result?.assets?.length) {
-        throw new BadRequestException(this.imageHint(provider, 'returned no image'));
+        this.logger.warn(`Image generation via ${provider} returned no assets`);
+        throw new BadRequestException(this.imageHint(provider));
       }
       return result;
     } catch (err) {
       if (err instanceof HttpException) throw err; // already a clean 4xx
       const msg = err instanceof Error ? err.message : String(err);
       this.logger.error(`Image generation via ${provider} failed: ${msg}`);
-      throw new BadRequestException(this.imageHint(provider, msg));
+      throw new BadRequestException(this.imageHint(provider));
     }
   }
 
   private readonly logger = new Logger(AiController.name);
 
-  /** Build a clear, provider-aware error message for image-gen failures. */
-  private imageHint(provider: ImageProvider, detail: string): string {
+  /**
+   * Build a clear, friendly, provider-aware error message for image-gen
+   * failures. The raw provider error is logged server-side (above); users
+   * get actionable guidance, not a stack trace.
+   */
+  private imageHint(provider: ImageProvider): string {
     if (provider === 'gemini') {
-      return `Gemini image generation failed (${detail}). Gemini's free tier does NOT include image generation — enable paid Google Cloud billing on your key's project, OR switch to the free Pollinations provider in Settings → AI defaults.`;
+      return `Gemini's free tier doesn't include image generation. Enable paid Google Cloud billing on your key's project, or switch to the free Pollinations provider in Settings → AI defaults.`;
     }
     if (provider === 'pollinations') {
-      return `Free (Pollinations) image generation failed (${detail}). This is a free public service and can be slow or rate-limited — try again in a moment, or add an OpenAI key in Settings → AI Providers for more reliable generation.`;
+      return `The free image service (Pollinations) didn't respond in time. It can be slow or rate-limited during busy periods — wait a moment and try again, or add an OpenAI key in Settings → AI Providers for more reliable results.`;
     }
-    return `OpenAI image generation failed (${detail}). Check your OpenAI key has image (gpt-image-1 / DALL·E) access and available credit.`;
+    return `OpenAI couldn't generate the image. Check that your OpenAI key has image access (gpt-image-1 / DALL·E) and available credit.`;
   }
 }
