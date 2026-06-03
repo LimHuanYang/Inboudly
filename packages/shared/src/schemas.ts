@@ -110,7 +110,7 @@ export const GenerateVideoSchema = z.object({
   provider: VideoProviderSchema.optional(),
   // Free-form so each provider's model list can grow without a schema change.
   // Omit to use the server default for the resolved provider.
-  model: z.string().min(1).max(80).optional(),
+  model: z.string().trim().min(1).max(80).optional(),
   referenceImageUrl: z.string().url().optional(),
 });
 export type GenerateVideoInput = z.infer<typeof GenerateVideoSchema>;

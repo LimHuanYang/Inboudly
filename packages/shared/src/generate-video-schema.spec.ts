@@ -29,4 +29,13 @@ describe('GenerateVideoSchema', () => {
   it('VideoProviderSchema enumerates all five providers', () => {
     expect(VideoProviderSchema.options).toEqual(['demo', 'pollinations', 'runway', 'kling', 'veo']);
   });
+
+  it('rejects durationSec outside [2, 10]', () => {
+    expect(() => GenerateVideoSchema.parse({ workspaceId: WS, prompt: 'x', durationSec: 1 })).toThrow();
+    expect(() => GenerateVideoSchema.parse({ workspaceId: WS, prompt: 'x', durationSec: 11 })).toThrow();
+  });
+
+  it('rejects a whitespace-only model', () => {
+    expect(() => GenerateVideoSchema.parse({ workspaceId: WS, prompt: 'x', model: '   ' })).toThrow();
+  });
 });
