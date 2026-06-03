@@ -45,11 +45,11 @@ export function GenerationsTray() {
   return (
     <div className="fixed bottom-4 right-4 z-50">
       {open && (
-        <div className="mb-2 w-80 rounded-lg border bg-background shadow-lg">
+        <div id="generations-panel" className="mb-2 w-80 rounded-lg border bg-background shadow-lg">
           <div className="flex items-center justify-between border-b px-3 py-2">
             <span className="text-sm font-medium">Video generations</span>
             <button onClick={() => setOpen(false)} aria-label="Close generations tray">
-              <X className="h-4 w-4 text-muted-foreground" />
+              <X className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
             </button>
           </div>
           <ul className="max-h-80 divide-y overflow-y-auto">
@@ -57,11 +57,11 @@ export function GenerationsTray() {
               <li key={j.id} className="flex items-center gap-3 px-3 py-2">
                 <span className="shrink-0">
                   {j.status === 'READY' ? (
-                    <CheckCircle2 className="h-4 w-4 text-green-600" />
+                    <CheckCircle2 className="h-4 w-4 text-green-600" aria-hidden="true" />
                   ) : j.status === 'FAILED' ? (
-                    <XCircle className="h-4 w-4 text-destructive" />
+                    <XCircle className="h-4 w-4 text-destructive" aria-hidden="true" />
                   ) : (
-                    <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                    <Loader2 className="h-4 w-4 animate-spin text-primary" aria-hidden="true" />
                   )}
                 </span>
                 <div className="min-w-0 flex-1">
@@ -75,7 +75,12 @@ export function GenerationsTray() {
                   </p>
                 </div>
                 {j.status === 'READY' && j.mediaAsset && (
-                  <video src={j.mediaAsset.url} className="h-10 w-10 rounded object-cover" muted />
+                  <video
+                    src={j.mediaAsset.url}
+                    className="h-10 w-10 rounded object-cover"
+                    muted
+                    aria-label={`Preview of: ${j.prompt}`}
+                  />
                 )}
               </li>
             ))}
@@ -85,12 +90,14 @@ export function GenerationsTray() {
 
       <button
         onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        aria-controls="generations-panel"
         className="flex items-center gap-2 rounded-full border bg-background px-4 py-2 text-sm font-medium shadow-lg hover:bg-secondary"
       >
         {active > 0 ? (
-          <Loader2 className="h-4 w-4 animate-spin text-primary" />
+          <Loader2 className="h-4 w-4 animate-spin text-primary" aria-hidden="true" />
         ) : (
-          <Clapperboard className="h-4 w-4" />
+          <Clapperboard className="h-4 w-4" aria-hidden="true" />
         )}
         {active > 0 ? `Generating ${active}…` : 'Generations'}
       </button>
