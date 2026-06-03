@@ -98,12 +98,19 @@ export const GenerateImageSchema = z.object({
 });
 export type GenerateImageInput = z.infer<typeof GenerateImageSchema>;
 
+export const VideoProviderSchema = z.enum(['demo', 'pollinations', 'runway', 'kling', 'veo']);
+export type VideoProviderName = z.infer<typeof VideoProviderSchema>;
+
 export const GenerateVideoSchema = z.object({
   workspaceId: z.string().cuid(),
   prompt: z.string().min(1).max(2000),
   durationSec: z.number().int().min(2).max(10).default(5),
   aspectRatio: z.enum(['9:16', '16:9', '1:1']).default('9:16'),
-  model: z.enum(['runway-gen3', 'kling-v2']).default('runway-gen3'),
+  // Omit to let the server resolve the workspace's preferred/default provider.
+  provider: VideoProviderSchema.optional(),
+  // Free-form so each provider's model list can grow without a schema change.
+  // Omit to use the server default for the resolved provider.
+  model: z.string().min(1).max(80).optional(),
   referenceImageUrl: z.string().url().optional(),
 });
 export type GenerateVideoInput = z.infer<typeof GenerateVideoSchema>;

@@ -2,6 +2,7 @@
 module.exports = {
   moduleFileExtensions: ['js', 'json', 'ts'],
   rootDir: '.',
+  roots: ['<rootDir>', '<rootDir>/../../packages/shared/src'],
   testMatch: [
     '<rootDir>/src/**/*.spec.ts',
     // Intentional: packages/shared has no jest setup of its own, so its pure
