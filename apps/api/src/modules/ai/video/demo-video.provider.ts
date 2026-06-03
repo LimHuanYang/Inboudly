@@ -37,7 +37,7 @@ export class DemoVideoProvider implements VideoProvider {
       sizeBytes: 0, // bundled static asset — real byte size not tracked for the demo
       durationSec: params.durationSec,
       aiPrompt: params.prompt,
-      aiModel: 'demo',
+      aiModel: params.model || this.name,
     });
 
     this.logger.log(`Demo video generated for workspace ${params.workspaceId} (asset ${asset.id})`);
