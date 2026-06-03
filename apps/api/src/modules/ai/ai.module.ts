@@ -10,6 +10,7 @@ import { DemoVideoProvider } from './video/demo-video.provider';
 import { VideoGenerationService } from './video/video-generation.service';
 import { VideoGenerationController } from './video/video-generation.controller';
 import { MediaModule } from '../media/media.module';
+import { WorkspacesService } from '../workspaces/workspaces.service';
 import { BrandModule } from '../brand/brand.module';
 import { AiCredentialsModule } from '../ai-credentials/ai-credentials.module';
 
@@ -25,6 +26,7 @@ import { AiCredentialsModule } from '../ai-credentials/ai-credentials.module';
     EmbeddingsService,
     DemoVideoProvider,
     VideoGenerationService,
+    WorkspacesService,
   ],
   exports: [
     ClaudeTextService,
