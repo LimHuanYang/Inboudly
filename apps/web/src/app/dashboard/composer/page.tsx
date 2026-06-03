@@ -2,12 +2,12 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { api } from '@/lib/api-client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ImageIcon, Loader2, Sparkles, Wand2 } from 'lucide-react';
+import { Clapperboard, ImageIcon, Loader2, Sparkles, Wand2 } from 'lucide-react';
 import { PLATFORM_SPECS, type SocialPlatform } from '@inboudly/shared/platforms';
 import { type ViralityScoreResponse } from '@inboudly/shared/schemas';
 
@@ -40,6 +40,15 @@ export default function ComposerPage() {
     TIKTOK: [],
     REDNOTE: [],
   } as unknown as Record<SocialPlatform, string[]>);
+
+  // ----- Video generation state -----
+  const [mediaMode, setMediaMode] = useState<'image' | 'video'>('image');
+  const [videoPrompt, setVideoPrompt] = useState('');
+  const [videoAspect, setVideoAspect] = useState<'9:16' | '16:9' | '1:1'>('9:16');
+  const [videoDuration, setVideoDuration] = useState(5);
+  const [videoJobId, setVideoJobId] = useState<string | null>(null);
+
+  const qc = useQueryClient();
 
   const me = useQuery({
     queryKey: ['me'],
@@ -98,6 +107,36 @@ export default function ComposerPage() {
         description: err?.message ?? 'Something went wrong. Please try again in a moment.',
         duration: 8000,
       }),
+  });
+
+  const generateVideo = useMutation({
+    mutationFn: () =>
+      api.post<{ id: string }>('/ai/video', {
+        workspaceId,
+        prompt: videoPrompt,
+        aspectRatio: videoAspect,
+        durationSec: videoDuration,
+      }),
+    onSuccess: (job) => {
+      setVideoJobId(job.id);
+      qc.invalidateQueries({ queryKey: ['video-jobs', workspaceId] });
+    },
+    onError: (err: any) =>
+      toast.error("Couldn't start video", {
+        description: err?.message ?? 'Please try again.',
+        duration: 8000,
+      }),
+  });
+
+  const videoStatus = useQuery({
+    queryKey: ['video-job', videoJobId],
+    queryFn: () => api.get<any>(`/ai/video/${videoJobId}?workspaceId=${workspaceId}`),
+    enabled: !!videoJobId && !!workspaceId,
+    // TanStack Query v5: callback receives the query object.
+    refetchInterval: (query) => {
+      const s = (query.state.data as any)?.status;
+      return s === 'GENERATING' || s === 'PENDING' ? 2500 : false;
+    },
   });
 
   const toggleAttachImage = (imageId: string) => {
@@ -343,6 +382,25 @@ export default function ComposerPage() {
           </Card>
 
           {/* AI Image Generation */}
+          {/* Media-mode toggle */}
+          <div className="mb-3 inline-flex rounded-lg border p-1">
+            <button
+              type="button"
+              onClick={() => setMediaMode('image')}
+              className={`rounded-md px-3 py-1.5 text-sm ${mediaMode === 'image' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}
+            >
+              Image
+            </button>
+            <button
+              type="button"
+              onClick={() => setMediaMode('video')}
+              className={`rounded-md px-3 py-1.5 text-sm ${mediaMode === 'video' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}
+            >
+              Video
+            </button>
+          </div>
+
+          {mediaMode === 'image' && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
@@ -445,6 +503,89 @@ export default function ComposerPage() {
               )}
             </CardContent>
           </Card>
+          )}
+
+          {mediaMode === 'video' && (
+          <div className="rounded-lg border bg-background p-4">
+            <h3 className="mb-3 flex items-center gap-2 text-sm font-medium">
+              <Clapperboard className="h-4 w-4 text-primary" /> Generate video with AI
+            </h3>
+            <textarea
+              value={videoPrompt}
+              onChange={(e) => setVideoPrompt(e.target.value)}
+              rows={3}
+              placeholder="Describe the video you want…"
+              className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-medium">Aspect ratio</label>
+                <select
+                  value={videoAspect}
+                  onChange={(e) => setVideoAspect(e.target.value as '9:16' | '16:9' | '1:1')}
+                  className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                >
+                  <option value="9:16">9:16 — vertical</option>
+                  <option value="16:9">16:9 — landscape</option>
+                  <option value="1:1">1:1 — square</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-medium">Duration: {videoDuration}s</label>
+                <input
+                  type="range"
+                  min={2}
+                  max={10}
+                  value={videoDuration}
+                  onChange={(e) => setVideoDuration(Number(e.target.value))}
+                  className="mt-3 w-full"
+                />
+              </div>
+            </div>
+
+            <button
+              type="button"
+              disabled={!videoPrompt.trim() || generateVideo.isPending || videoStatus.data?.status === 'GENERATING'}
+              onClick={() => generateVideo.mutate()}
+              className="mt-3 inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
+            >
+              {generateVideo.isPending || videoStatus.data?.status === 'GENERATING' ? (
+                <><Loader2 className="h-4 w-4 animate-spin" /> Generating…</>
+              ) : (
+                <>Generate video</>
+              )}
+            </button>
+
+            {videoStatus.data?.status === 'READY' && videoStatus.data?.mediaAsset && (
+              <div className="mt-4">
+                <video
+                  src={videoStatus.data.mediaAsset.url}
+                  controls
+                  className="w-full max-w-sm rounded-lg border"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAttachedImageIds((ids) => {
+                      const current = ids[activePlatform] ?? [];
+                      return current.includes(videoStatus.data.mediaAsset.id)
+                        ? ids
+                        : { ...ids, [activePlatform]: [...current, videoStatus.data.mediaAsset.id] };
+                    });
+                    toast.success('Video attached to post');
+                  }}
+                  className="mt-2 rounded-md border px-3 py-1.5 text-sm hover:bg-secondary"
+                >
+                  Attach to post
+                </button>
+              </div>
+            )}
+
+            {videoStatus.data?.status === 'FAILED' && (
+              <p className="mt-3 text-sm text-destructive">{videoStatus.data.errorMessage ?? 'Generation failed.'}</p>
+            )}
+          </div>
+          )}
         </div>
 
         {/* Right: Virality score + algorithm coach */}
