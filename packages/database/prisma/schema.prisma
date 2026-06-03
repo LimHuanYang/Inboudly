@@ -323,15 +323,16 @@ model MediaAsset {
   @@index([parentMediaId])
 }
 
-/// One async video-generation job. Created as GENERATING, flipped to READY
-/// (with mediaAssetId) or FAILED (with errorMessage) by the detached runner.
+/// One async video-generation job. Inserted as GENERATING by the service
+/// (PENDING is only the DB-default safety net), then flipped to READY (with
+/// mediaAssetId) or FAILED (with errorMessage) by the detached runner.
 /// Frontend polls GET /ai/video/:id until it leaves GENERATING.
 model VideoGeneration {
   id                String      @id @default(cuid())
   workspaceId       String
   prompt            String      @db.Text
   provider          String      // 'demo' | 'pollinations' | 'runway' | 'kling' | 'veo'
-  model             String
+  model             String      // e.g. 'demo', 'runway-gen3', 'kling-v2', 'veo-3'
   aspectRatio       String      // '9:16' | '16:9' | '1:1'
   durationSec       Int
   referenceImageUrl String?
@@ -342,7 +343,7 @@ model VideoGeneration {
   updatedAt         DateTime    @updatedAt
 
   workspace         Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  mediaAsset        MediaAsset? @relation(fields: [mediaAssetId], references: [id])
+  mediaAsset        MediaAsset? @relation(fields: [mediaAssetId], references: [id], onDelete: SetNull)
 
   @@index([workspaceId, status])
   @@index([workspaceId, createdAt])
