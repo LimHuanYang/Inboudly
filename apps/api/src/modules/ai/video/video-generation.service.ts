@@ -24,6 +24,7 @@ export class VideoGenerationService {
       default:
         // resolveVideoProvider only returns implemented providers today, so this
         // is defensive — fall back to the always-works Demo provider.
+        this.logger.warn(`Unknown video provider "${provider}", falling back to demo`);
         return this.demo;
     }
   }
@@ -56,29 +57,36 @@ export class VideoGenerationService {
   }
 
   private async run(jobId: string, apiKey: string): Promise<void> {
-    const job = await this.prisma.videoGeneration.findUnique({ where: { id: jobId } });
-    if (!job) return;
     try {
-      const adapter = this.adapterFor(job.provider);
-      const result = await adapter.generate(apiKey, {
-        workspaceId: job.workspaceId,
-        prompt: job.prompt,
-        durationSec: job.durationSec,
-        aspectRatio: job.aspectRatio,
-        model: job.model,
-        referenceImageUrl: job.referenceImageUrl ?? undefined,
-      });
-      await this.prisma.videoGeneration.update({
-        where: { id: jobId },
-        data: { status: VideoStatus.READY, mediaAssetId: result.asset.id },
-      });
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      this.logger.error(`Video job ${jobId} failed: ${msg}`);
-      await this.prisma.videoGeneration.update({
-        where: { id: jobId },
-        data: { status: VideoStatus.FAILED, errorMessage: this.friendlyError(job.provider) },
-      });
+      const job = await this.prisma.videoGeneration.findUnique({ where: { id: jobId } });
+      if (!job) return;
+      try {
+        const adapter = this.adapterFor(job.provider);
+        const result = await adapter.generate(apiKey, {
+          workspaceId: job.workspaceId,
+          prompt: job.prompt,
+          durationSec: job.durationSec,
+          aspectRatio: job.aspectRatio,
+          model: job.model,
+          referenceImageUrl: job.referenceImageUrl ?? undefined,
+        });
+        await this.prisma.videoGeneration.update({
+          where: { id: jobId },
+          data: { status: VideoStatus.READY, mediaAssetId: result.asset.id },
+        });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        this.logger.error(`Video job ${jobId} failed: ${msg}`);
+        await this.prisma.videoGeneration.update({
+          where: { id: jobId },
+          data: { status: VideoStatus.FAILED, errorMessage: this.friendlyError(job.provider) },
+        });
+      }
+    } catch (outerErr) {
+      // findUnique, or the FAILED-branch update itself, threw. Swallow here so
+      // the detached `void this.run(...)` never surfaces an unhandled rejection.
+      const msg = outerErr instanceof Error ? outerErr.message : String(outerErr);
+      this.logger.error(`Video job ${jobId} infrastructure error: ${msg}`);
     }
   }
 
