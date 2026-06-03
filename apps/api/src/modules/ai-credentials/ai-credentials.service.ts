@@ -296,6 +296,10 @@ export class AiCredentialsService {
     });
 
     if (preferred && IMPLEMENTED_VIDEO_PROVIDERS.includes(preferred)) {
+      // demo + pollinations are keyless. The 'pollinations' arm is unreachable
+      // today (it's not in IMPLEMENTED_VIDEO_PROVIDERS yet) — it's pre-wired so
+      // Plan 2 can enable free keyed-less Pollinations video by just adding it
+      // to the IMPLEMENTED list.
       if (preferred === 'demo' || preferred === 'pollinations') return pick(preferred, '');
       const keyField = keyFieldFor[preferred];
       const key = keyField ? await this.getDecryptedKey(workspaceId, keyField) : null;
