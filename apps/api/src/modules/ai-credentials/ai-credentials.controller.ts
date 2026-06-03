@@ -38,6 +38,10 @@ const ALLOWED_MODEL_FIELDS: AiProviderModelName[] = [
   'openaiModel',
   'anthropicModel',
   'pollinationsModel',
+  'pollinationsVideoModel',
+  'runwayModel',
+  'klingModel',
+  'veoVideoModel',
 ];
 
 @ApiTags('ai-credentials')
@@ -118,6 +122,7 @@ export class AiCredentialsController {
     body: {
       preferredTextProvider?: 'claude' | 'gemini' | null;
       preferredImageProvider?: 'openai' | 'gemini' | 'pollinations' | null;
+      preferredVideoProvider?: 'demo' | 'pollinations' | 'runway' | 'kling' | 'veo' | null;
     },
     @CurrentUser() user: { supabaseUserId: string },
   ) {
