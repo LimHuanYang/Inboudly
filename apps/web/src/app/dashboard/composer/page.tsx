@@ -39,7 +39,7 @@ export default function ComposerPage() {
     INSTAGRAM: [],
     TIKTOK: [],
     REDNOTE: [],
-  } as Record<SocialPlatform, string[]>);
+  } as unknown as Record<SocialPlatform, string[]>);
 
   const me = useQuery({
     queryKey: ['me'],

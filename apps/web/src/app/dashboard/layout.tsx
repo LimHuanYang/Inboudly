@@ -16,6 +16,7 @@ import {
   Clapperboard,
 } from 'lucide-react';
 import { WorkspaceGuard } from '@/components/providers/workspace-guard';
+import { GenerationsTray } from '@/components/generations-tray';
 
 const nav = [
   { href: '/dashboard', label: 'Overview', icon: LayoutDashboard },
@@ -57,6 +58,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </nav>
         </aside>
         <main className="flex-1 overflow-y-auto">{children}</main>
+        <GenerationsTray />
       </div>
     </WorkspaceGuard>
   );
