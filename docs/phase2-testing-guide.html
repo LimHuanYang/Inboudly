@@ -110,6 +110,19 @@
   }
   .tier.t1 { background: var(--green-soft); color: #047857; }
   .tier.t2 { background: var(--amber-soft); color: #b45309; }
+  .tier.planned { background: var(--blue-soft); color: #1e40af; }
+
+  /* Planned / not-yet-built feature card */
+  .feature.planned-feature { border-style: dashed; }
+  .feature.planned-feature .badge-num { background: var(--blue); }
+  .preview-list { margin: 8px 0 0; padding-left: 0; list-style: none; }
+  .preview-list li { padding: 7px 0 7px 26px; position: relative; font-size: 14px; border-bottom: 1px solid #f1f1f3; }
+  .preview-list li:last-child { border-bottom: none; }
+  .preview-list li::before { content: "→"; position: absolute; left: 4px; top: 7px; color: var(--blue); font-weight: 700; }
+  .preview-list li b { color: var(--ink); }
+  .doc-links { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+  .doc-links a { font-size: 13px; font-weight: 600; color: var(--pink-dark); text-decoration: none; border: 1px solid var(--line); padding: 6px 12px; border-radius: 8px; }
+  .doc-links a:hover { border-color: var(--pink); background: var(--pink-soft); }
   .feature .caret { color: var(--muted); transition: transform .2s; }
   .feature[open] .caret { transform: rotate(90deg); }
   .feature .body { padding: 0 22px 22px; border-top: 1px solid var(--line); }
@@ -169,7 +182,7 @@
 <header>
   <div class="logo"><span class="dot"></span> INBOUDLY</div>
   <h1>Phase 2 Testing Guide</h1>
-  <p>6 features built — awaiting your validation</p>
+  <p>6 features built — awaiting your validation · video generation in design</p>
 </header>
 
 <div class="progress-shell">
@@ -410,6 +423,49 @@
         </ul>
       </div>
       <div class="breaks"><b>If it breaks:</b> Pollinations is a free public service — it can be slow or rate-limited. The toast says "Free (Pollinations)… try again in a moment" → just retry. <b>If a different provider runs instead:</b> you have an OpenAI/Gemini key set as the preferred image provider — explicitly pick <b>Free — Pollinations</b> in AI defaults.</div>
+    </div>
+  </details>
+
+  <!-- FEATURE 7 — PLANNED -->
+  <details class="feature planned-feature">
+    <summary>
+      <span class="badge-num">7</span>
+      <span class="ttl"><h2>AI Video Generation</h2><span class="path">/dashboard/composer · /dashboard/videos</span></span>
+      <span class="tier planned">Planned</span>
+      <span class="caret">▸</span>
+    </summary>
+    <div class="body">
+      <p class="lead">Text → video clips from the Composer, plus per-scene AI clips inside Faceless. Free <b>Pollinations</b> by default; <b>Runway / Kling / Veo</b> via your own keys. Async (30s–several min) with a Generations tray + completion toast.</p>
+      <div class="callout warn" style="margin:14px 0;">
+        <h3>⏳ Not yet live — in design</h3>
+        This feature is <b>designed but not built</b>, so there are no checkboxes to tick yet. The flow below is what you'll validate once it ships (targeted for <b>Phase 2B.v3</b>). Listed here so the roadmap is visible in one place.
+      </div>
+
+      <div class="section-label">What you'll be able to test</div>
+      <ul class="preview-list">
+        <li><b>Composer media toggle</b> — a <code>[ Image | Video ]</code> segmented switch in the "Generate with AI" card; the prompt stays shared, controls swap per mode.</li>
+        <li><b>Video controls</b> — prompt, duration (provider-dependent, e.g. 4s/8s), aspect ratio, in-Composer provider + model picker, and an optional "Animate an image" reference.</li>
+        <li><b>Async progress</b> — inline "Rendering… ~2 min" bar with Cancel; navigate away and the job continues, announced by a toast + tray badge on completion.</li>
+        <li><b>Result handling</b> — finished clip attaches to the post draft (click-to-attach, like images) <em>and</em> auto-saves to the media library.</li>
+        <li><b>Generations tray</b> — header <code>Activity</code> button + count badge; rows show status (rendering / ready / failed) with Cancel / View / Attach / Retry actions.</li>
+        <li><b>Settings → AI defaults</b> — a third "Video generation" block (Provider + Model), matching Caption and Image; paid providers disabled until their key is saved.</li>
+        <li><b>Faceless per-scene</b> — each scene gets a <code>Still | AI clip | Upload</code> source picker, plus a project-level <b>Generate all clips</b>.</li>
+        <li><b>Media library</b> — in-flight renders appear as shimmer placeholders that resolve into the real clip (no layout shift).</li>
+      </ul>
+
+      <div class="expected">
+        <b>v1 scope notes:</b>
+        <ul>
+          <li>Cost line shows <b>time-only ETAs</b> (e.g. "~90s") — no dollar figures in v1.</li>
+          <li>Clips are short (≈4–10s per provider); long narratives come from stitching Faceless scenes.</li>
+          <li>Free Pollinations is the keyless default — works with no key, like image gen.</li>
+        </ul>
+      </div>
+
+      <div class="doc-links">
+        <a href="./superpowers/specs/2026-05-29-video-image-generation-ui-design.md">📄 UI design spec</a>
+        <a href="./video-image-ui-mockup.html">🎬 Interactive mockup</a>
+      </div>
     </div>
   </details>
 
