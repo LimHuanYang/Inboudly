@@ -100,6 +100,7 @@ model Workspace {
   trends            Trend[]
   nicheAnalyses     NicheAnalysis[]
   videoProjects     VideoProject[]
+  videoGenerations  VideoGeneration[]
   kolCampaigns      KolCampaign[]
   agentRuns         AgentRun[]
   approvalWorkflows ApprovalWorkflow[]
@@ -135,10 +136,16 @@ model WorkspaceAiCredentials {
   openaiModel       String? // OpenAI IMAGE model
   anthropicModel    String? // Claude TEXT model (captions)
   pollinationsModel String? // Pollinations IMAGE model (free, keyless)
+  // VIDEO model overrides (Plan 1+). Demo has no override (it's a fixed clip).
+  pollinationsVideoModel String? // Pollinations text-to-video model
+  runwayModel            String? // Runway video model (e.g. runway-gen3)
+  klingModel             String? // Kling video model (e.g. kling-v2)
+  veoVideoModel          String? // Google Veo video model (uses the Gemini/Google key)
   // Hint for the controller when both Gemini and OpenAI/Anthropic are set.
   // null = auto-select (Anthropic > Gemini for text, OpenAI > Gemini > Pollinations for image).
   preferredTextProvider  String?  // 'claude' | 'gemini'
   preferredImageProvider String?  // 'openai' | 'gemini' | 'pollinations'
+  preferredVideoProvider String?  // 'demo' | 'pollinations' | 'runway' | 'kling' | 'veo'
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -307,12 +314,38 @@ model MediaAsset {
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 
-  workspace     Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  postMedia     PostMedia[]
+  workspace        Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  postMedia        PostMedia[]
+  videoGenerations VideoGeneration[]
 
   @@index([workspaceId, type])
   @@index([workspaceId, source])
   @@index([parentMediaId])
+}
+
+/// One async video-generation job. Created as GENERATING, flipped to READY
+/// (with mediaAssetId) or FAILED (with errorMessage) by the detached runner.
+/// Frontend polls GET /ai/video/:id until it leaves GENERATING.
+model VideoGeneration {
+  id                String      @id @default(cuid())
+  workspaceId       String
+  prompt            String      @db.Text
+  provider          String      // 'demo' | 'pollinations' | 'runway' | 'kling' | 'veo'
+  model             String
+  aspectRatio       String      // '9:16' | '16:9' | '1:1'
+  durationSec       Int
+  referenceImageUrl String?
+  status            VideoStatus @default(PENDING)
+  mediaAssetId      String?
+  errorMessage      String?     @db.Text
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  workspace         Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  mediaAsset        MediaAsset? @relation(fields: [mediaAssetId], references: [id])
+
+  @@index([workspaceId, status])
+  @@index([workspaceId, createdAt])
 }
 
 // ============================================================
