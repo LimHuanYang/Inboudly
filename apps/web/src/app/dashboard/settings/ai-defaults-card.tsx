@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Sparkles, Image as ImageIcon, Loader2 } from 'lucide-react';
+import { Sparkles, Image as ImageIcon, Loader2, Clapperboard } from 'lucide-react';
 import { api } from '@/lib/api-client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -21,6 +21,11 @@ interface CredsView {
   pollinationsModel: string | null;
   preferredTextProvider: 'claude' | 'gemini' | null;
   preferredImageProvider: 'openai' | 'gemini' | 'pollinations' | null;
+  pollinationsVideoModel: string | null;
+  runwayModel: string | null;
+  klingModel: string | null;
+  veoVideoModel: string | null;
+  preferredVideoProvider: 'demo' | 'pollinations' | 'runway' | 'kling' | 'veo' | null;
 }
 
 type ModelOption = { value: string; label: string };
@@ -55,6 +60,27 @@ const POLLINATIONS_IMAGE_MODELS: ModelOption[] = [
   { value: 'turbo',        label: 'turbo — fastest' },
 ];
 
+const DEMO_VIDEO_MODELS: ModelOption[] = [
+  { value: 'demo', label: 'demo — instant sample clip (free, default)' },
+];
+const POLLINATIONS_VIDEO_MODELS: ModelOption[] = [
+  { value: 'pollinations-t2v', label: 'pollinations-t2v — free text-to-video' },
+];
+const RUNWAY_VIDEO_MODELS: ModelOption[] = [
+  { value: 'runway-gen3', label: 'runway-gen3 — Gen-3 Alpha' },
+];
+const KLING_VIDEO_MODELS: ModelOption[] = [
+  { value: 'kling-v2', label: 'kling-v2 — Kling 2.0' },
+];
+const VEO_VIDEO_MODELS: ModelOption[] = [
+  { value: 'veo-3', label: 'veo-3 — Google Veo 3' },
+];
+
+// Which providers have a working adapter in this build. Others show as "coming soon".
+const VIDEO_PROVIDER_READY: Record<string, boolean> = {
+  demo: true, pollinations: false, runway: false, kling: false, veo: false,
+};
+
 // Map (task, provider) → the credentials model field the PATCH endpoint expects.
 const MODEL_FIELD: Record<string, string> = {
   'caption:claude': 'anthropicModel',
@@ -62,6 +88,10 @@ const MODEL_FIELD: Record<string, string> = {
   'image:openai': 'openaiModel',
   'image:gemini': 'geminiImageModel',
   'image:pollinations': 'pollinationsModel',
+  'video:pollinations': 'pollinationsVideoModel',
+  'video:runway': 'runwayModel',
+  'video:kling': 'klingModel',
+  'video:veo': 'veoVideoModel',
 };
 
 export function AiDefaultsCard({ workspaceId }: { workspaceId: string }) {
@@ -77,6 +107,8 @@ export function AiDefaultsCard({ workspaceId }: { workspaceId: string }) {
   const [captionModel, setCaptionModel] = useState('');
   const [imageProvider, setImageProvider] = useState<'openai' | 'gemini' | 'pollinations' | ''>('');
   const [imageModel, setImageModel] = useState('');
+  const [videoProvider, setVideoProvider] = useState<'demo' | 'pollinations' | 'runway' | 'kling' | 'veo'>('demo');
+  const [videoModel, setVideoModel] = useState('demo');
 
   useEffect(() => {
     if (!data) return;
@@ -95,10 +127,19 @@ export function AiDefaultsCard({ workspaceId }: { workspaceId: string }) {
         : ip === 'gemini' ? (data.geminiImageModel ?? 'gemini-2.5-flash-image')
           : (data.pollinationsModel ?? 'flux'),
     );
+    const vp = data.preferredVideoProvider ?? 'demo';
+    setVideoProvider(vp);
+    setVideoModel(
+      vp === 'demo' ? 'demo'
+        : vp === 'pollinations' ? (data.pollinationsVideoModel ?? 'pollinations-t2v')
+          : vp === 'runway' ? (data.runwayModel ?? 'runway-gen3')
+            : vp === 'kling' ? (data.klingModel ?? 'kling-v2')
+              : (data.veoVideoModel ?? 'veo-3'),
+    );
   }, [data]);
 
   const savePref = useMutation({
-    mutationFn: (body: { preferredTextProvider?: string; preferredImageProvider?: string }) =>
+    mutationFn: (body: { preferredTextProvider?: string; preferredImageProvider?: string; preferredVideoProvider?: string }) =>
       api.patch(`/workspaces/${workspaceId}/ai-credentials/preferences`, body),
     onSuccess: () => {
       toast.success('Preference saved');
@@ -247,6 +288,69 @@ export function AiDefaultsCard({ workspaceId }: { workspaceId: string }) {
               </div>
             </div>
           )}
+        </div>
+
+        {/* Video generation */}
+        <div className="rounded-lg border bg-background p-4">
+          <h3 className="mb-3 flex items-center gap-2 text-sm font-medium">
+            <Clapperboard className="h-4 w-4 text-primary" /> Video generation
+          </h3>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label htmlFor="video-provider" className="text-xs font-medium">Provider</label>
+              <select
+                id="video-provider"
+                value={videoProvider}
+                onChange={(e) => {
+                  const p = e.target.value as 'demo' | 'pollinations' | 'runway' | 'kling' | 'veo';
+                  setVideoProvider(p);
+                  savePref.mutate({ preferredVideoProvider: p });
+                }}
+                className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                <option value="demo">Demo — instant sample clip (free)</option>
+                <option value="pollinations" disabled={!VIDEO_PROVIDER_READY.pollinations}>
+                  Pollinations — free{!VIDEO_PROVIDER_READY.pollinations ? ' (coming soon)' : ''}
+                </option>
+                <option value="runway" disabled={!VIDEO_PROVIDER_READY.runway}>
+                  Runway{!VIDEO_PROVIDER_READY.runway ? ' (coming soon)' : ''}
+                </option>
+                <option value="kling" disabled={!VIDEO_PROVIDER_READY.kling}>
+                  Kling{!VIDEO_PROVIDER_READY.kling ? ' (coming soon)' : ''}
+                </option>
+                <option value="veo" disabled={!VIDEO_PROVIDER_READY.veo}>
+                  Google Veo{!VIDEO_PROVIDER_READY.veo ? ' (coming soon)' : ''}
+                </option>
+              </select>
+            </div>
+            <div>
+              <label htmlFor="video-model" className="text-xs font-medium">Model</label>
+              <select
+                id="video-model"
+                value={videoModel}
+                disabled={videoProvider === 'demo'}
+                onChange={(e) => {
+                  const m = e.target.value;
+                  setVideoModel(m);
+                  const field = MODEL_FIELD[`video:${videoProvider}`];
+                  if (field) saveModel.mutate({ field, model: m });
+                }}
+                className="mt-1 w-full rounded-md border bg-background px-3 py-2 font-mono text-xs focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-60"
+              >
+                {(videoProvider === 'demo' ? DEMO_VIDEO_MODELS
+                  : videoProvider === 'pollinations' ? POLLINATIONS_VIDEO_MODELS
+                    : videoProvider === 'runway' ? RUNWAY_VIDEO_MODELS
+                      : videoProvider === 'kling' ? KLING_VIDEO_MODELS
+                        : VEO_VIDEO_MODELS
+                ).map((m) => (
+                  <option key={m.value} value={m.value}>{m.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Only <strong>Demo</strong> is active in this build — Runway, Kling, Veo and Pollinations video arrive in upcoming updates.
+          </p>
         </div>
 
         {(savePref.isPending || saveModel.isPending) && (
