@@ -9,7 +9,13 @@ import { GeminiImageService } from './gemini-image.service';
 import { PollinationsImageService } from './pollinations-image.service';
 import { AiCredentialsService } from '../ai-credentials/ai-credentials.service';
 import { SupabaseAuthGuard } from '../../common/auth/auth.guard';
-import { GenerateTextSchema, GenerateImageSchema } from '@inboudly/shared';
+import {
+  GenerateTextSchema,
+  GenerateImageSchema,
+  type GenerateTextInput,
+  type GenerateImageInput,
+} from '@inboudly/shared';
+import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
 
 type ImageProvider = 'openai' | 'gemini' | 'pollinations';
 
@@ -39,8 +45,9 @@ export class AiController {
   ) {}
 
   @Post('text')
-  async generateText(@Body() body: unknown) {
-    const input = GenerateTextSchema.parse(body);
+  async generateText(
+    @Body(new ZodValidationPipe(GenerateTextSchema)) input: GenerateTextInput,
+  ) {
     // Shared resolver — same logic powers Composer, Repurpose, and
     // CompetitorAnalysisService. Throws 400 if no provider configured.
     const { provider, apiKey, model } = await this.credentials.requireTextProvider(input.workspaceId);
@@ -51,8 +58,9 @@ export class AiController {
   }
 
   @Post('image')
-  async generateImage(@Body() body: unknown) {
-    const input = GenerateImageSchema.parse(body);
+  async generateImage(
+    @Body(new ZodValidationPipe(GenerateImageSchema)) input: GenerateImageInput,
+  ) {
     // Shared resolver — honours preferredImageProvider + returns the chosen
     // image model. Throws 400 if no image provider is configured.
     const { provider, apiKey, model } = await this.credentials.requireImageProvider(input.workspaceId);

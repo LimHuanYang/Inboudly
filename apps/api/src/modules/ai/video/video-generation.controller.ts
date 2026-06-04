@@ -2,7 +2,8 @@ import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/co
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { SupabaseAuthGuard } from '../../../common/auth/auth.guard';
 import { CurrentUser } from '../../../common/auth/current-user.decorator';
-import { GenerateVideoSchema } from '@inboudly/shared';
+import { GenerateVideoSchema, type GenerateVideoInput } from '@inboudly/shared';
+import { ZodValidationPipe } from '../../../common/pipes/zod-validation.pipe';
 import { VideoGenerationService } from './video-generation.service';
 import { WorkspacesService } from '../../workspaces/workspaces.service';
 
@@ -19,10 +20,9 @@ export class VideoGenerationController {
   /** Start a video job. Returns the row immediately with status GENERATING. */
   @Post()
   async generate(
-    @Body() body: unknown,
+    @Body(new ZodValidationPipe(GenerateVideoSchema)) input: GenerateVideoInput,
     @CurrentUser() user: { supabaseUserId: string },
   ) {
-    const input = GenerateVideoSchema.parse(body);
     await this.workspaces.assertMember(input.workspaceId, user.supabaseUserId);
     return this.videos.create(input);
   }

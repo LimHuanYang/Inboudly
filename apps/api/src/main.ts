@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { ZodExceptionFilter } from './common/filters/zod-exception.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -39,6 +40,11 @@ async function bootstrap() {
       forbidNonWhitelisted: true,
     }),
   );
+
+  // Map Zod validation failures (thrown by inline `Schema.parse(body)` calls in
+  // controllers) to clean 400 responses. `@Catch(ZodError)` is targeted, so it
+  // leaves Nest's default handling of every other exception type untouched.
+  app.useGlobalFilters(new ZodExceptionFilter());
 
   // Swagger / OpenAPI
   const config = new DocumentBuilder()
