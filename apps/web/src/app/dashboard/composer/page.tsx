@@ -5,6 +5,13 @@ import { useSearchParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { api } from '@/lib/api-client';
+
+interface VideoJobResponse {
+  id: string;
+  status: 'PENDING' | 'GENERATING' | 'READY' | 'FAILED';
+  mediaAsset?: { id: string; url: string };
+  errorMessage?: string;
+}
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Clapperboard, ImageIcon, Loader2, Sparkles, Wand2 } from 'lucide-react';
@@ -128,13 +135,13 @@ export default function ComposerPage() {
       }),
   });
 
-  const videoStatus = useQuery({
+  const videoStatus = useQuery<VideoJobResponse>({
     queryKey: ['video-job', videoJobId],
-    queryFn: () => api.get<any>(`/ai/video/${videoJobId}?workspaceId=${workspaceId}`),
-    enabled: !!videoJobId && !!workspaceId,
+    queryFn: () => api.get<VideoJobResponse>(`/ai/video/${videoJobId}?workspaceId=${workspaceId}`),
+    enabled: !!videoJobId && !!workspaceId && mediaMode === 'video',
     // TanStack Query v5: callback receives the query object.
     refetchInterval: (query) => {
-      const s = (query.state.data as any)?.status;
+      const s = query.state.data?.status;
       return s === 'GENERATING' || s === 'PENDING' ? 2500 : false;
     },
   });
@@ -386,6 +393,7 @@ export default function ComposerPage() {
           <div className="mb-3 inline-flex rounded-lg border p-1">
             <button
               type="button"
+              aria-pressed={mediaMode === 'image'}
               onClick={() => setMediaMode('image')}
               className={`rounded-md px-3 py-1.5 text-sm ${mediaMode === 'image' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}
             >
@@ -393,6 +401,7 @@ export default function ComposerPage() {
             </button>
             <button
               type="button"
+              aria-pressed={mediaMode === 'video'}
               onClick={() => setMediaMode('video')}
               className={`rounded-md px-3 py-1.5 text-sm ${mediaMode === 'video' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}
             >
@@ -519,8 +528,9 @@ export default function ComposerPage() {
             />
             <div className="mt-3 grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs font-medium">Aspect ratio</label>
+                <label htmlFor="video-aspect" className="text-xs font-medium">Aspect ratio</label>
                 <select
+                  id="video-aspect"
                   value={videoAspect}
                   onChange={(e) => setVideoAspect(e.target.value as '9:16' | '16:9' | '1:1')}
                   className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
@@ -531,8 +541,9 @@ export default function ComposerPage() {
                 </select>
               </div>
               <div>
-                <label className="text-xs font-medium">Duration: {videoDuration}s</label>
+                <label htmlFor="video-duration" className="text-xs font-medium">Duration: {videoDuration}s</label>
                 <input
+                  id="video-duration"
                   type="range"
                   min={2}
                   max={10}
@@ -558,31 +569,39 @@ export default function ComposerPage() {
 
             {videoStatus.data?.status === 'READY' && videoStatus.data?.mediaAsset && (
               <div className="mt-4">
-                <video
-                  src={videoStatus.data.mediaAsset.url}
-                  controls
-                  className="w-full max-w-sm rounded-lg border"
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAttachedImageIds((ids) => {
-                      const current = ids[activePlatform] ?? [];
-                      return current.includes(videoStatus.data.mediaAsset.id)
-                        ? ids
-                        : { ...ids, [activePlatform]: [...current, videoStatus.data.mediaAsset.id] };
-                    });
-                    toast.success('Video attached to post');
-                  }}
-                  className="mt-2 rounded-md border px-3 py-1.5 text-sm hover:bg-secondary"
-                >
-                  Attach to post
-                </button>
+                {(() => {
+                  const asset = videoStatus.data.mediaAsset!;
+                  return (
+                    <>
+                      <video
+                        src={asset.url}
+                        controls
+                        aria-label="Generated video preview"
+                        className="w-full max-w-sm rounded-lg border"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAttachedImageIds((ids) => {
+                            const current = ids[activePlatform] ?? [];
+                            return current.includes(asset.id)
+                              ? ids
+                              : { ...ids, [activePlatform]: [...current, asset.id] };
+                          });
+                          toast.success('Video attached to post');
+                        }}
+                        className="mt-2 rounded-md border px-3 py-1.5 text-sm hover:bg-secondary"
+                      >
+                        Attach to post
+                      </button>
+                    </>
+                  );
+                })()}
               </div>
             )}
 
             {videoStatus.data?.status === 'FAILED' && (
-              <p className="mt-3 text-sm text-destructive">{videoStatus.data.errorMessage ?? 'Generation failed.'}</p>
+              <p className="mt-3 text-sm text-destructive">{videoStatus.data?.errorMessage ?? 'Generation failed.'}</p>
             )}
           </div>
           )}
