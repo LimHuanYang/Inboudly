@@ -2,6 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
+import { Loader2 } from 'lucide-react';
 import { api } from '@/lib/api-client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -36,6 +37,23 @@ export default function MediaPage() {
     enabled: !!workspaceId,
   });
 
+  const videoJobs = useQuery({
+    queryKey: ['video-jobs', workspaceId],
+    queryFn: () => api.get<any[]>(`/ai/video?workspaceId=${workspaceId}`),
+    enabled: !!workspaceId,
+    // TanStack Query v5: refetchInterval callback receives the query object.
+    refetchInterval: (query) =>
+      (query.state.data as any[] | undefined)?.some(
+        (j) => j.status === 'GENERATING' || j.status === 'PENDING',
+      )
+        ? 2500
+        : false,
+  });
+
+  const pending = (videoJobs.data ?? []).filter(
+    (j) => j.status === 'GENERATING' || j.status === 'PENDING',
+  );
+
   return (
     <div className="container py-8">
       <div className="mb-6">
@@ -45,7 +63,7 @@ export default function MediaPage() {
         </p>
       </div>
 
-      {!list.data?.length ? (
+      {!list.data?.length && !pending.length ? (
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Empty for now</CardTitle>
@@ -56,7 +74,19 @@ export default function MediaPage() {
         </Card>
       ) : (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
-          {list.data.map((m) => (
+          {pending.map((j) => (
+            <div
+              key={j.id}
+              className="flex aspect-square flex-col items-center justify-center gap-2 rounded-lg border border-dashed bg-secondary/30 p-3 text-center"
+            >
+              <Loader2 className="h-5 w-5 animate-spin text-primary" />
+              <span className="line-clamp-2 text-xs text-muted-foreground">{j.prompt}</span>
+              <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                Rendering…
+              </span>
+            </div>
+          ))}
+          {(list.data ?? []).map((m) => (
             <Card key={m.id} className="overflow-hidden">
               <div className="aspect-square bg-secondary">
                 {m.type === 'IMAGE' || m.type === 'GIF' ? (
