@@ -93,7 +93,10 @@ export class VideoGenerationService {
   async get(id: string, workspaceId: string) {
     const job = await this.prisma.videoGeneration.findFirst({
       where: { id, workspaceId },
-      include: { mediaAsset: true },
+      // Select only {id,url}: the web needs nothing else, and it avoids
+      // serializing MediaAsset.sizeBytes (Prisma BigInt) which JSON.stringify
+      // cannot handle (would 500 the response).
+      include: { mediaAsset: { select: { id: true, url: true } } },
     });
     if (!job) throw new NotFoundException('Video generation not found');
     return job;
@@ -104,7 +107,10 @@ export class VideoGenerationService {
       where: { workspaceId },
       orderBy: { createdAt: 'desc' },
       take: 20,
-      include: { mediaAsset: true },
+      // Select only {id,url}: the web needs nothing else, and it avoids
+      // serializing MediaAsset.sizeBytes (Prisma BigInt) which JSON.stringify
+      // cannot handle (would 500 the response).
+      include: { mediaAsset: { select: { id: true, url: true } } },
     });
   }
 
