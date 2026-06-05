@@ -1,0 +1,34 @@
+import { type CreatePostInput } from './schemas';
+import { type SocialPlatform } from './platforms';
+
+/** "#a #b  c" -> ["a","b","c"]; strips leading #, splits on whitespace, drops empties. */
+export function parseHashtags(raw: string | undefined): string[] {
+  return (raw ?? '')
+    .split(/\s+/)
+    .map((t) => t.replace(/^#+/, '').trim())
+    .filter((t) => t.length > 0);
+}
+
+type Rec<T> = Partial<Record<SocialPlatform, T>>;
+
+/** Turn the Composer draft into a CreatePostInput (one variant per selected platform). */
+export function buildCreatePostInput(args: {
+  workspaceId: string;
+  selectedPlatforms: SocialPlatform[];
+  captions: Rec<string>;
+  hashtags: Rec<string>;
+  attachedImageIds: Rec<string[]>;
+}): CreatePostInput {
+  return {
+    workspaceId: args.workspaceId,
+    variants: args.selectedPlatforms.map((p) => ({
+      platform: p,
+      caption: (args.captions[p] ?? '').trim(),
+      language: 'en',
+      hashtags: parseHashtags(args.hashtags[p]),
+      mentions: [],
+      mediaAssetIds: args.attachedImageIds[p] ?? [],
+    })),
+    approvalRequired: false,
+  };
+}
