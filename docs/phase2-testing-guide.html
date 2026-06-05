@@ -439,10 +439,22 @@
       <div class="callout" style="margin:14px 0;">
         <h3>✅ Demo generator is live — try it now</h3>
         The <b>backbone shipped.</b> Pick <b>Video</b> in the Composer's "Generate with AI" card, type a prompt, and Generate — the free <b>Demo</b> provider returns a sample clip in ~1–2s, so you can validate the whole flow end-to-end: Composer Image/Video toggle → inline progress → <b>Generations tray</b> (bottom-right) → <b>Attach to post</b> → <b>Media library</b> in-flight tile. Settings → AI defaults now has a <b>Video generation</b> block (Demo selected by default).<br/><br/>
-        <b>Still coming</b> (Plans 2 &amp; 3): the real <b>Runway / Kling / Veo</b> and free <b>Pollinations</b> video adapters (shown in Settings but marked "coming soon"), per-scene AI clips in Faceless, and Cancel/Retry. No checkboxes added here yet — the 6 features above remain the tracked validation set.
+        <b>Still coming</b> (Plans 2 &amp; 3): the real <b>Runway / Kling / Veo</b> and free <b>Pollinations</b> video adapters (shown in Settings but marked "coming soon"), per-scene AI clips in Faceless, and Cancel/Retry.
       </div>
 
-      <div class="section-label">What you'll be able to test</div>
+      <div class="section-label">✅ Test the Demo flow now</div>
+      <ol class="steps" data-group="video">
+        <li><input type="checkbox" id="v-1"><label for="v-1"><b>Settings → AI defaults</b>: a <b>Video generation</b> block exists, Provider defaults to <b>Demo</b>, and Runway / Kling / Veo / Pollinations show <em>"(coming soon)"</em> and are not selectable.</label></li>
+        <li><input type="checkbox" id="v-2"><label for="v-2"><b>Composer</b> → the "Generate with AI" card shows an <code>[ Image | Video ]</code> toggle. Click <b>Video</b>.</label></li>
+        <li><input type="checkbox" id="v-3"><label for="v-3">Type a prompt (e.g. <code>a cat surfing a wave</code>), pick aspect <b>9:16</b>, set duration ~5s, click <b>Generate video</b>.</label></li>
+        <li><input type="checkbox" id="v-4"><label for="v-4">Button shows <b>Generating…</b>, then within ~1–2s a playable <code>&lt;video&gt;</code> with controls appears.</label></li>
+        <li><input type="checkbox" id="v-5"><label for="v-5">The <b>Generations tray</b> (bottom-right) shows the job — spinner while generating, then a <b>Ready</b> row with a thumbnail.</label></li>
+        <li><input type="checkbox" id="v-6"><label for="v-6">Click <b>Attach to post</b> → you get a <em>"Video attached to post"</em> toast.</label></li>
+        <li><input type="checkbox" id="v-7"><label for="v-7"><b>Media</b> (/dashboard/media): a dashed <em>"Rendering…"</em> tile appears while generating; the finished clip shows as a video tile afterwards.</label></li>
+        <li><input type="checkbox" id="v-8"><label for="v-8">Toggle back to <b>Image</b> — the image card returns unchanged and image generation still works (no regression).</label></li>
+      </ol>
+
+      <div class="section-label">Full vision (roadmap — Plans 2 &amp; 3)</div>
       <ul class="preview-list">
         <li><b>Composer media toggle</b> — a <code>[ Image | Video ]</code> segmented switch in the "Generate with AI" card; the prompt stays shared, controls swap per mode.</li>
         <li><b>Video controls</b> — prompt, duration (provider-dependent, e.g. 4s/8s), aspect ratio, in-Composer provider + model picker, and an optional "Animate an image" reference.</li>
@@ -464,6 +476,7 @@
       </div>
 
       <div class="doc-links">
+        <a href="./architecture.html">🏗️ Architecture &amp; tech stack</a>
         <a href="./superpowers/specs/2026-05-29-video-image-generation-ui-design.md">📄 UI design spec</a>
         <a href="./video-image-ui-mockup.html">🎬 Interactive mockup</a>
       </div>

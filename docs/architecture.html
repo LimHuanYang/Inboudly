@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Inboudly · Architecture & Tech Stack</title>
+<style>
+  :root{
+    --bg:#f6f7fb; --surface:#ffffff; --ink:#0f172a; --muted:#64748b; --line:#e2e8f0;
+    --line-strong:#cbd5e1;
+    --indigo:#4f46e5; --indigo-soft:#eef2ff; --indigo-ink:#3730a3;
+    --sky:#0284c7; --sky-soft:#e0f2fe; --sky-ink:#075985;
+    --emerald:#059669; --emerald-soft:#d1fae5; --emerald-ink:#065f46;
+    --amber:#d97706; --amber-soft:#fef3c7; --amber-ink:#92400e;
+    --violet:#7c3aed; --violet-soft:#f3e8ff; --violet-ink:#6b21a8;
+    --slate-soft:#f1f5f9; --slate-ink:#334155;
+    --shadow:0 1px 2px rgba(15,23,42,.04),0 4px 16px rgba(15,23,42,.06);
+    --radius:14px;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    padding:32px 20px 80px;
+  }
+  .wrap{max-width:1080px;margin:0 auto}
+  code,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.86em}
+
+  /* Header */
+  header.page{margin-bottom:28px}
+  .eyebrow{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:600;letter-spacing:.08em;
+    text-transform:uppercase;color:var(--indigo);background:var(--indigo-soft);padding:5px 11px;border-radius:999px}
+  h1{font-size:clamp(26px,4vw,38px);line-height:1.15;margin:14px 0 8px;letter-spacing:-.02em}
+  .lede{font-size:17px;color:var(--muted);max-width:70ch;margin:0}
+  .meta{margin-top:14px;font-size:13px;color:var(--muted)}
+  .meta b{color:var(--slate-ink)}
+
+  /* Section scaffold */
+  section{margin-top:40px}
+  .sec-head{display:flex;align-items:center;gap:11px;margin-bottom:6px}
+  .sec-head svg{width:22px;height:22px;flex:none}
+  h2{font-size:20px;margin:0;letter-spacing:-.01em}
+  .sec-sub{color:var(--muted);font-size:14px;margin:0 0 18px;max-width:74ch}
+
+  /* Layered architecture diagram */
+  .stack{display:flex;flex-direction:column;gap:0}
+  .tier{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+    padding:16px 18px;box-shadow:var(--shadow);position:relative}
+  .tier + .tier{margin-top:30px}
+  .tier::before{content:"";position:absolute;left:50%;top:-30px;width:2px;height:30px;background:var(--line-strong)}
+  .tier:first-child::before{display:none}
+  .arrow{position:absolute;left:50%;top:-19px;transform:translateX(-50%);background:var(--bg);
+    color:var(--muted);font-size:11px;font-weight:600;padding:1px 9px;border:1px solid var(--line);
+    border-radius:999px;white-space:nowrap}
+  .tier-top{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+  .tier-badge{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;
+    padding:4px 9px;border-radius:7px}
+  .tier-title{font-weight:650;font-size:15px}
+  .tier-note{color:var(--muted);font-size:12.5px;margin-left:auto}
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{font-size:13px;font-weight:550;padding:6px 11px;border-radius:9px;border:1px solid var(--line);
+    background:var(--slate-soft);color:var(--slate-ink);display:inline-flex;align-items:center;gap:6px}
+  .chip .dot{width:6px;height:6px;border-radius:50%;flex:none}
+  .chip.lead{background:#fff;border-style:dashed}
+
+  /* tier accents */
+  .t-client .tier-badge{background:var(--sky-soft);color:var(--sky-ink)}
+  .t-client{border-top:3px solid var(--sky)}
+  .t-api .tier-badge{background:var(--indigo-soft);color:var(--indigo-ink)}
+  .t-api{border-top:3px solid var(--indigo)}
+  .t-data .tier-badge{background:var(--emerald-soft);color:var(--emerald-ink)}
+  .t-data{border-top:3px solid var(--emerald)}
+  .t-ai .tier-badge{background:var(--amber-soft);color:var(--amber-ink)}
+  .t-ai{border-top:3px solid var(--amber)}
+
+  /* shared spine note */
+  .spine{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;padding:13px 15px;border:1px dashed var(--line-strong);
+    border-radius:12px;background:repeating-linear-gradient(45deg,#fff,#fff 10px,#fbfcfe 10px,#fbfcfe 20px)}
+  .spine .lbl{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--violet-ink);
+    display:flex;align-items:center;gap:7px}
+
+  /* Tech stack cards */
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:16px}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+    padding:18px;box-shadow:var(--shadow)}
+  .card-head{display:flex;align-items:center;gap:10px;margin-bottom:13px}
+  .card-head .ic{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;flex:none}
+  .card-head .ic svg{width:19px;height:19px}
+  .card-head h3{font-size:15px;margin:0}
+  .card-head .cap{font-size:12px;color:var(--muted);margin:0}
+  ul.tech{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:9px}
+  ul.tech li{display:flex;gap:10px;align-items:baseline;font-size:13.5px}
+  ul.tech .name{font-weight:600;white-space:nowrap}
+  ul.tech .ver{font-size:11px;color:var(--muted);font-family:ui-monospace,monospace}
+  ul.tech .desc{color:var(--muted);font-size:12.5px;margin-left:auto;text-align:right}
+
+  .ic-sky{background:var(--sky-soft);color:var(--sky-ink)}
+  .ic-indigo{background:var(--indigo-soft);color:var(--indigo-ink)}
+  .ic-emerald{background:var(--emerald-soft);color:var(--emerald-ink)}
+  .ic-amber{background:var(--amber-soft);color:var(--amber-ink)}
+  .ic-violet{background:var(--violet-soft);color:var(--violet-ink)}
+  .ic-slate{background:var(--slate-soft);color:var(--slate-ink)}
+
+  /* Monorepo tree */
+  .tree{background:#0f172a;color:#e2e8f0;border-radius:var(--radius);padding:20px 22px;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;line-height:1.85;
+    overflow-x:auto;box-shadow:var(--shadow)}
+  .tree .dir{color:#7dd3fc;font-weight:600}
+  .tree .pkg{color:#fcd34d}
+  .tree .cmt{color:#64748b}
+  .tree .new{color:#86efac}
+
+  /* Flow steps (video feature) */
+  .flow{display:flex;flex-direction:column;gap:0;counter-reset:step}
+  .step{position:relative;background:var(--surface);border:1px solid var(--line);border-radius:12px;
+    padding:14px 16px 14px 56px;box-shadow:var(--shadow)}
+  .step + .step{margin-top:26px}
+  .step::before{counter-increment:step;content:counter(step);position:absolute;left:14px;top:14px;
+    width:28px;height:28px;border-radius:50%;background:var(--indigo);color:#fff;font-weight:700;
+    font-size:13px;display:grid;place-items:center}
+  .step::after{content:"";position:absolute;left:28px;top:-26px;width:2px;height:26px;background:var(--line-strong)}
+  .step:first-child::after{display:none}
+  .step h4{margin:0 0 3px;font-size:14px}
+  .step h4 .where{font-family:ui-monospace,monospace;font-size:11.5px;color:var(--indigo);
+    background:var(--indigo-soft);padding:2px 7px;border-radius:6px;margin-left:7px;font-weight:600}
+  .step p{margin:0;font-size:13px;color:var(--muted)}
+
+  /* cross-cutting */
+  .xcut{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px}
+  .xc{background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--violet);
+    border-radius:10px;padding:14px 16px;box-shadow:var(--shadow)}
+  .xc h4{margin:0 0 5px;font-size:14px;display:flex;align-items:center;gap:8px}
+  .xc p{margin:0;font-size:13px;color:var(--muted)}
+  .xc svg{width:16px;height:16px;color:var(--violet);flex:none}
+
+  .legend{display:flex;flex-wrap:wrap;gap:14px;margin-top:16px;font-size:12.5px;color:var(--muted)}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .legend .sw{width:11px;height:11px;border-radius:3px}
+
+  footer{margin-top:48px;padding-top:20px;border-top:1px solid var(--line);
+    color:var(--muted);font-size:12.5px;text-align:center}
+  .tag{display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.04em;padding:2px 7px;border-radius:6px}
+  .tag.live{background:var(--emerald-soft);color:var(--emerald-ink)}
+  .tag.soon{background:var(--amber-soft);color:var(--amber-ink)}
+
+  @media (max-width:560px){
+    body{padding:20px 14px 60px}
+    ul.tech .desc{display:none}
+    .tier-note{margin-left:0;flex-basis:100%}
+  }
+  @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="page">
+    <span class="eyebrow">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M3 9l9-6 9 6-9 6-9-6z"/><path d="M3 9v6l9 6 9-6V9"/></svg>
+      System Overview
+    </span>
+    <h1>Inboudly — Architecture &amp; Tech Stack</h1>
+    <p class="lede">An AI-native social media intelligence platform built as a Turborepo monorepo: a Next.js web client, a NestJS API, a Prisma/Postgres data layer, and shared zod contracts — wired to a BYOK multi-provider AI layer.</p>
+    <p class="meta">Reflecting <b>main</b> after the AI Video Generation feature · 4 packages · TypeScript end-to-end · <b>2026</b></p>
+  </header>
+
+  <!-- ARCHITECTURE DIAGRAM -->
+  <section>
+    <div class="sec-head">
+      <svg viewBox="0 0 24 24" fill="none" stroke="var(--indigo)" stroke-width="2"><rect x="3" y="3" width="18" height="6" rx="1"/><rect x="3" y="9" width="18" height="6" rx="1"/><rect x="3" y="15" width="18" height="6" rx="1"/></svg>
+      <h2>Runtime architecture</h2>
+    </div>
+    <p class="sec-sub">Request flow top-to-bottom. The browser talks only to the NestJS API over REST (<code>/api/v1</code>); the API owns all data, infra, and outbound AI calls. Each customer brings their own AI keys (BYOK), so AI usage never touches the platform's bill.</p>
+
+    <div class="stack">
+
+      <div class="tier t-client">
+        <div class="tier-top">
+          <span class="tier-badge">Client</span>
+          <span class="tier-title">Next.js 15 Web App · App Router</span>
+          <span class="tier-note">localhost:3000 · Turbopack dev · React 19</span>
+        </div>
+        <div class="chips">
+          <span class="chip">Composer <span class="mono">(Image / Video toggle)</span></span>
+          <span class="chip">Generations Tray</span>
+          <span class="chip">Settings · AI defaults</span>
+          <span class="chip">Media Library</span>
+          <span class="chip">Dashboard · Calendar · Approvals</span>
+          <span class="chip">KOL · Competitors · Trends · Faceless</span>
+        </div>
+      </div>
+
+      <div class="tier t-api">
+        <span class="arrow">↓ HTTPS · TanStack Query → fetch · Bearer (Supabase JWT)</span>
+        <div class="tier-top">
+          <span class="tier-badge">API</span>
+          <span class="tier-title">NestJS 10 · <span class="mono">/api/v1</span> · SupabaseAuthGuard</span>
+          <span class="tier-note">localhost:3001 · SWC · Swagger/OpenAPI</span>
+        </div>
+        <div class="chips">
+          <span class="chip"><span class="dot" style="background:var(--amber)"></span>AI module <span class="mono">(text · image · video)</span></span>
+          <span class="chip"><span class="dot" style="background:var(--amber)"></span>Video Generation <span class="mono">(detached runner)</span></span>
+          <span class="chip">AI Credentials <span class="mono">(BYOK resolver)</span></span>
+          <span class="chip">Media <span class="mono">(R2)</span></span>
+          <span class="chip">Posts · Approvals · Repurpose</span>
+          <span class="chip">Scheduling <span class="mono">(BullMQ)</span></span>
+          <span class="chip">Embeddings <span class="mono">(Pinecone)</span></span>
+        </div>
+      </div>
+
+      <div class="tier t-data">
+        <span class="arrow">↓ Prisma · ioredis · AWS SDK (S3)</span>
+        <div class="tier-top">
+          <span class="tier-badge">Data &amp; Infra</span>
+          <span class="tier-title">Persistence, queue, object storage, vectors</span>
+        </div>
+        <div class="chips">
+          <span class="chip"><span class="dot" style="background:var(--emerald)"></span>PostgreSQL <span class="mono">(Supabase)</span> · Prisma 5</span>
+          <span class="chip"><span class="dot" style="background:var(--emerald)"></span>Redis · BullMQ jobs</span>
+          <span class="chip"><span class="dot" style="background:var(--emerald)"></span>Cloudflare R2 <span class="mono">(S3-compatible)</span></span>
+          <span class="chip"><span class="dot" style="background:var(--emerald)"></span>Pinecone <span class="mono">(vector DB)</span></span>
+          <span class="chip"><span class="dot" style="background:var(--emerald)"></span>Supabase Auth</span>
+        </div>
+      </div>
+
+      <div class="tier t-ai">
+        <span class="arrow">↓ BYOK · per-workspace encrypted keys, resolved per request</span>
+        <div class="tier-top">
+          <span class="tier-badge">External AI</span>
+          <span class="tier-title">Provider + model chosen per task</span>
+          <span class="tier-note">customer pays their provider directly</span>
+        </div>
+        <div class="chips">
+          <span class="chip">Anthropic Claude <span class="mono">(text)</span></span>
+          <span class="chip">Google Gemini <span class="mono">(text · image · Veo)</span></span>
+          <span class="chip">OpenAI <span class="mono">(image)</span></span>
+          <span class="chip">Pollinations <span class="mono">(free, keyless image)</span></span>
+          <span class="chip lead">Demo video <span class="tag live">LIVE</span></span>
+          <span class="chip lead">Runway · Kling · Veo · Pollinations video <span class="tag soon">SOON</span></span>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="spine">
+      <span class="lbl">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/></svg>
+        Shared contracts (span every layer)
+      </span>
+      <span class="chip"><code>@inboudly/shared</code> — zod schemas &amp; types (request/response contracts)</span>
+      <span class="chip"><code>@inboudly/database</code> — Prisma schema &amp; generated client</span>
+    </div>
+
+    <div class="legend">
+      <span><span class="sw" style="background:var(--sky)"></span>Client</span>
+      <span><span class="sw" style="background:var(--indigo)"></span>API</span>
+      <span><span class="sw" style="background:var(--emerald)"></span>Data &amp; Infra</span>
+      <span><span class="sw" style="background:var(--amber)"></span>External AI</span>
+      <span><span class="sw" style="background:var(--violet)"></span>Shared / cross-cutting</span>
+    </div>
+  </section>
+
+  <!-- MONOREPO -->
+  <section>
+    <div class="sec-head">
+      <svg viewBox="0 0 24 24" fill="none" stroke="var(--indigo)" stroke-width="2"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/></svg>
+      <h2>Monorepo layout</h2>
+    </div>
+    <p class="sec-sub">Turborepo + pnpm workspaces. Two deployables (<code>apps/*</code>) consume two shared libraries (<code>packages/*</code>). <span class="new" style="color:var(--emerald-ink);font-weight:600">Green</span> = added by the video feature.</p>
+    <div class="tree">
+<span class="cmt"># pnpm 9 · Turborepo 2 · TypeScript 5.6 · Node ≥20</span>
+inboudly/
+├─ <span class="dir">apps/</span>
+│  ├─ <span class="pkg">api/</span>            <span class="cmt">@inboudly/api — NestJS 10 (port 3001, /api/v1)</span>
+│  │  └─ src/modules/
+│  │     ├─ ai/            <span class="cmt">text · image · <span class="new">video/ (provider · service · controller)</span></span>
+│  │     ├─ ai-credentials/ <span class="cmt">BYOK store + provider resolver</span>
+│  │     ├─ media/         <span class="cmt">R2 storage + MediaAsset registry</span>
+│  │     ├─ posts · approvals · repurpose · videos · kol …
+│  │     └─ <span class="new">common/ (ZodValidationPipe · ZodExceptionFilter)</span>
+│  └─ <span class="pkg">web/</span>            <span class="cmt">@inboudly/web — Next.js 15 (port 3000)</span>
+│     ├─ src/app/dashboard/  <span class="cmt">composer · settings · media · …</span>
+│     └─ src/components/      <span class="cmt"><span class="new">generations-tray.tsx</span></span>
+├─ <span class="dir">packages/</span>
+│  ├─ <span class="pkg">database/</span>       <span class="cmt">@inboudly/database — Prisma 5 (db push, no migrations)</span>
+│  └─ <span class="pkg">shared/</span>         <span class="cmt">@inboudly/shared — zod schemas + platform constants</span>
+└─ turbo.json · pnpm-workspace.yaml
+    </div>
+  </section>
+
+  <!-- TECH STACK -->
+  <section>
+    <div class="sec-head">
+      <svg viewBox="0 0 24 24" fill="none" stroke="var(--indigo)" stroke-width="2"><path d="M12 2l3 6 7 .9-5 4.8 1.2 6.9L12 17l-6.2 3.6L7 13.7 2 8.9 9 8z"/></svg>
+      <h2>Technology stack</h2>
+    </div>
+    <p class="sec-sub">Grouped by layer, with the major version pinned in each package. Everything is TypeScript.</p>
+
+    <div class="grid">
+
+      <!-- Frontend -->
+      <div class="card">
+        <div class="card-head">
+          <span class="ic ic-sky"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg></span>
+          <div><h3>Frontend</h3><p class="cap">apps/web</p></div>
+        </div>
+        <ul class="tech">
+          <li><span class="name">Next.js</span><span class="ver">15</span><span class="desc">App Router · Turbopack</span></li>
+          <li><span class="name">React</span><span class="ver">19</span><span class="desc">UI runtime</span></li>
+          <li><span class="name">Tailwind CSS</span><span class="ver">3.4</span><span class="desc">styling + animate</span></li>
+          <li><span class="name">shadcn/ui · Radix</span><span class="ver">—</span><span class="desc">component primitives</span></li>
+          <li><span class="name">TanStack Query</span><span class="ver">5</span><span class="desc">data fetching + polling</span></li>
+          <li><span class="name">Zustand</span><span class="ver">5</span><span class="desc">client state</span></li>
+          <li><span class="name">sonner</span><span class="ver">1.5</span><span class="desc">toasts</span></li>
+          <li><span class="name">lucide-react</span><span class="ver">0.447</span><span class="desc">icons</span></li>
+          <li><span class="name">date-fns</span><span class="ver">4</span><span class="desc">dates</span></li>
+        </ul>
+      </div>
+
+      <!-- Backend -->
+      <div class="card">
+        <div class="card-head">
+          <span class="ic ic-indigo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/><circle cx="7" cy="6" r="0"/></svg></span>
+          <div><h3>Backend</h3><p class="cap">apps/api</p></div>
+        </div>
+        <ul class="tech">
+          <li><span class="name">NestJS</span><span class="ver">10.4</span><span class="desc">HTTP framework</span></li>
+          <li><span class="name">Express</span><span class="ver">—</span><span class="desc">platform adapter</span></li>
+          <li><span class="name">@nestjs/swagger</span><span class="ver">7.4</span><span class="desc">OpenAPI docs</span></li>
+          <li><span class="name">@nestjs/throttler</span><span class="ver">6.2</span><span class="desc">rate limiting</span></li>
+          <li><span class="name">@nestjs/schedule</span><span class="ver">4.1</span><span class="desc">cron tasks</span></li>
+          <li><span class="name">Socket.IO</span><span class="ver">10.4</span><span class="desc">websockets</span></li>
+          <li><span class="name">zod + class-validator</span><span class="ver">3 / 0.14</span><span class="desc">validation</span></li>
+          <li><span class="name">fluent-ffmpeg</span><span class="ver">2.1</span><span class="desc">video processing</span></li>
+        </ul>
+      </div>
+
+      <!-- Data & Infra -->
+      <div class="card">
+        <div class="card-head">
+          <span class="ic ic-emerald"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.7 4 3 9 3s9-1.3 9-3V5"/><path d="M3 12c0 1.7 4 3 9 3s9-1.3 9-3"/></svg></span>
+          <div><h3>Data &amp; Infra</h3><p class="cap">storage · queue · vectors</p></div>
+        </div>
+        <ul class="tech">
+          <li><span class="name">PostgreSQL</span><span class="ver">—</span><span class="desc">Supabase-hosted</span></li>
+          <li><span class="name">Prisma</span><span class="ver">5.20</span><span class="desc">ORM · db push</span></li>
+          <li><span class="name">Redis · BullMQ</span><span class="ver">5</span><span class="desc">job queue</span></li>
+          <li><span class="name">ioredis</span><span class="ver">5.4</span><span class="desc">redis client</span></li>
+          <li><span class="name">Cloudflare R2</span><span class="ver">—</span><span class="desc">via AWS SDK v3</span></li>
+          <li><span class="name">Pinecone</span><span class="ver">3</span><span class="desc">embeddings</span></li>
+          <li><span class="name">Supabase Auth</span><span class="ver">2.45</span><span class="desc">identity / JWT</span></li>
+        </ul>
+      </div>
+
+      <!-- AI & Integrations -->
+      <div class="card">
+        <div class="card-head">
+          <span class="ic ic-amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/><circle cx="12" cy="12" r="3.5"/></svg></span>
+          <div><h3>AI &amp; Integrations</h3><p class="cap">BYOK · per task</p></div>
+        </div>
+        <ul class="tech">
+          <li><span class="name">@anthropic-ai/sdk</span><span class="ver">0.27</span><span class="desc">Claude (text)</span></li>
+          <li><span class="name">@google/generative-ai</span><span class="ver">0.21</span><span class="desc">Gemini · Veo</span></li>
+          <li><span class="name">openai</span><span class="ver">4.65</span><span class="desc">image gen</span></li>
+          <li><span class="name">Pollinations</span><span class="ver">—</span><span class="desc">free keyless (fetch)</span></li>
+          <li><span class="name">cheerio · rss-parser</span><span class="ver">1 / 3</span><span class="desc">scraping / feeds</span></li>
+          <li><span class="name">youtube-dl-exec</span><span class="ver">3</span><span class="desc">repurpose source</span></li>
+        </ul>
+      </div>
+
+      <!-- Shared -->
+      <div class="card">
+        <div class="card-head">
+          <span class="ic ic-violet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 18l6-6-6-6M8 6l-6 6 6 6"/></svg></span>
+          <div><h3>Shared contracts</h3><p class="cap">packages/*</p></div>
+        </div>
+        <ul class="tech">
+          <li><span class="name">zod</span><span class="ver">3.23</span><span class="desc">schemas + inferred types</span></li>
+          <li><span class="name">@prisma/client</span><span class="ver">5.20</span><span class="desc">DB types &amp; client</span></li>
+          <li><span class="name">TypeScript</span><span class="ver">5.6</span><span class="desc">end-to-end types</span></li>
+        </ul>
+      </div>
+
+      <!-- Tooling -->
+      <div class="card">
+        <div class="card-head">
+          <span class="ic ic-slate"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a4 4 0 00-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 005.4-5.4l-2.6 2.6-2.4-2.4 2.6-2.6z"/></svg></span>
+          <div><h3>Build &amp; tooling</h3><p class="cap">repo-wide</p></div>
+        </div>
+        <ul class="tech">
+          <li><span class="name">Turborepo</span><span class="ver">2.1</span><span class="desc">task pipeline</span></li>
+          <li><span class="name">pnpm</span><span class="ver">9.12</span><span class="desc">workspaces</span></li>
+          <li><span class="name">Jest · ts-jest</span><span class="ver">29</span><span class="desc">API unit tests</span></li>
+          <li><span class="name">SWC</span><span class="ver">1.x</span><span class="desc">fast API dev build</span></li>
+          <li><span class="name">ESLint · Prettier</span><span class="ver">9 / 3</span><span class="desc">lint / format</span></li>
+        </ul>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- VIDEO FEATURE DATA FLOW -->
+  <section>
+    <div class="sec-head">
+      <svg viewBox="0 0 24 24" fill="none" stroke="var(--indigo)" stroke-width="2"><path d="m22 8-6 4 6 4V8z"/><rect x="2" y="6" width="14" height="12" rx="2"/></svg>
+      <h2>Spotlight: async video generation flow</h2>
+    </div>
+    <p class="sec-sub">The newest feature. Because real providers take 30s–minutes, generation is a <b>job</b>: the request returns immediately and the client polls. A built-in keyless <b>Demo</b> provider is the always-works default; paid providers are pluggable behind a single <code>VideoProvider</code> interface.</p>
+
+    <div class="flow">
+      <div class="step">
+        <h4>Submit <span class="where">Composer → POST /api/v1/ai/video</span></h4>
+        <p>User picks <b>Video</b>, enters a prompt. Body validated by <code>ZodValidationPipe(GenerateVideoSchema)</code>; <code>SupabaseAuthGuard</code> + <code>assertMember</code> enforce workspace access.</p>
+      </div>
+      <div class="step">
+        <h4>Resolve &amp; create job <span class="where">VideoGenerationService · AiCredentialsService</span></h4>
+        <p><code>resolveVideoProvider</code> honours the workspace's preferred provider (or falls back to Demo). A <code>VideoGeneration</code> row is created as <b>GENERATING</b> and returned instantly.</p>
+      </div>
+      <div class="step">
+        <h4>Run detached <span class="where">VideoProvider.generate()</span></h4>
+        <p>A fire-and-forget runner calls the provider adapter (<code>DemoVideoProvider</code> today). On success it registers a <code>MediaAsset</code> via <code>MediaService</code> and flips the job to <b>READY</b> + <code>mediaAssetId</code>; on error → <b>FAILED</b> with a friendly message.</p>
+      </div>
+      <div class="step">
+        <h4>Poll <span class="where">GET /api/v1/ai/video/:id</span></h4>
+        <p>The Composer, the <b>Generations tray</b>, and the Media library poll (TanStack Query <code>refetchInterval</code>) only while jobs are in flight — stopping once terminal.</p>
+      </div>
+      <div class="step">
+        <h4>Consume <span class="where">Composer · Tray · Media library</span></h4>
+        <p>READY clip plays inline, attaches to the post (same path as images), and surfaces as a Media tile. In-flight jobs render shimmer placeholders.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- CROSS CUTTING -->
+  <section>
+    <div class="sec-head">
+      <svg viewBox="0 0 24 24" fill="none" stroke="var(--indigo)" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      <h2>Cross-cutting concerns</h2>
+    </div>
+    <p class="sec-sub">Patterns applied consistently across modules.</p>
+    <div class="xcut">
+      <div class="xc">
+        <h4><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>Auth &amp; multi-tenancy</h4>
+        <p>Supabase JWT via <code>SupabaseAuthGuard</code>; Tenant → Workspace → Member, gated by <code>assertMember</code> on workspace-scoped routes.</p>
+      </div>
+      <div class="xc">
+        <h4><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l8 4v6c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6l8-4z"/><path d="m9 12 2 2 4-4"/></svg>BYOK key security</h4>
+        <p>Per-workspace AI keys stored <b>AES-256-GCM encrypted</b> in <code>WorkspaceAiCredentials</code>; resolved per request, never logged or returned.</p>
+      </div>
+      <div class="xc">
+        <h4><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>Validation</h4>
+        <p>Zod everywhere — shared schemas drive a <code>ZodValidationPipe</code> + global <code>ZodExceptionFilter</code> so bad input is a clean <b>400</b>, not a 500.</p>
+      </div>
+      <div class="xc">
+        <h4><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/><circle cx="12" cy="12" r="4"/></svg>Provider + model per task</h4>
+        <p>Caption, image, and video each resolve a provider+model independently, with a guaranteed free fallback (Pollinations for image, Demo for video).</p>
+      </div>
+      <div class="xc">
+        <h4><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-9-9"/><path d="M21 3v6h-6"/></svg>Async jobs</h4>
+        <p>Long work (publishing, video) is modelled as status-tracked jobs (<code>VideoStatus</code> enum) with client polling; BullMQ backs scheduled publishing.</p>
+      </div>
+      <div class="xc">
+        <h4><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7V4h16v3M9 20h6M12 4v16"/></svg>Type-safe contracts</h4>
+        <p>Request/response shapes live in <code>@inboudly/shared</code> (zod) and DB types in <code>@inboudly/database</code> (Prisma) — one source of truth for both apps.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    Inboudly · Architecture &amp; Tech Stack overview · generated for the current <code>main</code> branch<br/>
+    <span class="tag live">LIVE</span> ships today &nbsp;·&nbsp; <span class="tag soon">SOON</span> wired for forthcoming Plans 2 &amp; 3
+  </footer>
+
+</div>
+</body>
+</html>
