@@ -14,9 +14,10 @@ interface VideoJobResponse {
 }
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Clapperboard, Film, ImageIcon, Info, Loader2, Sparkles, Wand2, X } from 'lucide-react';
+import { Clapperboard, Calendar as CalendarIcon, Film, ImageIcon, Info, Loader2, Sparkles, Wand2, X } from 'lucide-react';
 import { PLATFORM_SPECS, type SocialPlatform } from '@inboudly/shared/platforms';
 import { type ViralityScoreResponse } from '@inboudly/shared/schemas';
+import { buildCreatePostInput } from '@inboudly/shared';
 
 const PHASE_1_PLATFORMS: SocialPlatform[] = ['INSTAGRAM', 'TIKTOK', 'REDNOTE'];
 
@@ -59,6 +60,11 @@ export default function ComposerPage() {
   const [videoAspect, setVideoAspect] = useState<'9:16' | '16:9' | '1:1'>('9:16');
   const [videoDuration, setVideoDuration] = useState(5);
   const [videoJobId, setVideoJobId] = useState<string | null>(null);
+
+  // ----- Publishing state -----
+  const [showSchedule, setShowSchedule] = useState(false);
+  const [scheduleAt, setScheduleAt] = useState('');
+  const [postError, setPostError] = useState<string | null>(null);
 
   const qc = useQueryClient();
 
@@ -152,6 +158,36 @@ export default function ComposerPage() {
     // Keep polling on a backgrounded tab so the result resolves even if the
     // user switched away mid-generation.
     refetchIntervalInBackground: true,
+  });
+
+  const createPost = useMutation({
+    mutationFn: (scheduledFor?: string) => {
+      const input = buildCreatePostInput({
+        workspaceId: workspaceId!,
+        selectedPlatforms,
+        captions,
+        hashtags,
+        attachedImageIds,
+      });
+      return api.post<{ id: string }>('/posts', input).then(async (post) => {
+        if (scheduledFor) {
+          await api.post(`/posts/${post.id}/schedule`, { scheduledFor });
+        }
+        return { id: post.id, scheduledFor };
+      });
+    },
+    onSuccess: ({ scheduledFor }) => {
+      setShowSchedule(false);
+      qc.invalidateQueries({ queryKey: ['posts', workspaceId] });
+      toast.success(scheduledFor ? 'Post scheduled' : 'Draft saved', {
+        description: scheduledFor
+          ? `Publishes ${new Date(scheduledFor).toLocaleString()}. View it on the Calendar.`
+          : 'Saved to your Calendar as a draft.',
+        duration: 7000,
+      });
+    },
+    onError: (err: any) =>
+      toast.error("Couldn't save the post", { description: err?.message ?? 'Please try again.', duration: 8000 }),
   });
 
   const toggleAttachImage = (imageId: string) => {
@@ -252,6 +288,23 @@ export default function ComposerPage() {
     aiCredentials.data?.anthropic?.configured || aiCredentials.data?.gemini?.configured;
   const hasAnyImageKey =
     aiCredentials.data?.openai?.configured || aiCredentials.data?.gemini?.configured;
+
+  const canPost =
+    !!workspaceId &&
+    selectedPlatforms.length > 0 &&
+    selectedPlatforms.some((p) => (captions[p] ?? '').trim().length > 0);
+
+  const validateThenRun = (scheduledFor?: string) => {
+    if (selectedPlatforms.length === 0) return setPostError('Pick at least one platform.');
+    if (!selectedPlatforms.some((p) => (captions[p] ?? '').trim())) {
+      return setPostError('Add a caption for at least one selected platform.');
+    }
+    if (scheduledFor && new Date(scheduledFor).getTime() <= Date.now()) {
+      return setPostError('Pick a time in the future.');
+    }
+    setPostError(null);
+    createPost.mutate(scheduledFor);
+  };
 
   return (
     <div className="container py-8">
@@ -690,6 +743,69 @@ export default function ComposerPage() {
             )}
           </div>
           )}
+
+          {/* Save / Schedule action bar */}
+          <div className="rounded-lg border bg-background p-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                disabled={!canPost || createPost.isPending}
+                onClick={() => validateThenRun()}
+                className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-secondary disabled:opacity-50"
+              >
+                {createPost.isPending && !showSchedule ? 'Saving…' : 'Save draft'}
+              </button>
+              <button
+                type="button"
+                disabled={!canPost || createPost.isPending}
+                onClick={() => {
+                  const d = new Date(Date.now() + 60 * 60 * 1000);
+                  const pad = (n: number) => String(n).padStart(2, '0');
+                  setScheduleAt(
+                    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`,
+                  );
+                  setPostError(null);
+                  setShowSchedule((s) => !s);
+                }}
+                className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
+              >
+                <CalendarIcon className="h-4 w-4" aria-hidden="true" /> Schedule…
+              </button>
+            </div>
+
+            {showSchedule && (
+              <div className="mt-3 rounded-md border bg-secondary/30 p-3">
+                <label htmlFor="schedule-at" className="text-xs font-medium">Publish at</label>
+                <input
+                  id="schedule-at"
+                  type="datetime-local"
+                  value={scheduleAt}
+                  onChange={(e) => setScheduleAt(e.target.value)}
+                  className="mt-1 block w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+                <div className="mt-3 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowSchedule(false)}
+                    className="rounded-md border px-3 py-1.5 text-sm hover:bg-secondary"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    disabled={createPost.isPending || !scheduleAt}
+                    onClick={() => validateThenRun(new Date(scheduleAt).toISOString())}
+                    className="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground disabled:opacity-50"
+                  >
+                    {createPost.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                    Schedule
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {postError && <p className="mt-2 text-sm text-destructive">{postError}</p>}
+          </div>
         </div>
 
         {/* Right: Virality score + algorithm coach */}
