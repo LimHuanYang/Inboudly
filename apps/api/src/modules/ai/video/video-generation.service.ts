@@ -1,4 +1,5 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { AiCredentialsService } from '../../ai-credentials/ai-credentials.service';
 import { DemoVideoProvider } from './demo-video.provider';
@@ -116,6 +117,20 @@ export class VideoGenerationService {
       // cannot handle (would 500 the response).
       include: { mediaAsset: { select: { id: true, url: true } } },
     });
+  }
+
+  private static readonly STALE_MS = 10 * 60 * 1000;
+
+  /** Safety net for the in-process runner: a server restart (or a hung provider)
+   *  can orphan a GENERATING job. Fail anything stuck past STALE_MS. */
+  @Cron('*/2 * * * *')
+  async reapStaleJobs(): Promise<void> {
+    const cutoff = new Date(Date.now() - VideoGenerationService.STALE_MS);
+    const res = await this.prisma.videoGeneration.updateMany({
+      where: { status: VideoStatus.GENERATING, updatedAt: { lt: cutoff } },
+      data: { status: VideoStatus.FAILED, errorMessage: 'Generation timed out. Please try again.' },
+    });
+    if (res.count > 0) this.logger.warn(`Reaped ${res.count} stale video job(s)`);
   }
 
   /** User-facing failure text. Implemented providers surface the real cause
