@@ -29,6 +29,7 @@ export type AiProviderKeyName =
   | 'anthropicKey'
   | 'runwayKey'
   | 'klingKey'
+  | 'pollinationsKey'
   | 'elevenLabsKey'
   | 'sunoKey'
   | 'pineconeKey';
@@ -50,6 +51,7 @@ const KEY_FIELDS: AiProviderKeyName[] = [
   'anthropicKey',
   'runwayKey',
   'klingKey',
+  'pollinationsKey',
   'elevenLabsKey',
   'sunoKey',
   'pineconeKey',
@@ -79,7 +81,7 @@ export const DEFAULT_VIDEO_MODELS: Record<VideoProviderName, string> = {
 } as const;
 
 /** Providers with a working adapter in THIS build. Plans 2/3 extend this list. */
-export const IMPLEMENTED_VIDEO_PROVIDERS: VideoProviderName[] = ['demo'];
+export const IMPLEMENTED_VIDEO_PROVIDERS: VideoProviderName[] = ['demo', 'pollinations'];
 
 interface ProviderStateView {
   configured: boolean;
@@ -101,6 +103,7 @@ export interface AiCredentialsView {
   veoVideoModel: string | null;
   runway:     { configured: boolean; masked: string | null };
   kling:      { configured: boolean; masked: string | null };
+  pollinations: { configured: boolean; masked: string | null };
   elevenLabs: { configured: boolean; masked: string | null };
   suno:       { configured: boolean; masked: string | null };
   pinecone:   { configured: boolean; masked: string | null };
@@ -284,6 +287,7 @@ export class AiCredentialsService {
       ?? undefined;
 
     const keyFieldFor: Partial<Record<VideoProviderName, AiProviderKeyName>> = {
+      pollinations: 'pollinationsKey',
       runway: 'runwayKey',
       kling: 'klingKey',
       veo: 'geminiKey', // Google Veo authenticates with the Gemini/Google key
@@ -296,11 +300,7 @@ export class AiCredentialsService {
     });
 
     if (preferred && IMPLEMENTED_VIDEO_PROVIDERS.includes(preferred)) {
-      // demo + pollinations are keyless. The 'pollinations' arm is unreachable
-      // today (it's not in IMPLEMENTED_VIDEO_PROVIDERS yet) — it's pre-wired so
-      // Plan 2 can enable free keyed-less Pollinations video by just adding it
-      // to the IMPLEMENTED list.
-      if (preferred === 'demo' || preferred === 'pollinations') return pick(preferred, '');
+      if (preferred === 'demo') return pick(preferred, '');
       const keyField = keyFieldFor[preferred];
       const key = keyField ? await this.getDecryptedKey(workspaceId, keyField) : null;
       if (key) return pick(preferred, key);
@@ -354,6 +354,7 @@ export class AiCredentialsService {
       veoVideoModel: (row?.veoVideoModel as string | null) ?? null,
       runway:     safeKey('runwayKey'),
       kling:      safeKey('klingKey'),
+      pollinations: safeKey('pollinationsKey'),
       elevenLabs: safeKey('elevenLabsKey'),
       suno:       safeKey('sunoKey'),
       pinecone:   safeKey('pineconeKey'),

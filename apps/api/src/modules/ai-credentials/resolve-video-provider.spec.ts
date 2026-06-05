@@ -43,4 +43,16 @@ describe('AiCredentialsService.resolveVideoProvider', () => {
     const svc = makeService({});
     expect((await svc.resolveVideoProvider('ws1', 'kling')).provider).toBe('demo');
   });
+
+  it('resolves pollinations when a pollinationsKey is present', async () => {
+    const svc = makeService({ preferredVideoProvider: 'pollinations', keys: { pollinationsKey: 'sk_live_x' } });
+    const r = await svc.resolveVideoProvider('ws1');
+    expect(r.provider).toBe('pollinations');
+    expect(r.apiKey).toBe('sk_live_x');
+  });
+
+  it('falls back to demo when pollinations is preferred but no key is saved', async () => {
+    const svc = makeService({ preferredVideoProvider: 'pollinations' });
+    expect((await svc.resolveVideoProvider('ws1')).provider).toBe('demo');
+  });
 });
