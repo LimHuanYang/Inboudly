@@ -4,6 +4,15 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { ZodExceptionFilter } from './common/filters/zod-exception.filter';
 
+// Prisma returns BigInt columns (e.g. MediaAsset.sizeBytes) as JS bigint, which
+// JSON.stringify cannot serialize — any endpoint returning a media asset
+// (GET /media, posts, etc.) would 500. Serialize BigInt as a string globally.
+(BigInt.prototype as unknown as { toJSON: () => string }).toJSON = function (
+  this: bigint,
+) {
+  return this.toString();
+};
+
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
