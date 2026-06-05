@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Implementation Plans · Real Video + Publishing</title>
+<style>
+  :root{
+    --bg:#f6f7fb;--surface:#fff;--ink:#0f172a;--muted:#64748b;--line:#e2e8f0;--line-strong:#cbd5e1;
+    --indigo:#4f46e5;--indigo-soft:#eef2ff;--indigo-ink:#3730a3;
+    --emerald:#059669;--emerald-soft:#d1fae5;--emerald-ink:#065f46;
+    --pink:#db2777;--pink-soft:#fce7f3;--pink-ink:#9d174d;
+    --amber:#d97706;--amber-soft:#fef3c7;--amber-ink:#92400e;
+    --sky:#0284c7;--sky-soft:#e0f2fe;--sky-ink:#075985;
+    --shadow:0 1px 2px rgba(15,23,42,.04),0 4px 16px rgba(15,23,42,.06);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;padding:30px 18px 80px}
+  .wrap{max-width:1060px;margin:0 auto}
+  code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.85em;background:#f1f5f9;padding:1px 5px;border-radius:5px}
+  h1{font-size:clamp(24px,4vw,34px);margin:6px 0;letter-spacing:-.02em}
+  .lede{color:var(--muted);font-size:16px;margin:0;max-width:74ch}
+  .eyebrow{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:700;letter-spacing:.07em;
+    text-transform:uppercase;color:var(--indigo);background:var(--indigo-soft);padding:5px 11px;border-radius:999px}
+  svg.ic{width:18px;height:18px;vertical-align:-3px}
+
+  .legend{display:flex;flex-wrap:wrap;gap:8px;margin:18px 0 4px}
+  .tag{font-size:11px;font-weight:700;letter-spacing:.03em;padding:3px 9px;border-radius:7px}
+  .tag.tdd{background:var(--sky-soft);color:var(--sky-ink)}
+  .tag.wire{background:var(--indigo-soft);color:var(--indigo-ink)}
+  .tag.build{background:var(--amber-soft);color:var(--amber-ink)}
+  .tag.verify{background:var(--emerald-soft);color:var(--emerald-ink)}
+
+  .track{margin-top:30px;background:var(--surface);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);overflow:hidden}
+  .track-top{padding:18px 22px;border-bottom:1px solid var(--line);display:flex;align-items:flex-start;gap:14px}
+  .track-top .badge{width:42px;height:42px;border-radius:11px;display:grid;place-items:center;flex:none;font-weight:800;font-size:18px}
+  .badge.a{background:var(--pink-soft);color:var(--pink)}
+  .badge.b{background:var(--emerald-soft);color:var(--emerald-ink)}
+  .track-top h2{margin:0 0 2px;font-size:20px;letter-spacing:-.01em}
+  .track-top .meta{margin:0;color:var(--muted);font-size:13.5px}
+  .track-body{padding:20px 22px}
+  .arch{font-size:13.5px;color:#475569;background:#f8fafc;border:1px solid var(--line);border-radius:10px;padding:11px 13px;margin:0 0 18px}
+  .arch b{color:var(--ink)}
+
+  .files{display:flex;flex-wrap:wrap;gap:7px;margin:0 0 18px}
+  .fb{font-size:11.5px;font-family:ui-monospace,monospace;padding:4px 9px;border-radius:7px;border:1px solid var(--line)}
+  .fb .k{font-weight:700;margin-right:5px}
+  .fb.create{background:#ecfdf5;border-color:#a7f3d0}.fb.create .k{color:var(--emerald-ink)}
+  .fb.modify{background:#eff6ff;border-color:#bfdbfe}.fb.modify .k{color:var(--sky-ink)}
+  .fb.test{background:#faf5ff;border-color:#e9d5ff}.fb.test .k{color:#7c3aed}
+
+  /* task list */
+  .task{display:flex;gap:14px;padding:14px 0;border-top:1px solid var(--line)}
+  .task:first-of-type{border-top:0}
+  .tnum{width:30px;height:30px;border-radius:50%;flex:none;display:grid;place-items:center;font-weight:800;font-size:13px;color:#fff}
+  .a .tnum{background:var(--pink)} .b .tnum{background:var(--emerald)}
+  .tbody{flex:1;min-width:0}
+  .tbody h3{margin:0 0 3px;font-size:15px;display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+  .tbody p{margin:0 0 7px;font-size:13.5px;color:var(--muted)}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+  .chip{font-size:11px;padding:3px 8px;border-radius:6px;background:#f1f5f9;color:#475569;border:1px solid var(--line)}
+  .chip.cmd{font-family:ui-monospace,monospace;background:#0f172a;color:#cbd5e1;border-color:#0f172a}
+  .step-rhythm{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px}
+  .sp{font-size:10.5px;padding:2px 7px;border-radius:999px;border:1px solid var(--line);color:var(--muted);display:inline-flex;gap:4px;align-items:center}
+  .sp b{color:var(--ink);font-weight:700}
+
+  .callout{display:flex;gap:10px;align-items:flex-start;border-radius:11px;padding:12px 14px;margin:18px 0 0;font-size:13.5px}
+  .callout.warn{background:var(--amber-soft);color:#7a4f12}
+  .callout.info{background:var(--sky-soft);color:var(--sky-ink)}
+  .callout svg{flex:none;margin-top:2px}
+  .callout code{background:rgba(0,0,0,.06)}
+
+  .apibox{margin:0 0 18px;border:1px dashed var(--pink);border-radius:11px;background:#fff5fa;padding:13px 15px;font-size:13px}
+  .apibox h4{margin:0 0 7px;font-size:13px;color:var(--pink-ink);text-transform:uppercase;letter-spacing:.05em}
+  .apibox div{margin:3px 0}
+
+  footer{margin-top:36px;padding:18px 20px;border:2px solid var(--indigo);border-radius:16px;background:var(--indigo-soft)}
+  footer h2{margin:0 0 8px;font-size:18px;color:var(--indigo-ink)}
+  footer p{margin:5px 0;font-size:14px}
+  .note-foot{margin-top:24px;color:var(--muted);font-size:12.5px;text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <span class="eyebrow">
+    <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+    Implementation plans
+  </span>
+  <h1>Two plans, task by task</h1>
+  <p class="lede">The visual overview of both plans. Each task is bite-sized and test-first. Full copy-paste code lives in the two <code>.md</code> files under <code>docs/superpowers/plans/</code> — this page is the map.</p>
+
+  <div class="legend">
+    <span class="tag tdd">TDD task (test → fail → implement → pass)</span>
+    <span class="tag wire">Wire-up</span>
+    <span class="tag build">Schema / build</span>
+    <span class="tag verify">Verify</span>
+  </div>
+
+  <!-- ============ TRACK B ============ -->
+  <section class="track b">
+    <div class="track-top">
+      <div class="badge b">B</div>
+      <div>
+        <h2>Composer → Save draft / Schedule</h2>
+        <p class="meta">5 tasks · front-end only · no external dependency · ships &amp; verifies now</p>
+      </div>
+    </div>
+    <div class="track-body">
+      <p class="arch"><b>Approach:</b> a pure transform (<code>buildCreatePostInput</code>) lives in <code>@inboudly/shared</code> so the existing API jest can test it; the Composer calls it and posts to the <b>already-built</b> <code>POST /posts</code> + <code>/schedule</code> pipeline (which really publishes to connected accounts).</p>
+
+      <div class="files">
+        <span class="fb create"><span class="k">＋</span>shared/src/build-post-input.ts</span>
+        <span class="fb test"><span class="k">🧪</span>build-post-input.spec.ts</span>
+        <span class="fb modify"><span class="k">✎</span>shared/src/index.ts</span>
+        <span class="fb modify"><span class="k">✎</span>composer/page.tsx</span>
+      </div>
+
+      <div class="task">
+        <div class="tnum">1</div>
+        <div class="tbody">
+          <h3>parseHashtags + buildCreatePostInput <span class="tag tdd">TDD</span></h3>
+          <p>Pure transform: draft (per-platform caption / hashtags / media) → one <code>CreatePostInput</code> variant per selected platform. Strips <code>#</code>, trims, drops empties.</p>
+          <div class="step-rhythm">
+            <span class="sp"><b>1</b> failing test (4 cases)</span><span class="sp"><b>2</b> see it fail</span><span class="sp"><b>3</b> implement</span><span class="sp"><b>4</b> see it pass</span><span class="sp"><b>5</b> commit</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="task">
+        <div class="tnum">2</div>
+        <div class="tbody">
+          <h3>Export from barrel + rebuild <span class="tag build">build</span></h3>
+          <p>Add <code>export * from './build-post-input'</code>; rebuild shared so the web sees it via <code>dist</code>.</p>
+          <div class="chips"><span class="chip cmd">pnpm --filter @inboudly/shared build</span></div>
+        </div>
+      </div>
+
+      <div class="task">
+        <div class="tnum">3</div>
+        <div class="tbody">
+          <h3>Composer action bar + schedule panel <span class="tag wire">wire</span></h3>
+          <p>Add <code>createPost</code> / <code>schedulePost</code> mutations, a <b>Save draft</b> + <b>Schedule…</b> bar, an inline date/time panel, and validation (≥1 platform, ≥1 caption, future time).</p>
+          <div class="chips"><span class="chip cmd">pnpm --filter @inboudly/web build</span></div>
+        </div>
+      </div>
+
+      <div class="task">
+        <div class="tnum">4</div>
+        <div class="tbody">
+          <h3>Connected-account advisory note <span class="tag wire">wire</span></h3>
+          <p>Query <code>/social-accounts</code>; if a selected platform isn't connected, show an amber "connect in Settings" note. Non-blocking — drafts still save.</p>
+        </div>
+      </div>
+
+      <div class="task">
+        <div class="tnum">5</div>
+        <div class="tbody">
+          <h3>Full validation + manual test <span class="tag verify">verify</span></h3>
+          <p>Unit + web build; then: Save draft → appears on Calendar; Schedule → shows scheduled; publishes at the time for connected accounts.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ TRACK A ============ -->
+  <section class="track a">
+    <div class="track-top">
+      <div class="badge a">A</div>
+      <div>
+        <h2>Real video via Pollinations (BYOK)</h2>
+        <p class="meta">8 tasks · build + tests need no key · only the final live check needs your Pollinations key</p>
+      </div>
+    </div>
+    <div class="track-body">
+      <p class="arch"><b>Approach:</b> Pollinations video is a <b>synchronous</b> <code>GET /video/{prompt}</code> returning MP4 bytes — so the adapter mirrors the existing image provider: fetch → save to R2 → register a VIDEO asset. A new encrypted <code>pollinationsKey</code> makes it a keyed provider; Demo stays the no-key fallback; a cron reaper fails stuck jobs.</p>
+
+      <div class="apibox">
+        <h4>Verified Pollinations video API</h4>
+        <div><b>GET</b> <code>https://gen.pollinations.ai/video/{prompt}</code> · auth <code>Authorization: Bearer &lt;key&gt;</code></div>
+        <div>params: <code>model</code> · <code>duration</code> · <code>aspectRatio</code> (16:9 / 9:16) · <code>width/height</code> · <code>seed</code> · <code>image</code></div>
+        <div>models: <code>seedance</code> (2–10s) · <code>veo</code> (4/6/8s) · <code>wan-fast</code> · returns <b>video/mp4 bytes, synchronously</b> · billed via pollen credit</div>
+      </div>
+
+      <div class="files">
+        <span class="fb modify"><span class="k">✎</span>schema.prisma</span>
+        <span class="fb modify"><span class="k">✎</span>ai-credentials.service.ts</span>
+        <span class="fb modify"><span class="k">✎</span>ai-credentials.controller.ts</span>
+        <span class="fb create"><span class="k">＋</span>pollinations-video.provider.ts</span>
+        <span class="fb test"><span class="k">🧪</span>+ specs</span>
+        <span class="fb modify"><span class="k">✎</span>video-generation.service.ts</span>
+        <span class="fb modify"><span class="k">✎</span>ai.module.ts</span>
+        <span class="fb modify"><span class="k">✎</span>settings (key card + defaults)</span>
+      </div>
+
+      <div class="task">
+        <div class="tnum">1</div>
+        <div class="tbody">
+          <h3>Prisma: add <code>pollinationsKey</code> <span class="tag build">schema</span></h3>
+          <p>One encrypted column on <code>WorkspaceAiCredentials</code>; <code>db:push</code> + regenerate.</p>
+          <div class="chips"><span class="chip cmd">pnpm --filter @inboudly/database db:push</span></div>
+        </div>
+      </div>
+
+      <div class="task">
+        <div class="tnum">2</div>
+        <div class="tbody">
+          <h3>Make Pollinations a keyed provider <span class="tag tdd">TDD</span></h3>
+          <p>Resolver now requires <code>pollinationsKey</code> (no longer keyless); add to <code>IMPLEMENTED_VIDEO_PROVIDERS</code>; expose its state in <code>view()</code>. 2 new resolver tests.</p>
+          <div class="step-rhythm"><span class="sp"><b>1</b> add 2 failing tests</span><span class="sp"><b>2</b> fail</span><span class="sp"><b>3</b> implement</span><span class="sp"><b>4</b> pass</span><span class="sp"><b>5</b> commit</span></div>
+        </div>
+      </div>
+
+      <div class="task">
+        <div class="tnum">3</div>
+        <div class="tbody">
+          <h3>Allow <code>pollinationsKey</code> in controller <span class="tag wire">wire</span></h3>
+          <p>Add to <code>ALLOWED_KEY_FIELDS</code> so the Settings card can save it. Type-check.</p>
+        </div>
+      </div>
+
+      <div class="task">
+        <div class="tnum">4</div>
+        <div class="tbody">
+          <h3>PollinationsVideoProvider <span class="tag tdd">TDD</span></h3>
+          <p>GET <code>gen.pollinations.ai/video</code> with bearer key → MP4 bytes → upload to R2 → register VIDEO asset. Clamps <code>veo</code> duration to 4/6/8; friendly error on non-OK. 3 tests (mocked fetch/R2/media).</p>
+          <div class="step-rhythm"><span class="sp"><b>1</b> failing test</span><span class="sp"><b>2</b> fail</span><span class="sp"><b>3</b> implement</span><span class="sp"><b>4</b> pass</span><span class="sp"><b>5</b> commit</span></div>
+        </div>
+      </div>
+
+      <div class="task">
+        <div class="tnum">5</div>
+        <div class="tbody">
+          <h3>Dispatch + module wiring <span class="tag wire">wire</span></h3>
+          <p>Add the <code>pollinations</code> case to <code>adapterFor()</code>; register the provider in <code>AiModule</code>; boot-smoke to confirm DI.</p>
+          <div class="chips"><span class="chip cmd">pnpm --filter @inboudly/api build</span><span class="chip">boot smoke</span></div>
+        </div>
+      </div>
+
+      <div class="task">
+        <div class="tnum">6</div>
+        <div class="tbody">
+          <h3>Stale-job reaper (cron) <span class="tag tdd">TDD</span></h3>
+          <p>A <code>@Cron</code> sweep fails jobs stuck in GENERATING &gt; 10 min (covers the in-process runner's restart risk). Ensure <code>ScheduleModule.forRoot()</code>.</p>
+          <div class="step-rhythm"><span class="sp"><b>1</b> failing test</span><span class="sp"><b>2</b> fail</span><span class="sp"><b>3</b> implement</span><span class="sp"><b>4</b> pass</span><span class="sp"><b>5</b> commit</span></div>
+        </div>
+      </div>
+
+      <div class="task">
+        <div class="tnum">7</div>
+        <div class="tbody">
+          <h3>Settings UI <span class="tag wire">wire</span></h3>
+          <p>Add a Pollinations BYOK key card; enable the Pollinations video option (gated on a saved key); real model list (seedance / veo / wan-fast).</p>
+          <div class="chips"><span class="chip cmd">pnpm --filter @inboudly/web build</span></div>
+        </div>
+      </div>
+
+      <div class="task">
+        <div class="tnum">8</div>
+        <div class="tbody">
+          <h3>Verify live API + full validation <span class="tag verify">verify</span></h3>
+          <p>Confirm the live endpoint with a real key (docs lag → adjust the adapter if it differs), run the full suite, then generate a real prompt-driven clip end-to-end.</p>
+          <div class="chips"><span class="chip cmd">curl -H "Authorization: Bearer …" gen.pollinations.ai/video/…</span></div>
+        </div>
+      </div>
+
+      <div class="callout warn">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+        <span><b>Your input needed for Task 8 only:</b> a Pollinations API key (<code>sk_…</code>) with a little pollen credit. Tasks 1–7 build &amp; unit-test without it; Demo keeps working throughout.</span>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <h2>How do you want to run it?</h2>
+    <p><b>1. Subagent-Driven</b> (recommended) — fresh subagent per task, two-stage review (spec → quality) between tasks. How Plan 1 ran.</p>
+    <p><b>2. Inline</b> — I execute in this session with checkpoints.</p>
+    <p style="margin-top:10px">Suggested order: <b>Track B first</b> (risk-free, ships now) → <b>Track A</b> (only its last step needs your key). Or both, or A first — your call.</p>
+  </footer>
+
+  <p class="note-foot">Full code &amp; exact commands: <code>docs/superpowers/plans/2026-06-05-composer-publishing.md</code> · <code>docs/superpowers/plans/2026-06-05-pollinations-video-provider.md</code> · branch <code>feat/real-video-and-publishing</code></p>
+</div>
+</body>
+</html>
