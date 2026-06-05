@@ -17,6 +17,7 @@ interface CredsView {
   gemini: ProviderState;
   openai: ProviderState;
   anthropic: ProviderState;
+  pollinations: { configured: boolean } | null;
   geminiImageModel: string | null;
   pollinationsModel: string | null;
   preferredTextProvider: 'claude' | 'gemini' | null;
@@ -64,7 +65,9 @@ const DEMO_VIDEO_MODELS: ModelOption[] = [
   { value: 'demo', label: 'demo — instant sample clip (free, default)' },
 ];
 const POLLINATIONS_VIDEO_MODELS: ModelOption[] = [
-  { value: 'pollinations-t2v', label: 'pollinations-t2v — free text-to-video' },
+  { value: 'seedance', label: 'seedance — 2–10s (default)' },
+  { value: 'veo',      label: 'veo — 4 / 6 / 8s' },
+  { value: 'wan-fast', label: 'wan-fast — 2–15s' },
 ];
 const RUNWAY_VIDEO_MODELS: ModelOption[] = [
   { value: 'runway-gen3', label: 'runway-gen3 — Gen-3 Alpha' },
@@ -78,7 +81,7 @@ const VEO_VIDEO_MODELS: ModelOption[] = [
 
 // Which providers have a working adapter in this build. Others show as "coming soon".
 const VIDEO_PROVIDER_READY: Record<string, boolean> = {
-  demo: true, pollinations: false, runway: false, kling: false, veo: false,
+  demo: true, pollinations: true, runway: false, kling: false, veo: false,
 };
 
 // Map (task, provider) → the credentials model field the PATCH endpoint expects.
@@ -131,7 +134,7 @@ export function AiDefaultsCard({ workspaceId }: { workspaceId: string }) {
     setVideoProvider(vp);
     setVideoModel(
       vp === 'demo' ? 'demo'
-        : vp === 'pollinations' ? (data.pollinationsVideoModel ?? 'pollinations-t2v')
+        : vp === 'pollinations' ? (data.pollinationsVideoModel ?? 'seedance')
           : vp === 'runway' ? (data.runwayModel ?? 'runway-gen3')
             : vp === 'kling' ? (data.klingModel ?? 'kling-v2')
               : (data.veoVideoModel ?? 'veo-3'),
@@ -309,8 +312,8 @@ export function AiDefaultsCard({ workspaceId }: { workspaceId: string }) {
                 className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
               >
                 <option value="demo">Demo — instant sample clip (free)</option>
-                <option value="pollinations" disabled={!VIDEO_PROVIDER_READY.pollinations}>
-                  Pollinations — free{!VIDEO_PROVIDER_READY.pollinations ? ' (coming soon)' : ''}
+                <option value="pollinations" disabled={!data.pollinations?.configured}>
+                  Pollinations{!data.pollinations?.configured ? ' — add key first' : ' — Seedance / Veo / Wan'}
                 </option>
                 <option value="runway" disabled={!VIDEO_PROVIDER_READY.runway}>
                   Runway{!VIDEO_PROVIDER_READY.runway ? ' (coming soon)' : ''}
@@ -349,9 +352,9 @@ export function AiDefaultsCard({ workspaceId }: { workspaceId: string }) {
             </div>
           </div>
           <p className="mt-2 text-xs text-muted-foreground">
-            Only <strong>Demo</strong> is active in this build — and it returns a fixed
-            sample clip (it doesn&apos;t read your prompt). Prompt-driven video via Runway,
-            Kling, Veo and Pollinations arrives in upcoming updates.
+            <strong>Demo</strong> (free, fixed sample) and <strong>Pollinations</strong> (your key, real prompt-driven) are active.
+            <span className="text-amber-600 dark:text-amber-400"> Pollinations bills your pollen credits per clip.</span>{' '}
+            Runway, Kling and Veo arrive in upcoming updates.
           </p>
         </div>
 

@@ -25,6 +25,7 @@ interface AiCredentialsView {
   openai: ProviderState;
   anthropic: ProviderState;
   elevenLabs: KeyOnlyState;
+  pollinations: KeyOnlyState;
 }
 
 interface TestResult {
@@ -34,7 +35,7 @@ interface TestResult {
   message?: string;
 }
 
-type ProviderId = 'gemini' | 'openai' | 'anthropic' | 'elevenLabs';
+type ProviderId = 'gemini' | 'openai' | 'anthropic' | 'elevenLabs' | 'pollinations';
 
 interface ProviderModelOption {
   value: string;
@@ -43,7 +44,7 @@ interface ProviderModelOption {
 
 interface ProviderMeta {
   id: ProviderId;
-  keyField: 'geminiKey' | 'openaiKey' | 'anthropicKey' | 'elevenLabsKey';
+  keyField: 'geminiKey' | 'openaiKey' | 'anthropicKey' | 'elevenLabsKey' | 'pollinationsKey';
   // Key-only providers (voice/video) omit modelField / defaultModel / models.
   modelField?: 'geminiModel' | 'openaiModel' | 'anthropicModel';
   name: string;
@@ -121,6 +122,16 @@ const PROVIDERS: ProviderMeta[] = [
     noTest: true, // no /test endpoint for voice providers yet
     helpText: 'Used by Faceless Videos to generate scene voiceovers. Voice picked automatically per niche (calm/dramatic/authoritative/etc).',
   },
+  {
+    id: 'pollinations',
+    keyField: 'pollinationsKey',
+    name: 'Pollinations (video)',
+    signupUrl: 'https://pollinations.ai',
+    signupCopy: 'Get a key + add credit',
+    keyPlaceholder: 'sk_...',
+    noTest: true,
+    helpText: 'Real prompt-driven video (Seedance / Veo / Wan). Billed from your Pollinations pollen balance — each clip costs credits.',
+  },
 ];
 
 export function AiProvidersCard({ workspaceId }: { workspaceId: string }) {
@@ -130,18 +141,21 @@ export function AiProvidersCard({ workspaceId }: { workspaceId: string }) {
     openai: '',
     anthropic: '',
     elevenLabs: '',
+    pollinations: '',
   });
   const [modelDrafts, setModelDrafts] = useState<Record<ProviderId, string>>({
     gemini: '',
     openai: '',
     anthropic: '',
     elevenLabs: '', // unused — ElevenLabs is key-only — kept for type uniformity
+    pollinations: '', // unused — Pollinations is key-only — kept for type uniformity
   });
   const [testResults, setTestResults] = useState<Record<ProviderId, TestResult | null>>({
     gemini: null,
     openai: null,
     anthropic: null,
     elevenLabs: null,
+    pollinations: null,
   });
 
   const { data } = useQuery({
@@ -159,6 +173,7 @@ export function AiProvidersCard({ workspaceId }: { workspaceId: string }) {
       openai: data.openai?.model ?? '',
       anthropic: data.anthropic?.model ?? '',
       elevenLabs: '',
+      pollinations: '',
     });
   }, [data]);
 
