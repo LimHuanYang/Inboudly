@@ -7,6 +7,7 @@ import { GeminiImageService } from './gemini-image.service';
 import { PollinationsImageService } from './pollinations-image.service';
 import { EmbeddingsService } from './embeddings.service';
 import { DemoVideoProvider } from './video/demo-video.provider';
+import { PollinationsVideoProvider } from './video/pollinations-video.provider';
 import { VideoGenerationService } from './video/video-generation.service';
 import { VideoGenerationController } from './video/video-generation.controller';
 import { MediaModule } from '../media/media.module';
@@ -25,6 +26,7 @@ import { AiCredentialsModule } from '../ai-credentials/ai-credentials.module';
     PollinationsImageService,
     EmbeddingsService,
     DemoVideoProvider,
+    PollinationsVideoProvider,
     VideoGenerationService,
     WorkspacesService,
   ],

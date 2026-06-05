@@ -74,7 +74,7 @@ export const DEFAULT_IMAGE_MODELS = {
 /** Default VIDEO models when no user override is saved. */
 export const DEFAULT_VIDEO_MODELS: Record<VideoProviderName, string> = {
   demo: 'demo',
-  pollinations: 'pollinations-t2v',
+  pollinations: 'seedance',
   runway: 'runway-gen3',
   kling: 'kling-v2',
   veo: 'veo-3',

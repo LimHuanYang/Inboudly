@@ -2,6 +2,7 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { AiCredentialsService } from '../../ai-credentials/ai-credentials.service';
 import { DemoVideoProvider } from './demo-video.provider';
+import { PollinationsVideoProvider } from './pollinations-video.provider';
 import type { VideoProvider } from './video-provider.interface';
 import { VideoStatus } from '@inboudly/database';
 import type { GenerateVideoInput } from '@inboudly/shared';
@@ -14,6 +15,7 @@ export class VideoGenerationService {
     private prisma: PrismaService,
     private credentials: AiCredentialsService,
     private demo: DemoVideoProvider,
+    private pollinations: PollinationsVideoProvider,
   ) {}
 
   /** Map a resolved provider name to its adapter. Plans 2/3 add more cases. */
@@ -21,6 +23,8 @@ export class VideoGenerationService {
     switch (provider) {
       case 'demo':
         return this.demo;
+      case 'pollinations':
+        return this.pollinations;
       default:
         // resolveVideoProvider only returns implemented providers today, so this
         // is defensive — fall back to the always-works Demo provider.
@@ -79,7 +83,7 @@ export class VideoGenerationService {
         this.logger.error(`Video job ${jobId} failed: ${msg}`);
         await this.prisma.videoGeneration.update({
           where: { id: jobId },
-          data: { status: VideoStatus.FAILED, errorMessage: this.friendlyError(job.provider) },
+          data: { status: VideoStatus.FAILED, errorMessage: this.failureMessage(job.provider, msg) },
         });
       }
     } catch (outerErr) {
@@ -114,7 +118,12 @@ export class VideoGenerationService {
     });
   }
 
-  private friendlyError(provider: string): string {
+  /** User-facing failure text. Implemented providers surface the real cause
+   *  (e.g. a 402 no-credit) plus a recovery hint; demo stays generic. */
+  private failureMessage(provider: string, rawMsg: string): string {
+    if (provider === 'pollinations') {
+      return `${rawMsg}. Check your Pollinations key and that your account has pollen credit, then try again.`;
+    }
     if (provider === 'demo') {
       return 'The demo video generator hit an unexpected error. Please try again.';
     }
