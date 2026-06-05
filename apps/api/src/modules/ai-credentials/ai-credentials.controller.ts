@@ -27,6 +27,7 @@ const ALLOWED_KEY_FIELDS: AiProviderKeyName[] = [
   'anthropicKey',
   'runwayKey',
   'klingKey',
+  'pollinationsKey',
   'elevenLabsKey',
   'sunoKey',
   'pineconeKey',
