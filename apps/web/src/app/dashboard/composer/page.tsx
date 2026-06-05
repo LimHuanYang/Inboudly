@@ -170,15 +170,27 @@ export default function ComposerPage() {
         attachedImageIds,
       });
       return api.post<{ id: string }>('/posts', input).then(async (post) => {
+        let scheduleFailed = false;
         if (scheduledFor) {
-          await api.post(`/posts/${post.id}/schedule`, { scheduledFor });
+          try {
+            await api.post(`/posts/${post.id}/schedule`, { scheduledFor });
+          } catch {
+            scheduleFailed = true; // the draft was created; only scheduling failed
+          }
         }
-        return { id: post.id, scheduledFor };
+        return { id: post.id, scheduledFor, scheduleFailed };
       });
     },
-    onSuccess: ({ scheduledFor }) => {
+    onSuccess: ({ scheduledFor, scheduleFailed }) => {
       setShowSchedule(false);
       qc.invalidateQueries({ queryKey: ['posts', workspaceId] });
+      if (scheduleFailed) {
+        toast.warning('Draft saved, but scheduling failed', {
+          description: 'The post was saved as a draft — you can reschedule it from the Calendar.',
+          duration: 8000,
+        });
+        return;
+      }
       toast.success(scheduledFor ? 'Post scheduled' : 'Draft saved', {
         description: scheduledFor
           ? `Publishes ${new Date(scheduledFor).toLocaleString()}. View it on the Calendar.`
@@ -793,7 +805,7 @@ export default function ComposerPage() {
                   </button>
                   <button
                     type="button"
-                    disabled={createPost.isPending || !scheduleAt}
+                    disabled={createPost.isPending || !scheduleAt || !canPost}
                     onClick={() => validateThenRun(new Date(scheduleAt).toISOString())}
                     className="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground disabled:opacity-50"
                   >
