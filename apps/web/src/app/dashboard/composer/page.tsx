@@ -202,6 +202,20 @@ export default function ComposerPage() {
       toast.error("Couldn't save the post", { description: err?.message ?? 'Please try again.', duration: 8000 }),
   });
 
+  // Advisory only: which selected platforms have a connected account.
+  const accounts = useQuery({
+    queryKey: ['social-accounts', workspaceId],
+    queryFn: () =>
+      api.get<Array<{ id: string; platform: string; status: string }>>(
+        `/social-accounts?workspaceId=${workspaceId}`,
+      ),
+    enabled: !!workspaceId,
+  });
+  const connectedPlatforms = new Set(
+    (accounts.data ?? []).filter((a) => a.status === 'ACTIVE').map((a) => a.platform),
+  );
+  const unconnected = selectedPlatforms.filter((p) => !connectedPlatforms.has(p));
+
   const toggleAttachImage = (imageId: string) => {
     setAttachedImageIds((prev) => {
       const current = prev[activePlatform] ?? [];
@@ -784,6 +798,13 @@ export default function ComposerPage() {
                 <CalendarIcon className="h-4 w-4" aria-hidden="true" /> Schedule…
               </button>
             </div>
+
+            {unconnected.length > 0 && (
+              <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
+                No connected account for {unconnected.join(', ')} —{' '}
+                <a href="/dashboard/settings" className="underline">connect in Settings</a> to publish. Your draft still saves.
+              </p>
+            )}
 
             {showSchedule && (
               <div className="mt-3 rounded-md border bg-secondary/30 p-3">
