@@ -349,7 +349,9 @@ export function AiDefaultsCard({ workspaceId }: { workspaceId: string }) {
             </div>
           </div>
           <p className="mt-2 text-xs text-muted-foreground">
-            Only <strong>Demo</strong> is active in this build — Runway, Kling, Veo and Pollinations video arrive in upcoming updates.
+            Only <strong>Demo</strong> is active in this build — and it returns a fixed
+            sample clip (it doesn&apos;t read your prompt). Prompt-driven video via Runway,
+            Kling, Veo and Pollinations arrives in upcoming updates.
           </p>
         </div>
 

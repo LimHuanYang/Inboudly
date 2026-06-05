@@ -14,7 +14,7 @@ interface VideoJobResponse {
 }
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Clapperboard, ImageIcon, Loader2, Sparkles, Wand2 } from 'lucide-react';
+import { Clapperboard, Film, ImageIcon, Info, Loader2, Sparkles, Wand2, X } from 'lucide-react';
 import { PLATFORM_SPECS, type SocialPlatform } from '@inboudly/shared/platforms';
 import { type ViralityScoreResponse } from '@inboudly/shared/schemas';
 
@@ -47,6 +47,11 @@ export default function ComposerPage() {
     TIKTOK: [],
     REDNOTE: [],
   } as unknown as Record<SocialPlatform, string[]>);
+  // Resolved {url,type} for each attached asset id, so the "Attached media"
+  // strip can render thumbnails. Populated at attach time (image + video).
+  const [attachedAssets, setAttachedAssets] = useState<
+    Record<string, { url: string; type: 'image' | 'video' }>
+  >({});
 
   // ----- Video generation state -----
   const [mediaMode, setMediaMode] = useState<'image' | 'video'>('image');
@@ -157,7 +162,22 @@ export default function ComposerPage() {
         : [...current, imageId];
       return { ...prev, [activePlatform]: next };
     });
+    const img = generatedImages.find((g) => g.id === imageId);
+    if (img) setAttachedAssets((m) => ({ ...m, [imageId]: { url: img.url, type: 'image' } }));
   };
+
+  // Remove any attached asset (image or video) from the active platform's post.
+  const removeAttached = (id: string) => {
+    setAttachedImageIds((prev) => ({
+      ...prev,
+      [activePlatform]: (prev[activePlatform] ?? []).filter((x) => x !== id),
+    }));
+  };
+
+  // Attached assets for the active platform, resolved to {id,url,type} for the strip.
+  const attachedForActive = (attachedImageIds[activePlatform] ?? [])
+    .map((id) => ({ id, ...attachedAssets[id] }))
+    .filter((a): a is { id: string; url: string; type: 'image' | 'video' } => Boolean(a.url));
 
   const generateText = useMutation({
     mutationFn: (input: { platform: SocialPlatform; prompt: string }) =>
@@ -340,6 +360,55 @@ export default function ComposerPage() {
                 <p className="mt-1 text-xs text-muted-foreground">
                   Optimal: {PLATFORM_SPECS[activePlatform].optimalHashtags} hashtags
                 </p>
+              </div>
+
+              {/* Attached media for this platform's post */}
+              <div>
+                <label className="text-sm font-medium">
+                  Attached media{attachedForActive.length > 0 ? ` (${attachedForActive.length})` : ''}
+                </label>
+                {attachedForActive.length === 0 ? (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Nothing attached yet — generate or pick media below, then click Attach.
+                  </p>
+                ) : (
+                  <ul className="mt-2 flex flex-wrap gap-2">
+                    {attachedForActive.map((a) => (
+                      <li key={a.id} className="relative">
+                        {a.type === 'video' ? (
+                          <span className="block">
+                            <video
+                              src={a.url}
+                              muted
+                              preload="metadata"
+                              aria-label="Attached video"
+                              className="h-16 w-16 rounded-md border bg-black object-cover"
+                            />
+                            <Film
+                              className="pointer-events-none absolute bottom-1 left-1 h-3.5 w-3.5 text-white drop-shadow"
+                              aria-hidden="true"
+                            />
+                          </span>
+                        ) : (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={a.url}
+                            alt="Attached image"
+                            className="h-16 w-16 rounded-md border object-cover"
+                          />
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => removeAttached(a.id)}
+                          aria-label="Remove from post"
+                          className="absolute -right-1.5 -top-1.5 rounded-full border bg-background p-0.5 text-muted-foreground shadow-sm hover:bg-secondary hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                        >
+                          <X className="h-3.5 w-3.5" aria-hidden="true" />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -557,6 +626,14 @@ export default function ComposerPage() {
               </div>
             </div>
 
+            <p className="mt-3 flex items-start gap-1.5 text-xs text-muted-foreground">
+              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+              <span>
+                Demo returns a fixed sample clip — it doesn&apos;t read your prompt.
+                Prompt-driven video (Runway / Kling / Veo) is coming.
+              </span>
+            </p>
+
             <button
               type="button"
               disabled={!videoPrompt.trim() || generateVideo.isPending || videoStatus.data?.status === 'GENERATING'}
@@ -583,6 +660,9 @@ export default function ComposerPage() {
                         aria-label="Generated video preview"
                         className="w-full max-w-sm rounded-lg border"
                       />
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Sample clip · Demo provider (not generated from your prompt).
+                      </p>
                       <button
                         type="button"
                         onClick={() => {
@@ -592,6 +672,7 @@ export default function ComposerPage() {
                               ? ids
                               : { ...ids, [activePlatform]: [...current, asset.id] };
                           });
+                          setAttachedAssets((m) => ({ ...m, [asset.id]: { url: asset.url, type: 'video' } }));
                           toast.success('Video attached to post');
                         }}
                         className="mt-2 rounded-md border px-3 py-1.5 text-sm hover:bg-secondary"
