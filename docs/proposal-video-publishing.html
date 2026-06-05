@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Proposal · Real Video (Pollinations) + Publishing</title>
+<style>
+  :root{
+    --bg:#f6f7fb; --surface:#fff; --ink:#0f172a; --muted:#64748b; --line:#e2e8f0; --line-strong:#cbd5e1;
+    --indigo:#4f46e5; --indigo-soft:#eef2ff; --indigo-ink:#3730a3;
+    --emerald:#059669; --emerald-soft:#d1fae5; --emerald-ink:#065f46;
+    --amber:#d97706; --amber-soft:#fef3c7; --amber-ink:#92400e;
+    --pink:#db2777; --pink-soft:#fce7f3;
+    --sky:#0284c7; --sky-soft:#e0f2fe; --sky-ink:#075985;
+    --rose:#e11d48; --rose-soft:#ffe4e6; --rose-ink:#9f1239;
+    --shadow:0 1px 2px rgba(15,23,42,.04),0 4px 16px rgba(15,23,42,.06);
+    --radius:14px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;padding:30px 18px 80px}
+  .wrap{max-width:1040px;margin:0 auto}
+  code,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.85em}
+  h1{font-size:clamp(24px,4vw,34px);margin:6px 0 6px;letter-spacing:-.02em}
+  .lede{color:var(--muted);font-size:16px;margin:0;max-width:72ch}
+  .eyebrow{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:700;letter-spacing:.07em;
+    text-transform:uppercase;color:var(--indigo);background:var(--indigo-soft);padding:5px 11px;border-radius:999px}
+
+  /* track header */
+  .track{margin-top:34px;background:var(--surface);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);overflow:hidden}
+  .track-top{padding:18px 22px;border-bottom:1px solid var(--line);display:flex;align-items:flex-start;gap:14px}
+  .track-top .badge{width:42px;height:42px;border-radius:11px;display:grid;place-items:center;flex:none;font-weight:800;font-size:18px}
+  .badge.a{background:var(--pink-soft);color:var(--pink)}
+  .badge.b{background:var(--emerald-soft);color:var(--emerald-ink)}
+  .track-top h2{margin:0 0 2px;font-size:20px;letter-spacing:-.01em}
+  .track-top p{margin:0;color:var(--muted);font-size:14px}
+  .track-body{padding:22px}
+
+  .plain{background:var(--amber-soft);border:1px solid #fcd9a4;border-radius:12px;padding:13px 15px;margin:0 0 20px;
+    font-size:14px;color:#7a4f12}
+  .plain b{color:var(--amber-ink)}
+
+  .sub{font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin:24px 0 12px}
+  .sub:first-child{margin-top:0}
+
+  /* ---- fake app UI mockups ---- */
+  .mock{border:1px solid var(--line);border-radius:14px;background:#fcfcfe;padding:0;overflow:hidden;box-shadow:var(--shadow)}
+  .mock-bar{display:flex;align-items:center;gap:7px;padding:8px 12px;background:#f1f5f9;border-bottom:1px solid var(--line);
+    font-size:12px;color:var(--muted)}
+  .dot{width:9px;height:9px;border-radius:50%}
+  .mock-in{padding:16px}
+  .mocklabel{font-size:11px;font-weight:600;color:var(--muted);margin:0 0 4px}
+  .field{border:1px solid var(--line-strong);border-radius:8px;background:#fff;padding:8px 10px;font-size:13px;color:var(--ink)}
+  .field.area{min-height:46px;color:#475569}
+  .chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+  .tab{font-size:12px;font-weight:600;padding:5px 12px;border-radius:8px;border:1px solid var(--line)}
+  .tab.on{background:var(--pink);color:#fff;border-color:var(--pink)}
+  .tab.off{background:#fff;color:var(--muted)}
+  .thumb{width:54px;height:54px;border-radius:8px;border:1px solid var(--line-strong);background:#0f172a;
+    display:grid;place-items:center;color:#fff;position:relative}
+  .thumb .rm{position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;background:#fff;border:1px solid var(--line);
+    display:grid;place-items:center;font-size:11px;color:var(--muted)}
+  .btn{font-size:13px;font-weight:600;padding:8px 14px;border-radius:9px;border:1px solid var(--line-strong);background:#fff;color:var(--ink);display:inline-flex;align-items:center;gap:7px}
+  .btn.primary{background:var(--indigo);border-color:var(--indigo);color:#fff}
+  .btn.ghost{background:#fff}
+  .new-tag{font-size:9px;font-weight:800;letter-spacing:.04em;color:var(--emerald-ink);background:var(--emerald-soft);
+    padding:2px 6px;border-radius:5px;vertical-align:middle;margin-left:6px}
+  .actionbar{display:flex;align-items:center;gap:10px;margin-top:16px;padding-top:14px;border-top:2px dashed var(--emerald)}
+  .note{display:flex;gap:8px;align-items:flex-start;font-size:12.5px;border-radius:9px;padding:9px 11px;margin-top:10px}
+  .note.warn{background:var(--amber-soft);color:#7a4f12}
+  .note svg{flex:none;margin-top:1px}
+
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  @media(max-width:760px){.two{grid-template-columns:1fr}}
+
+  /* ---- flow diagram ---- */
+  .flow{display:flex;flex-wrap:wrap;align-items:stretch;gap:0;margin-top:4px}
+  .node{flex:1 1 0;min-width:120px;background:#fff;border:1px solid var(--line);border-radius:11px;padding:11px 12px;
+    display:flex;flex-direction:column;gap:3px;box-shadow:var(--shadow)}
+  .node .t{font-size:12.5px;font-weight:700}
+  .node .d{font-size:11px;color:var(--muted)}
+  .node.accent-e{border-top:3px solid var(--emerald)}
+  .node.accent-i{border-top:3px solid var(--indigo)}
+  .node.accent-p{border-top:3px solid var(--pink)}
+  .node.accent-a{border-top:3px solid var(--amber)}
+  .arrow{display:flex;align-items:center;justify-content:center;color:var(--line-strong);font-size:20px;padding:0 4px;flex:none}
+  .flowlabel{font-size:10px;color:var(--muted);text-align:center;flex:none;align-self:center;padding:0 2px;max-width:64px}
+
+  /* decision option cards */
+  .opts{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:6px}
+  @media(max-width:680px){.opts{grid-template-columns:1fr}}
+  .opt{border:1px solid var(--line);border-radius:12px;padding:14px 16px;background:#fff}
+  .opt.rec{border:2px solid var(--indigo);background:var(--indigo-soft)}
+  .opt h4{margin:0 0 6px;font-size:14px;display:flex;align-items:center;gap:7px}
+  .opt .pill{font-size:9px;font-weight:800;letter-spacing:.04em;padding:2px 7px;border-radius:6px;background:var(--indigo);color:#fff}
+  .opt ul{margin:6px 0 0;padding-left:18px}
+  .opt li{font-size:12.5px;color:#475569;margin:2px 0}
+  .pro::marker{content:"✓ "}
+  .con{color:#9a3412}
+
+  .decisions{margin-top:34px;background:#fff;border:2px solid var(--rose);border-radius:16px;padding:20px 22px;box-shadow:var(--shadow)}
+  .decisions h2{margin:0 0 4px;font-size:19px;color:var(--rose-ink);display:flex;align-items:center;gap:9px}
+  .qrow{padding:14px 0;border-bottom:1px solid var(--line)}
+  .qrow:last-child{border-bottom:0;padding-bottom:0}
+  .qrow .q{font-weight:650;font-size:15px;margin:0 0 6px}
+  .qrow .opt-line{font-size:13.5px;color:#475569}
+  .qrow .opt-line b{color:var(--ink)}
+
+  footer{margin-top:40px;padding-top:18px;border-top:1px solid var(--line);color:var(--muted);font-size:12.5px;text-align:center}
+  svg.ic{width:18px;height:18px;vertical-align:-3px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <span class="eyebrow">
+    <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h20v14H2z"/><path d="M8 21h8M12 17v4"/></svg>
+    Proposal — what I'd build
+  </span>
+  <h1>Two things, drawn out</h1>
+  <p class="lede">You asked for both at once. Here's exactly what each one adds, with mock screens and the flow of data — plus the two choices I need from you (in red at the bottom).</p>
+
+  <!-- ============ TRACK B ============ -->
+  <section class="track">
+    <div class="track-top">
+      <div class="badge b">B</div>
+      <div>
+        <h2>Publishing — turn a draft into a real, scheduled post</h2>
+        <p>The hard part (posting to Instagram/TikTok/RedNote) is already built. This connects the Composer to it.</p>
+      </div>
+    </div>
+    <div class="track-body">
+      <p class="plain">
+        <b>Today:</b> clicking <b>Attach</b> just tags media to the draft and nudges the Virality Score — nothing is saved, and there's no way to post. <br/>
+        <b>After:</b> two new buttons in the Composer — <b>Save draft</b> and <b>Schedule</b> — turn your draft (caption + hashtags + attached media, per platform) into a real Post, and schedule it to actually publish to your connected accounts.
+      </p>
+
+      <div class="sub">What you'd see in the Composer</div>
+      <div class="two">
+        <!-- composer mock -->
+        <div class="mock">
+          <div class="mock-bar"><span class="dot" style="background:#ff5f57"></span><span class="dot" style="background:#febc2e"></span><span class="dot" style="background:#28c840"></span> &nbsp;Composer · Instagram</div>
+          <div class="mock-in">
+            <div class="chips" style="margin-bottom:12px">
+              <span class="tab on">Instagram</span><span class="tab off">TikTok</span><span class="tab off">RedNote</span>
+            </div>
+            <p class="mocklabel">Caption</p>
+            <div class="field area">New summer skincare line ☀️ hydrating serum that actually works…</div>
+            <p class="mocklabel" style="margin-top:10px">Hashtags</p>
+            <div class="field">#skincare #summerglow #serum</div>
+            <p class="mocklabel" style="margin-top:10px">Attached media (1)</p>
+            <div class="chips">
+              <span class="thumb"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m22 8-6 4 6 4V8z"/><rect x="2" y="6" width="14" height="12" rx="2"/></svg><span class="rm">×</span></span>
+            </div>
+            <div class="actionbar">
+              <span class="new-tag" style="margin:0">NEW</span>
+              <button class="btn ghost">Save draft</button>
+              <button class="btn primary"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg> Schedule…</button>
+            </div>
+            <div class="note warn">
+              <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg>
+              <span>No Instagram account connected — <b>Connect in Settings</b> to publish. You can still save a draft.</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- schedule modal mock -->
+        <div class="mock">
+          <div class="mock-bar">Schedule post (popover)</div>
+          <div class="mock-in">
+            <p class="mocklabel">When should this go live?</p>
+            <div class="field">2026-06-10 &nbsp; 09:00</div>
+            <p style="font-size:12px;color:var(--muted);margin:10px 0 0">Posts to <b>Instagram</b> at that time via your connected account.</p>
+            <div style="display:flex;gap:10px;margin-top:14px">
+              <button class="btn ghost">Cancel</button>
+              <button class="btn primary">Schedule</button>
+            </div>
+            <p style="font-size:12px;color:var(--muted);margin:14px 0 0">It then appears on the <b>Calendar</b>, and the existing publish worker fires at the scheduled time.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="sub">Where your data goes</div>
+      <div class="flow">
+        <div class="node accent-e"><span class="t">Composer draft</span><span class="d">caption · #tags · attached media, per platform</span></div>
+        <div class="arrow">→</div>
+        <div class="node accent-e"><span class="t">POST /posts</span><span class="d">Post + a variant per platform (with media) — already exists</span></div>
+        <div class="arrow">→</div>
+        <div class="node accent-e"><span class="t">Schedule</span><span class="d">pick a time → /posts/:id/schedule</span></div>
+        <div class="arrow">→</div>
+        <div class="node accent-i"><span class="t">Publish worker</span><span class="d">BullMQ fires at the time — already exists</span></div>
+        <div class="arrow">→</div>
+        <div class="node accent-p"><span class="t">Live post ✓</span><span class="d">Instagram / TikTok / RedNote</span></div>
+      </div>
+      <p style="font-size:12.5px;color:var(--muted);margin-top:12px">
+        Green = already built (I only wire the Composer to it). <b>"Save draft"</b> stops at the second box (status DRAFT, shows on the Calendar).
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ TRACK A ============ -->
+  <section class="track">
+    <div class="track-top">
+      <div class="badge a">A</div>
+      <div>
+        <h2>Real video — your prompt actually makes the clip (Pollinations)</h2>
+        <p>Replaces the fixed "Demo" sample with a real generator. Needs your Pollinations API key + a little credit.</p>
+      </div>
+    </div>
+    <div class="track-body">
+      <p class="plain">
+        <b>Today:</b> "Demo" always returns the <b>same</b> sample clip and ignores your prompt. <br/>
+        <b>After:</b> you add a <b>Pollinations key</b> in Settings (pay-as-you-go, a few cents per clip), pick a model (<b>Seedance / Veo / Wan</b>), and your prompt produces a real video. Demo stays as the free, no-key fallback.
+      </p>
+
+      <div class="sub">What you'd see in Settings → AI defaults</div>
+      <div class="two">
+        <div class="mock">
+          <div class="mock-bar">Settings · AI Providers</div>
+          <div class="mock-in">
+            <p class="mocklabel">Pollinations <span class="new-tag">NEW</span></p>
+            <div class="field">sk_•••••••••••••••••••• &nbsp;&nbsp;<span style="color:var(--emerald-ink);font-weight:600">✓ saved</span></div>
+            <p style="font-size:11.5px;color:var(--muted);margin:6px 0 0">Get a key + add credit at pollinations.ai (encrypted, per-workspace — BYOK).</p>
+          </div>
+        </div>
+        <div class="mock">
+          <div class="mock-bar">Settings · Video generation</div>
+          <div class="mock-in">
+            <p class="mocklabel">Provider</p>
+            <div class="field">Pollinations — Seedance / Veo / Wan &nbsp; ▾</div>
+            <p style="font-size:11.5px;color:var(--emerald-ink);margin:6px 0 0;font-weight:600">No longer "coming soon" — selectable once a key is saved.</p>
+            <p class="mocklabel" style="margin-top:10px">Model</p>
+            <div class="field">seedance-1 · veo-alpha · wan-fast &nbsp; ▾</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sub">Where your prompt goes</div>
+      <div class="flow">
+        <div class="node accent-a"><span class="t">Composer</span><span class="d">prompt: "a cat surfing", 9:16, 5s</span></div>
+        <div class="arrow">→</div>
+        <div class="node accent-a"><span class="t">Resolve provider</span><span class="d">Pollinations + your encrypted key</span></div>
+        <div class="arrow">→</div>
+        <div class="node accent-p"><span class="t">gen.pollinations.ai</span><span class="d">Seedance/Veo makes the clip (~30s–min)</span></div>
+        <div class="arrow">→</div>
+        <div class="node accent-i"><span class="t">Save to R2</span><span class="d">store the file durably + register media</span></div>
+        <div class="arrow">→</div>
+        <div class="node accent-e"><span class="t">Ready ✓</span><span class="d">plays in tray · composer · media</span></div>
+      </div>
+
+      <div class="sub">⚙ One build choice — how the (slow) job runs</div>
+      <div class="opts">
+        <div class="opt rec">
+          <h4>A-i · In-process <span class="pill">MY REC for MVP</span></h4>
+          <ul>
+            <li class="pro">Already built; smallest change</li>
+            <li class="pro">Your browser polls until it's ready (works today)</li>
+            <li class="con">If the server restarts mid-clip, that job is orphaned — I add a "stale job → failed after N min" safety net</li>
+          </ul>
+        </div>
+        <div class="opt">
+          <h4>A-ii · Background queue (BullMQ)</h4>
+          <ul>
+            <li class="pro">Survives restarts; auto-retries</li>
+            <li class="pro">Same pattern as the publish worker</li>
+            <li class="con">More plumbing (a new queue + worker)</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ DECISIONS ============ -->
+  <section class="decisions">
+    <h2>
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.3h6c0-1 .4-1.8 1-2.3A7 7 0 0 0 12 2z"/></svg>
+      2 choices I need from you
+    </h2>
+    <div class="qrow">
+      <p class="q">1. Video job runner (Track A)</p>
+      <p class="opt-line">→ <b>A-i In-process + safety net</b> (recommended, fastest) &nbsp;·&nbsp; or &nbsp; <b>A-ii BullMQ queue</b> (more robust, more work)</p>
+    </div>
+    <div class="qrow">
+      <p class="q">2. Publishing scope (Track B)</p>
+      <p class="opt-line">→ <b>Draft + Schedule only</b> (as drawn) &nbsp;·&nbsp; or &nbsp; <b>also wire "Request approval"</b> (that pipeline exists too — adds an approval step before publishing)</p>
+    </div>
+  </section>
+
+  <footer>
+    Inboudly · design proposal · <span style="color:var(--emerald-ink)">green = already built</span> · this is a mockup, no code changed yet
+  </footer>
+</div>
+</body>
+</html>
