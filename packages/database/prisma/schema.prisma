@@ -123,6 +123,7 @@ model WorkspaceAiCredentials {
   anthropicKey  String?  @db.Text
   runwayKey     String?  @db.Text
   klingKey      String?  @db.Text
+  pollinationsKey String? @db.Text
   elevenLabsKey String?  @db.Text
   sunoKey       String?  @db.Text
   pineconeKey   String?  @db.Text
