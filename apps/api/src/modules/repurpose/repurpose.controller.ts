@@ -2,7 +2,8 @@ import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { RepurposeService } from './repurpose.service';
 import { SupabaseAuthGuard } from '../../common/auth/auth.guard';
-import { RepurposeRequestSchema } from '@inboudly/shared';
+import { RepurposeRequestSchema, type RepurposeRequest } from '@inboudly/shared';
+import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
 
 @ApiTags('repurpose')
 @ApiBearerAuth()
@@ -12,8 +13,7 @@ export class RepurposeController {
   constructor(private repurpose: RepurposeService) {}
 
   @Post()
-  submit(@Body() body: unknown) {
-    const input = RepurposeRequestSchema.parse(body);
+  submit(@Body(new ZodValidationPipe(RepurposeRequestSchema)) input: RepurposeRequest) {
     return this.repurpose.submit(input);
   }
 

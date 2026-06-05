@@ -4,7 +4,8 @@ import { PostsService } from './posts.service';
 import { WorkspacesService } from '../workspaces/workspaces.service';
 import { SupabaseAuthGuard } from '../../common/auth/auth.guard';
 import { CurrentUser } from '../../common/auth/current-user.decorator';
-import { CreatePostSchema } from '@inboudly/shared';
+import { CreatePostSchema, type CreatePostInput } from '@inboudly/shared';
+import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
 import { PostStatus } from '@inboudly/database';
 
 @ApiTags('posts')
@@ -15,8 +16,10 @@ export class PostsController {
   constructor(private posts: PostsService, private workspaces: WorkspacesService) {}
 
   @Post()
-  async create(@Body() body: unknown, @CurrentUser() user: { supabaseUserId: string }) {
-    const input = CreatePostSchema.parse(body);
+  async create(
+    @Body(new ZodValidationPipe(CreatePostSchema)) input: CreatePostInput,
+    @CurrentUser() user: { supabaseUserId: string },
+  ) {
     await this.workspaces.assertMember(input.workspaceId, user.supabaseUserId);
     return this.posts.create(user.supabaseUserId, input);
   }

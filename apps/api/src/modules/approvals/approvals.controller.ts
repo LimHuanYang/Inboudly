@@ -2,7 +2,13 @@ import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { ApprovalsService } from './approvals.service';
 import { SupabaseAuthGuard } from '../../common/auth/auth.guard';
-import { CreateApprovalWorkflowSchema, ApproveOrRejectSchema } from '@inboudly/shared';
+import {
+  CreateApprovalWorkflowSchema,
+  ApproveOrRejectSchema,
+  type CreateApprovalWorkflowInput,
+  type ApproveOrRejectInput,
+} from '@inboudly/shared';
+import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
 
 @ApiTags('approvals')
 @Controller('approvals')
@@ -12,8 +18,7 @@ export class ApprovalsController {
   @Post()
   @UseGuards(SupabaseAuthGuard)
   @ApiBearerAuth()
-  create(@Body() body: unknown) {
-    const input = CreateApprovalWorkflowSchema.parse(body);
+  create(@Body(new ZodValidationPipe(CreateApprovalWorkflowSchema)) input: CreateApprovalWorkflowInput) {
     return this.approvals.create(input);
   }
 
@@ -25,8 +30,7 @@ export class ApprovalsController {
 
   // Public decision endpoint for shareable-link approvers
   @Post('decide')
-  decide(@Body() body: unknown) {
-    const input = ApproveOrRejectSchema.parse(body);
+  decide(@Body(new ZodValidationPipe(ApproveOrRejectSchema)) input: ApproveOrRejectInput) {
     return this.approvals.decide(input);
   }
 }
