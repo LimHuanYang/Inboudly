@@ -79,6 +79,7 @@ export function GenerationsTray() {
                     src={j.mediaAsset.url}
                     className="h-10 w-10 rounded object-cover"
                     muted
+                    preload="metadata"
                     aria-label={`Preview of: ${j.prompt}`}
                   />
                 )}

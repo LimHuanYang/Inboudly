@@ -97,7 +97,7 @@ export default function MediaPage() {
                     className="h-full w-full object-cover"
                   />
                 ) : m.type === 'VIDEO' ? (
-                  <video src={m.url} className="h-full w-full object-cover" muted />
+                  <video src={m.url} className="h-full w-full object-cover" muted preload="metadata" />
                 ) : (
                   <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
                     Audio

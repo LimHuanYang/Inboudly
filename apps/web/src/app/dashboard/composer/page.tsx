@@ -576,6 +576,7 @@ export default function ComposerPage() {
                       <video
                         src={asset.url}
                         controls
+                        preload="metadata"
                         aria-label="Generated video preview"
                         className="w-full max-w-sm rounded-lg border"
                       />
