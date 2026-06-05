@@ -35,6 +35,9 @@ export function GenerationsTray() {
       const data = query.state.data as VideoJob[] | undefined;
       return data?.some((j) => j.status === 'GENERATING' || j.status === 'PENDING') ? 2500 : false;
     },
+    // Keep polling even when the tab is backgrounded, so a finished clip is
+    // announced in the tray even if the user navigated to another tab.
+    refetchIntervalInBackground: true,
   });
 
   const list = jobs.data ?? [];

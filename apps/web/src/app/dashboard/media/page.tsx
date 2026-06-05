@@ -48,6 +48,8 @@ export default function MediaPage() {
       )
         ? 2500
         : false,
+    // Keep polling on a backgrounded tab so in-flight renders resolve to tiles.
+    refetchIntervalInBackground: true,
   });
 
   const pending = (videoJobs.data ?? []).filter(

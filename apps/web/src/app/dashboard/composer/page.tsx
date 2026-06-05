@@ -144,6 +144,9 @@ export default function ComposerPage() {
       const s = query.state.data?.status;
       return s === 'GENERATING' || s === 'PENDING' ? 2500 : false;
     },
+    // Keep polling on a backgrounded tab so the result resolves even if the
+    // user switched away mid-generation.
+    refetchIntervalInBackground: true,
   });
 
   const toggleAttachImage = (imageId: string) => {
