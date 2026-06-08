@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>YouTube Connector — UI Design · Inboudly</title>
+<style>
+  :root{
+    --bg:#f6f7f9;--card:#fff;--fg:#0f172a;--muted:#64748b;--border:#e2e8f0;--input:#fff;
+    --primary:#6366f1;--primary-fg:#fff;--ring:#6366f1;--ok:#059669;--ok-bg:rgba(5,150,105,.10);
+    --warn:#b45309;--warn-bg:rgba(217,119,6,.10);--err:#dc2626;--err-bg:rgba(220,38,38,.08);
+    --yt:#ff0033;--yt-bg:rgba(255,0,51,.08);--accent:#7c3aed;--shadow:0 1px 3px rgba(15,23,42,.08);
+  }
+  [data-theme="dark"]{
+    --bg:#0b1120;--card:#0f172a;--fg:#e2e8f0;--muted:#94a3b8;--border:#1e293b;--input:#0b1120;
+    --primary:#818cf8;--primary-fg:#0b1120;--ring:#818cf8;--ok:#34d399;--ok-bg:rgba(52,211,153,.12);
+    --warn:#fbbf24;--warn-bg:rgba(251,191,36,.12);--err:#f87171;--err-bg:rgba(248,113,113,.12);
+    --yt:#ff4d6a;--yt-bg:rgba(255,77,106,.12);--accent:#a78bfa;--shadow:0 1px 3px rgba(0,0,0,.4);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);line-height:1.55;
+    font-family:ui-sans-serif,system-ui,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+  .mono{font-family:ui-monospace,Menlo,Consolas,monospace}
+  header{position:sticky;top:0;z-index:5;background:color-mix(in srgb,var(--bg) 90%,transparent);
+    backdrop-filter:blur(8px);border-bottom:1px solid var(--border);padding:14px 24px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  header h1{font-size:15.5px;margin:0;font-weight:700}
+  header .sub{color:var(--muted);font-size:12.5px}
+  .pill{font-size:11px;padding:3px 9px;border-radius:999px;border:1px solid var(--border);color:var(--muted);background:var(--card)}
+  .tg{margin-left:auto;cursor:pointer;border:1px solid var(--border);background:var(--card);color:var(--fg);border-radius:8px;padding:6px 12px;font-size:12.5px;font-weight:600}
+  main{max-width:1140px;margin:0 auto;padding:26px 24px 80px}
+  .lead{color:var(--muted);font-size:14px;max-width:84ch;margin:4px 0 22px}
+  .lead strong{color:var(--fg)}
+  h2.section{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--accent);margin:36px 0 4px;font-weight:700}
+  h2.section .n{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:6px;background:var(--accent);color:#fff;font-size:12px;margin-right:8px;vertical-align:middle}
+  .section-note{color:var(--muted);font-size:13px;margin:0 0 16px}
+  .grid{display:grid;gap:18px;grid-template-columns:repeat(auto-fit,minmax(310px,1fr))}
+  .cap{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin:0 0 8px;display:flex;gap:7px;align-items:center}
+  .cap .dot{width:7px;height:7px;border-radius:50%;background:var(--muted)} .cap.ok .dot{background:var(--ok)} .cap.wait .dot{background:var(--warn)} .cap.bad .dot{background:var(--err)}
+
+  .card{background:var(--card);border:1px solid var(--border);border-radius:13px;box-shadow:var(--shadow)}
+  .card-h{padding:15px 16px 0} .card-t{font-size:14.5px;font-weight:600;margin:0} .card-d{color:var(--muted);font-size:12px;margin:5px 0 0}
+  .card-c{padding:14px 16px 16px;display:flex;flex-direction:column;gap:11px}
+
+  .acct{display:flex;align-items:center;gap:11px;border:1px solid var(--border);border-radius:10px;padding:11px 13px;background:var(--bg)}
+  .ico{width:34px;height:34px;border-radius:9px;flex:none;display:grid;place-items:center;color:#fff}
+  .ico.yt{background:var(--yt)} .ico.ig{background:linear-gradient(45deg,#f09433,#dc2743,#bc1888)} .ico.tt{background:#000} .ico.rn{background:#ff2442}
+  .acct .who{flex:1;min-width:0} .acct .who .nm{font-size:13.5px;font-weight:600} .acct .who .sub{font-size:11.5px;color:var(--muted)}
+  .btn{border:0;background:var(--primary);color:var(--primary-fg);border-radius:8px;padding:8px 13px;font-size:12.5px;font-weight:700;cursor:pointer;min-height:36px;display:inline-flex;gap:6px;align-items:center}
+  .btn.ghost{background:var(--card);color:var(--fg);border:1px solid var(--border)}
+  .btn.yt{background:var(--yt)}
+  .badge{font-size:11px;display:inline-flex;gap:5px;align-items:center;font-weight:600}
+  .badge.ok{color:var(--ok)} .badge.muted{color:var(--muted)}
+  .avatar{width:34px;height:34px;border-radius:50%;background:#cbd5e1;flex:none;display:grid;place-items:center;color:#475569;font-weight:700;font-size:13px}
+
+  /* composer YT block */
+  .field label{font-size:11.5px;font-weight:600;display:block;margin-bottom:5px}
+  .seg{display:inline-flex;border:1px solid var(--border);border-radius:9px;overflow:hidden}
+  .seg button{border:0;background:var(--card);color:var(--muted);padding:8px 13px;font-size:12.5px;font-weight:600;cursor:pointer}
+  .seg button.on{background:var(--primary);color:var(--primary-fg)}
+  .kv{font-size:12px;color:var(--muted)} .kv b{color:var(--fg)}
+  .note{display:flex;gap:7px;align-items:flex-start;font-size:11.5px;border-radius:8px;padding:7px 9px}
+  .note.warn{color:var(--warn);background:var(--warn-bg);border:1px solid color-mix(in srgb,var(--warn) 28%,transparent)}
+  .note.bad{color:var(--err);background:var(--err-bg);border:1px solid color-mix(in srgb,var(--err) 28%,transparent)}
+  .note.ok{color:var(--ok);background:var(--ok-bg)}
+  .chip{display:inline-flex;gap:6px;align-items:center;font-size:11px;border:1px solid var(--border);border-radius:999px;padding:3px 9px;color:var(--muted);background:var(--card)}
+
+  /* flow */
+  .flow{display:flex;flex-wrap:wrap;align-items:stretch;gap:10px;margin-top:6px}
+  .step{flex:1;min-width:150px;border:1px solid var(--border);border-radius:11px;background:var(--card);padding:12px 13px}
+  .step .s-n{font-size:10.5px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.05em}
+  .step h4{margin:5px 0 4px;font-size:13px} .step p{margin:0;font-size:11.5px;color:var(--muted)}
+  .arrow{align-self:center;color:var(--muted);font-weight:700}
+
+  .rationale{margin-top:16px;border:1px dashed var(--border);border-radius:11px;padding:14px 16px;background:var(--card)}
+  .rationale h4{margin:0 0 9px;font-size:12.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--accent)}
+  .rationale ul{margin:0;padding:0;list-style:none;display:grid;gap:8px}
+  .rationale li{font-size:12.5px;display:grid;grid-template-columns:auto 1fr;gap:9px;align-items:start}
+  .tag{font-size:10.5px;font-weight:700;color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,transparent);border-radius:5px;padding:2px 7px;white-space:nowrap;height:fit-content}
+  svg{flex:none}
+  footer{color:var(--muted);font-size:11.5px;text-align:center;margin-top:44px}
+</style>
+</head>
+<body>
+<header>
+  <h1>YouTube Connector — UI Design</h1>
+  <span class="sub">Phase 2C · connect account + per-post publish settings</span>
+  <span class="pill">backend connector + 2 small UI surfaces</span>
+  <button class="tg" onclick="(function(){var h=document.documentElement,d=h.getAttribute('data-theme')==='dark';h.setAttribute('data-theme',d?'light':'dark');})()">◐ theme</button>
+</header>
+<main>
+  <p class="lead">The connector itself is backend (OAuth + resumable upload). It surfaces in just <strong>two places</strong> in the UI: <strong>(1)</strong> connecting the YouTube account in Settings, and <strong>(2)</strong> a per-post <strong>privacy</strong> control in the Composer. Everything else (the enum, platform specs, the generic OAuth route, the <span class="mono">platformOptions</span> field) already exists.</p>
+
+  <!-- SURFACE 1 -->
+  <h2 class="section"><span class="n">1</span>Settings → Social accounts · connect YouTube</h2>
+  <p class="section-note">YouTube joins the existing connect list. OAuth runs through the generic <span class="mono">/oauth/youtube/start</span> route (Google consent popup).</p>
+  <div class="grid">
+    <!-- not connected -->
+    <div>
+      <p class="cap"><span class="dot"></span>Not connected</p>
+      <div class="card"><div class="card-h"><p class="card-t">Connected accounts</p></div><div class="card-c">
+        <div class="acct"><span class="ico ig">◙</span><div class="who"><div class="nm">Instagram</div><div class="sub">@acme.studio</div></div><span class="badge ok"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6 9 17l-5-5"/></svg>Connected</span></div>
+        <div class="acct"><span class="ico tt">♪</span><div class="who"><div class="nm">TikTok</div><div class="sub">Not connected</div></div><button class="btn ghost">Connect</button></div>
+        <div class="acct" style="border-color:var(--yt)">
+          <span class="ico yt"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M23 7.5a3 3 0 0 0-2.1-2.1C19 5 12 5 12 5s-7 0-8.9.4A3 3 0 0 0 1 7.5 31 31 0 0 0 .6 12 31 31 0 0 0 1 16.5a3 3 0 0 0 2.1 2.1C5 19 12 19 12 19s7 0 8.9-.4a3 3 0 0 0 2.1-2.1A31 31 0 0 0 23.4 12 31 31 0 0 0 23 7.5zM9.8 15.3V8.7l5.7 3.3z"/></svg></span>
+          <div class="who"><div class="nm">YouTube <span class="chip">new</span></div><div class="sub">Not connected · video publishing</div></div>
+          <button class="btn yt">Connect</button>
+        </div>
+      </div></div>
+    </div>
+    <!-- connected -->
+    <div>
+      <p class="cap ok"><span class="dot"></span>Connected</p>
+      <div class="card"><div class="card-h"><p class="card-t">Connected accounts</p></div><div class="card-c">
+        <div class="acct" style="border-color:var(--yt)">
+          <span class="avatar">A</span>
+          <div class="who"><div class="nm">Acme Studio</div><div class="sub">YouTube · channel connected</div></div>
+          <button class="btn ghost">Disconnect</button>
+        </div>
+        <div class="note ok"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6 9 17l-5-5"/></svg><span>Token auto-refreshes (Google refresh token stored). You'll only re-connect if you revoke access.</span></div>
+      </div></div>
+    </div>
+  </div>
+
+  <!-- SURFACE 2 -->
+  <h2 class="section"><span class="n">2</span>Composer · per-post YouTube settings</h2>
+  <p class="section-note">Shown only when <strong>YouTube</strong> is one of the selected platforms. Privacy is your per-post choice; it's saved into <span class="mono">platformOptions.youtube.privacyStatus</span>.</p>
+  <div class="grid">
+    <!-- ready -->
+    <div>
+      <p class="cap ok"><span class="dot"></span>Ready (video attached)</p>
+      <div class="card">
+        <div class="card-h"><p class="card-t"><span style="color:var(--yt)">●</span> YouTube</p><p class="card-d">A video is attached — good to publish.</p></div>
+        <div class="card-c">
+          <div class="field">
+            <label>Privacy for this upload</label>
+            <div class="seg"><button>Public</button><button class="on">Unlisted</button><button>Private</button></div>
+          </div>
+          <div class="kv">Title <b>·</b> <span class="mono">"Why most people quit right before…"</span> <span class="chip">from caption</span></div>
+          <div class="kv">Description <b>·</b> caption + hashtags &nbsp; Tags <b>·</b> from hashtags</div>
+          <div class="note ok"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg><span>Vertical &amp; ≤60s → posts as a <b>Short</b> automatically.</span></div>
+        </div>
+      </div>
+    </div>
+    <!-- video-only guard -->
+    <div>
+      <p class="cap bad"><span class="dot"></span>Blocked (image-only)</p>
+      <div class="card">
+        <div class="card-h"><p class="card-t"><span style="color:var(--yt)">●</span> YouTube</p><p class="card-d">YouTube needs a video.</p></div>
+        <div class="card-c">
+          <div class="field" style="opacity:.55">
+            <label>Privacy for this upload</label>
+            <div class="seg"><button>Public</button><button class="on">Unlisted</button><button>Private</button></div>
+          </div>
+          <div class="note bad"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg><span><b>No video attached.</b> YouTube is video-only — attach or generate a clip, or remove YouTube from this post. (Your draft still saves.)</span></div>
+        </div>
+      </div>
+    </div>
+    <!-- quota -->
+    <div>
+      <p class="cap wait"><span class="dot"></span>Publish failed — quota</p>
+      <div class="card">
+        <div class="card-h"><p class="card-t"><span style="color:var(--yt)">●</span> YouTube</p><p class="card-d">Surfaced from the publish job.</p></div>
+        <div class="card-c">
+          <div class="note warn"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg><span><b>YouTube daily upload quota reached</b> (~6 uploads/day). The post stays queued — it'll retry, or try again tomorrow.</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLOW -->
+  <h2 class="section"><span class="n">3</span>End-to-end flow</h2>
+  <div class="flow">
+    <div class="step"><div class="s-n">Connect</div><h4>OAuth (once)</h4><p>Settings → Connect → Google consent (<span class="mono">youtube.upload</span>, offline) → channel saved with a refresh token.</p></div>
+    <div class="arrow">→</div>
+    <div class="step"><div class="s-n">Compose</div><h4>Pick privacy</h4><p>Select YouTube on the post, attach a video, choose Public/Unlisted/Private. Save draft or Schedule.</p></div>
+    <div class="arrow">→</div>
+    <div class="step"><div class="s-n">Publish</div><h4>Resumable upload</h4><p>Worker refreshes the token if needed, streams the clip from R2 to <span class="mono">videos.insert</span> with title/desc/tags + privacy.</p></div>
+    <div class="arrow">→</div>
+    <div class="step"><div class="s-n">Done</div><h4>Live on channel</h4><p>Returns the video id → <span class="mono">youtu.be/&lt;id&gt;</span> stored on the post.</p></div>
+  </div>
+
+  <div class="rationale">
+    <h4>Design notes</h4>
+    <ul>
+      <li><span class="tag">per-post privacy</span> The segmented Public/Unlisted/Private control writes to the existing <span class="mono">platformOptions.youtube.privacyStatus</span> — no schema migration. Defaults to <b>Unlisted</b> if untouched (safe).</li>
+      <li><span class="tag">video-only</span> YouTube's spec already says <span class="mono">supportsImage:false</span>; the Composer warns on an image-only post and the connector throws a clear error rather than uploading junk. The draft still saves.</li>
+      <li><span class="tag">title</span> Uses the post's title field, falling back to the first line of the caption (≤100 chars) — YouTube requires a non-empty title.</li>
+      <li><span class="tag">refresh tokens</span> Google access tokens last ~1h, so the connector implements <span class="mono">refreshToken()</span> and the worker refreshes before uploading — the user connects once.</li>
+      <li><span class="tag">quota</span> <span class="mono">videos.insert</span> costs ~1600 of ~10k units/day (~6 uploads). A 403 quota error surfaces as a clear, retryable message rather than a generic failure.</li>
+      <li><span class="tag">reuse</span> The connect button + generic OAuth route + <span class="mono">SocialAccount</span> storage already exist — this adds one registry entry, one OAuth param-map line, and one list item, plus the connector + the privacy control.</li>
+    </ul>
+  </div>
+
+  <footer>Inboudly · YouTube connector UI design · illustrative mockup — backend connector + the two UI surfaces shown above</footer>
+</main>
+</body>
+</html>
