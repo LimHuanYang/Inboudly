@@ -85,6 +85,7 @@
   <h1>YouTube Connector — UI Design</h1>
   <span class="sub">Phase 2C · connect account + per-post publish settings</span>
   <span class="pill">backend connector + 2 small UI surfaces</span>
+  <span class="pill">ui-ux-pro-max refined</span>
   <button class="tg" onclick="(function(){var h=document.documentElement,d=h.getAttribute('data-theme')==='dark';h.setAttribute('data-theme',d?'light':'dark');})()">◐ theme</button>
 </header>
 <main>
@@ -114,9 +115,9 @@
         <div class="acct" style="border-color:var(--yt)">
           <span class="avatar">A</span>
           <div class="who"><div class="nm">Acme Studio</div><div class="sub">YouTube · channel connected</div></div>
-          <button class="btn ghost">Disconnect</button>
+          <button class="btn ghost" title="Asks to confirm — restoring needs re-OAuth">Disconnect…</button>
         </div>
-        <div class="note ok"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6 9 17l-5-5"/></svg><span>Token auto-refreshes (Google refresh token stored). You'll only re-connect if you revoke access.</span></div>
+        <div class="note ok"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6 9 17l-5-5"/></svg><span>Token auto-refreshes (Google refresh token stored). You'll only re-connect if you revoke access. <b>Disconnect</b> asks to confirm first.</span></div>
       </div></div>
     </div>
   </div>
@@ -147,9 +148,10 @@
       <div class="card">
         <div class="card-h"><p class="card-t"><span style="color:var(--yt)">●</span> YouTube</p><p class="card-d">YouTube needs a video.</p></div>
         <div class="card-c">
-          <div class="field" style="opacity:.55">
+          <div class="field">
             <label>Privacy for this upload</label>
-            <div class="seg"><button>Public</button><button class="on">Unlisted</button><button>Private</button></div>
+            <div class="seg" role="radiogroup" aria-label="YouTube privacy"><button>Public</button><button class="on">Unlisted</button><button>Private</button></div>
+            <p class="kv" style="margin-top:6px">Stays active — only the YouTube publish is blocked until a video is added.</p>
           </div>
           <div class="note bad"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg><span><b>No video attached.</b> YouTube is video-only — attach or generate a clip, or remove YouTube from this post. (Your draft still saves.)</span></div>
         </div>
@@ -183,6 +185,8 @@
     <h4>Design notes</h4>
     <ul>
       <li><span class="tag">per-post privacy</span> The segmented Public/Unlisted/Private control writes to the existing <span class="mono">platformOptions.youtube.privacyStatus</span> — no schema migration. Defaults to <b>Unlisted</b> if untouched (safe).</li>
+      <li><span class="tag">a11y · radiogroup</span> Privacy is a segmented <span class="mono">role="radiogroup"</span> (arrow-key nav, <span class="mono">aria-checked</span>, ≥44px targets) — all three options visible, one tap; the selected state reads by fill + text, not colour alone.</li>
+      <li><span class="tag">destructive · confirm</span> <b>Disconnect</b> asks to confirm (restoring needs re-OAuth). On an image-only post the privacy control stays <b>active</b> — only the YouTube publish is blocked, shown as a <span class="mono">role="alert"</span> — so the two concerns aren't conflated.</li>
       <li><span class="tag">video-only</span> YouTube's spec already says <span class="mono">supportsImage:false</span>; the Composer warns on an image-only post and the connector throws a clear error rather than uploading junk. The draft still saves.</li>
       <li><span class="tag">title</span> Uses the post's title field, falling back to the first line of the caption (≤100 chars) — YouTube requires a non-empty title.</li>
       <li><span class="tag">refresh tokens</span> Google access tokens last ~1h, so the connector implements <span class="mono">refreshToken()</span> and the worker refreshes before uploading — the user connects once.</li>
