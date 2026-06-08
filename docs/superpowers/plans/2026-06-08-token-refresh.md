@@ -10,6 +10,8 @@
 
 **Design + mockup:** `docs/token-refresh-ui-design.html`. **Branch:** `feat/token-refresh`.
 
+> **Correction (found during execution):** `AccountStatus` already includes `PENDING_REAUTH` + `EXPIRED`. **Task 1's migration is unnecessary** — reuse the existing **`PENDING_REAUTH`** value everywhere this plan says `NEEDS_RECONNECT`. Task 1 is a no-op; `markNeedsReconnect` sets `PENDING_REAUTH`; the Settings row renders `PENDING_REAUTH` as "Reconnect needed".
+
 ---
 
 ## File Structure
