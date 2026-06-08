@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Token-refresh failure states — UI Design · Inboudly</title>
+<style>
+  :root{
+    --bg:#f6f7f9;--card:#fff;--fg:#0f172a;--muted:#64748b;--border:#e2e8f0;--input:#fff;
+    --primary:#6366f1;--primary-fg:#fff;--ring:#6366f1;--ok:#059669;--ok-bg:rgba(5,150,105,.10);
+    --warn:#b45309;--warn-bg:rgba(217,119,6,.12);--warn-bd:rgba(217,119,6,.35);
+    --err:#dc2626;--err-bg:rgba(220,38,38,.10);--err-bd:rgba(220,38,38,.30);--accent:#7c3aed;--shadow:0 1px 3px rgba(15,23,42,.08);
+  }
+  [data-theme="dark"]{
+    --bg:#0b1120;--card:#0f172a;--fg:#e2e8f0;--muted:#94a3b8;--border:#1e293b;--input:#0b1120;
+    --primary:#818cf8;--primary-fg:#0b1120;--ring:#818cf8;--ok:#34d399;--ok-bg:rgba(52,211,153,.12);
+    --warn:#fbbf24;--warn-bg:rgba(251,191,36,.14);--warn-bd:rgba(251,191,36,.4);
+    --err:#f87171;--err-bg:rgba(248,113,113,.14);--err-bd:rgba(248,113,113,.4);--accent:#a78bfa;--shadow:0 1px 3px rgba(0,0,0,.4);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);line-height:1.55;
+    font-family:ui-sans-serif,system-ui,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+  .mono{font-family:ui-monospace,Menlo,Consolas,monospace}
+  header{position:sticky;top:0;z-index:5;background:color-mix(in srgb,var(--bg) 90%,transparent);
+    backdrop-filter:blur(8px);border-bottom:1px solid var(--border);padding:14px 24px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  header h1{font-size:15.5px;margin:0;font-weight:700}
+  header .sub{color:var(--muted);font-size:12.5px}
+  .pill{font-size:11px;padding:3px 9px;border-radius:999px;border:1px solid var(--border);color:var(--muted);background:var(--card)}
+  .tg{margin-left:auto;cursor:pointer;border:1px solid var(--border);background:var(--card);color:var(--fg);border-radius:8px;padding:6px 12px;font-size:12.5px;font-weight:600}
+  main{max-width:1080px;margin:0 auto;padding:26px 24px 80px}
+  .lead{color:var(--muted);font-size:14px;max-width:84ch;margin:4px 0 24px}
+  .lead strong{color:var(--fg)}
+  h2.section{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--accent);margin:34px 0 4px;font-weight:700}
+  h2.section .n{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:6px;background:var(--accent);color:#fff;font-size:12px;margin-right:8px;vertical-align:middle}
+  .section-note{color:var(--muted);font-size:13px;margin:0 0 16px}
+  .stack{display:flex;flex-direction:column;gap:12px;max-width:560px}
+  .cap{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin:14px 0 2px}
+
+  .acct{display:flex;align-items:center;gap:11px;border:1px solid var(--border);border-radius:11px;padding:12px 14px;background:var(--card)}
+  .acct.warn{border-color:var(--warn-bd);background:var(--warn-bg)}
+  .ico{width:36px;height:36px;border-radius:9px;flex:none;display:grid;place-items:center;color:#fff}
+  .ico.yt{background:#ff0033}
+  .who{flex:1;min-width:0}
+  .who .nm{font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:7px}
+  .who .sub{font-size:11.5px;color:var(--muted);margin-top:1px}
+  .who .sub.warn{color:var(--warn)}
+  .badge{font-size:11px;display:inline-flex;gap:5px;align-items:center;font-weight:600}
+  .badge.ok{color:var(--ok)} .badge.warn{color:var(--warn)} .badge.muted{color:var(--muted)}
+  .btn{border:0;background:var(--primary);color:var(--primary-fg);border-radius:8px;padding:9px 14px;font-size:12.5px;font-weight:700;cursor:pointer;min-height:40px;display:inline-flex;gap:6px;align-items:center;white-space:nowrap}
+  .btn.ghost{background:var(--card);color:var(--fg);border:1px solid var(--border)}
+  .btn.warn{background:var(--warn);color:#fff}
+  .avatar{width:36px;height:36px;border-radius:50%;background:#cbd5e1;flex:none;display:grid;place-items:center;color:#475569;font-weight:700;font-size:13px}
+
+  /* failed post */
+  .post{border:1px solid var(--border);border-radius:12px;background:var(--card);overflow:hidden;max-width:560px}
+  .post.fail{border-color:var(--err-bd)}
+  .post .top{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--border)}
+  .pf{font-size:11px;font-weight:700;display:inline-flex;gap:5px;align-items:center;border-radius:6px;padding:3px 8px}
+  .pf.fail{color:var(--err);background:var(--err-bg)}
+  .post .body{padding:12px 14px;display:flex;flex-direction:column;gap:10px}
+  .post .cap{font-size:13px;color:var(--fg);margin:0;text-transform:none;letter-spacing:0;font-weight:400}
+  .err{display:flex;gap:8px;align-items:flex-start;font-size:12.5px;color:var(--err);background:var(--err-bg);border:1px solid var(--err-bd);border-radius:9px;padding:9px 11px}
+  .err .fix{color:var(--err);text-decoration:underline;font-weight:600}
+  .row{display:flex;gap:8px;flex-wrap:wrap}
+  .link{color:var(--primary);text-decoration:none} .link:hover{text-decoration:underline}
+
+  .rationale{margin-top:18px;border:1px dashed var(--border);border-radius:11px;padding:14px 16px;background:var(--card);max-width:900px}
+  .rationale h4{margin:0 0 9px;font-size:12.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--accent)}
+  .rationale ul{margin:0;padding:0;list-style:none;display:grid;gap:8px}
+  .rationale li{font-size:12.5px;display:grid;grid-template-columns:auto 1fr;gap:9px;align-items:start}
+  .tag{font-size:10.5px;font-weight:700;color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,transparent);border-radius:5px;padding:2px 7px;white-space:nowrap;height:fit-content}
+  svg{flex:none}
+  footer{color:var(--muted);font-size:11.5px;text-align:center;margin-top:44px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Token-refresh — failure-path UI</h1>
+  <span class="sub">the happy path is silent; these are the states a user sees when refresh fails</span>
+  <span class="pill">ui-ux-pro-max</span>
+  <button class="tg" onclick="(function(){var h=document.documentElement,d=h.getAttribute('data-theme')==='dark';h.setAttribute('data-theme',d?'light':'dark');})()">◐ theme</button>
+</header>
+<main>
+  <p class="lead">Most of this feature is <strong>invisible</strong> — the publish worker refreshes an expiring OAuth token before posting, silently. The UI only changes on the <strong>failure path</strong>: when a token can't be refreshed (revoked / fully expired), the account auto-disconnects. Two surfaces need to communicate that clearly.</p>
+
+  <!-- SURFACE 1 -->
+  <h2 class="section"><span class="n">1</span>Settings → Social accounts · the third state</h2>
+  <p class="section-note">The connect row now has <strong>three</strong> states. "Reconnect needed" must read as distinct from a fresh "Not connected" — the user <em>was</em> connected and it lapsed.</p>
+  <div class="stack">
+    <p class="cap">① Connected (healthy)</p>
+    <div class="acct">
+      <span class="avatar">A</span>
+      <div class="who"><div class="nm">Acme Studio</div><div class="sub">YouTube · connected</div></div>
+      <span class="badge ok"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>Connected</span>
+      <button class="btn ghost" style="margin-left:10px">Disconnect…</button>
+    </div>
+
+    <p class="cap">② Reconnect needed (token couldn't refresh) — the new state</p>
+    <div class="acct warn">
+      <span class="ico yt"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M23 7.5a3 3 0 0 0-2.1-2.1C19 5 12 5 12 5s-7 0-8.9.4A3 3 0 0 0 1 7.5 31 31 0 0 0 .6 12 31 31 0 0 0 1 16.5a3 3 0 0 0 2.1 2.1C5 19 12 19 12 19s7 0 8.9-.4a3 3 0 0 0 2.1-2.1A31 31 0 0 0 23.4 12 31 31 0 0 0 23 7.5zM9.8 15.3V8.7l5.7 3.3z"/></svg></span>
+      <div class="who">
+        <div class="nm">Acme Studio <span class="badge warn"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>Reconnect needed</span></div>
+        <div class="sub warn">Access expired — reconnect to keep publishing.</div>
+      </div>
+      <button class="btn warn">↻ Reconnect</button>
+    </div>
+
+    <p class="cap">③ Not connected (never linked)</p>
+    <div class="acct">
+      <span class="ico yt"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M23 7.5a3 3 0 0 0-2.1-2.1C19 5 12 5 12 5s-7 0-8.9.4A3 3 0 0 0 1 7.5 31 31 0 0 0 .6 12 31 31 0 0 0 1 16.5a3 3 0 0 0 2.1 2.1C5 19 12 19 12 19s7 0 8.9-.4a3 3 0 0 0 2.1-2.1A31 31 0 0 0 23.4 12 31 31 0 0 0 23 7.5zM9.8 15.3V8.7l5.7 3.3z"/></svg></span>
+      <div class="who"><div class="nm">YouTube</div><div class="sub">Not connected</div></div>
+      <button class="btn ghost">Connect</button>
+    </div>
+  </div>
+
+  <!-- SURFACE 2 -->
+  <h2 class="section"><span class="n">2</span>Calendar / Posts · a post that failed because the token lapsed</h2>
+  <p class="section-note">Not a generic "Failed" — state the cause and the fix, with both a path to Settings and a Retry.</p>
+  <div class="post fail">
+    <div class="top">
+      <span class="pf fail"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>Failed</span>
+      <span class="mono" style="font-size:11.5px;color:var(--muted)">YouTube · scheduled Jun 9, 8:00 AM</span>
+    </div>
+    <div class="body">
+      <p class="cap" style="margin:0">"A great clip — behind the scenes…"</p>
+      <div class="err" role="alert">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
+        <span>Publish failed: <strong>YouTube access expired.</strong> <a class="fix" href="#">Reconnect in Settings</a> to publish this post.</span>
+      </div>
+      <div class="row">
+        <button class="btn">↻ Reconnect &amp; retry</button>
+        <button class="btn ghost">Reschedule</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="rationale">
+    <h4>Design notes (ui-ux-pro-max)</h4>
+    <ul>
+      <li><span class="tag">state-clarity · 3 states</span> Connected / Reconnect-needed / Not-connected are visually distinct: green check, amber-bordered warning card, neutral. "Reconnect needed" reuses the connected row's avatar/identity (the account still exists) but flips to amber — signalling "lapsed," not "never linked."</li>
+      <li><span class="tag">color-not-only</span> Every state carries an icon + text label, never colour alone — "✓ Connected", "⚠ Reconnect needed", "Not connected" — readable for colour-blind users and screen readers.</li>
+      <li><span class="tag">error-clarity</span> The failure states the <em>cause</em> ("access expired") not a generic "Failed", so the user knows it's an auth lapse, not a bug or a bad post.</li>
+      <li><span class="tag">error-recovery</span> Every failure offers the fix inline: the connect row has a primary <strong>Reconnect</strong>; the failed post has <strong>Reconnect &amp; retry</strong> + a Settings link + Reschedule. No dead ends.</li>
+      <li><span class="tag">a11y</span> The reconnect-needed badge + the post error use <span class="mono">role="alert"</span> / status semantics so screen readers announce the lapse; Reconnect/Retry are real buttons ≥40px with focus rings.</li>
+      <li><span class="tag">consistency</span> Same connect-row layout (icon · identity · status · action) as the existing Instagram/TikTok rows — only the status + action swap. The amber warning token matches the Composer's existing "uses your credits" / advisory cues.</li>
+      <li><span class="tag">silent happy path</span> No UI for the success case — a refresh that works produces zero noise. We only spend the user's attention when action is required (don't over-notify).</li>
+    </ul>
+  </div>
+
+  <footer>Inboudly · token-refresh failure-path UI · illustrative mockup — happy path (auto-refresh) is intentionally invisible</footer>
+</main>
+</body>
+</html>
