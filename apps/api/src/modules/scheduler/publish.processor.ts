@@ -4,6 +4,7 @@ import { Job } from 'bullmq';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { PostStatus, PublicationStatus } from '@inboudly/database';
 import { ConnectorRegistry } from '../connectors/connector-registry.service';
+import { SocialAccountsService } from '../social-accounts/social-accounts.service';
 
 interface PublishJobPayload {
   postId: string;
@@ -20,8 +21,22 @@ interface PublishJobPayload {
 export class PublishProcessor extends WorkerHost {
   private readonly logger = new Logger(PublishProcessor.name);
 
-  constructor(private prisma: PrismaService, private connectors: ConnectorRegistry) {
+  constructor(private prisma: PrismaService, private connectors: ConnectorRegistry, private accounts: SocialAccountsService) {
     super();
+  }
+
+  /** Refresh an expiring access token before publishing; returns a usable account.
+   *  Throws only if a needed refresh fails (caller marks the account PENDING_REAUTH). */
+  async ensureUsableAccount(account: any, connector: { refreshToken?: (rt: string) => Promise<any> }): Promise<any> {
+    const SKEW_MS = 60_000;
+    const expired = account.tokenExpiresAt && new Date(account.tokenExpiresAt).getTime() < Date.now() + SKEW_MS;
+    if (!expired || !connector.refreshToken || !account.refreshToken) return account;
+    const fresh = await connector.refreshToken(account.refreshToken);
+    return this.accounts.updateTokens(account.id, {
+      accessToken: fresh.accessToken,
+      tokenExpiresAt: fresh.expiresAt ?? null,
+      refreshToken: fresh.refreshToken,
+    });
   }
 
   async process(job: Job<PublishJobPayload>): Promise<void> {
@@ -60,10 +75,14 @@ export class PublishProcessor extends WorkerHost {
 
       try {
         const connector = this.connectors.get(variant.platform);
-        const result = await connector.publish({
-          account,
-          variant: { ...variant, media: variant.media },
-        });
+        let usable = account;
+        try {
+          usable = await this.ensureUsableAccount(account, connector);
+        } catch {
+          await this.accounts.markNeedsReconnect(account.id);
+          throw new Error(`${variant.platform} access expired — reconnect in Settings to publish.`);
+        }
+        const result = await connector.publish({ account: usable, variant: { ...variant, media: variant.media } });
 
         await this.prisma.postPublication.upsert({
           where: {
@@ -90,7 +109,7 @@ export class PublishProcessor extends WorkerHost {
         });
       } catch (err) {
         allOk = false;
-        this.logger.error(`Failed to publish ${variant.platform} variant`, err);
+        this.logger.error(`Failed to publish ${variant.platform} variant: ${(err as Error).message}`);
         await this.prisma.postPublication.upsert({
           where: {
             postVariantId_socialAccountId: {

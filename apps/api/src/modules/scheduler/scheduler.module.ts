@@ -3,6 +3,7 @@ import { BullModule } from '@nestjs/bullmq';
 import { SchedulerService } from './scheduler.service';
 import { PublishProcessor } from './publish.processor';
 import { ConnectorsModule } from '../connectors/connectors.module';
+import { SocialAccountsModule } from '../social-accounts/social-accounts.module';
 
 @Module({
   imports: [
@@ -12,6 +13,7 @@ import { ConnectorsModule } from '../connectors/connectors.module';
       { name: 'trend-scan' },
     ),
     ConnectorsModule,
+    SocialAccountsModule,
   ],
   providers: [SchedulerService, PublishProcessor],
   exports: [SchedulerService],
