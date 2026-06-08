@@ -120,6 +120,47 @@ export class FfmpegService {
     return `${pad(h, 2)}:${pad(m, 2)}:${pad(s, 2)},${pad(ms, 3)}`;
   }
 
+  /**
+   * Concatenate clips (in array order) into a single H.264/AAC MP4.
+   * Re-encodes for uniform output so mismatched inputs join cleanly.
+   */
+  async stitchClips(inputPaths: string[], outPath: string): Promise<void> {
+    if (inputPaths.length === 0) {
+      throw new Error('stitchClips: inputPaths must not be empty');
+    }
+
+    const n = inputPaths.length;
+    // Build filter_complex concat expression: [0:v][0:a][1:v][1:a]...concat=n=N:v=1:a=1[v][a]
+    const streams = inputPaths.map((_, i) => `[${i}:v][${i}:a]`).join('');
+    const filterComplex = `${streams}concat=n=${n}:v=1:a=1[v][a]`;
+
+    return new Promise((resolve, reject) => {
+      let command = ffmpeg();
+
+      for (const p of inputPaths) {
+        command = command.input(p);
+      }
+
+      command
+        .complexFilter(filterComplex)
+        .outputOptions([
+          '-map [v]',
+          '-map [a]',
+          '-c:v libx264',
+          '-preset fast',
+          '-c:a aac',
+          '-movflags +faststart',
+        ])
+        .on('start', (cmd) => this.logger.debug(`ffmpeg stitch: ${cmd}`))
+        .on('error', (err) => {
+          this.logger.error(`ffmpeg stitch failed: ${err.message}`);
+          reject(err);
+        })
+        .on('end', () => resolve())
+        .save(outPath);
+    });
+  }
+
   /** Escape a Windows path so ffmpeg's filter chain doesn't choke on backslashes/colons. */
   private escapeForFilter(p: string): string {
     return p.replace(/\\/g, '/').replace(/:/g, '\\:');
