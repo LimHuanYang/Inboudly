@@ -26,6 +26,8 @@ const PLATFORM_OAUTH_PATH: Record<string, string> = {
   TIKTOK: 'tiktok',
   REDNOTE: 'rednote',
   YOUTUBE: 'youtube',
+  FACEBOOK: 'facebook',
+  LINKEDIN: 'linkedin',
 };
 
 export default function SettingsPage() {
@@ -135,8 +137,8 @@ export default function SettingsPage() {
           )}
 
           <div className="flex flex-wrap gap-2 border-t pt-4">
-            {(['INSTAGRAM', 'TIKTOK', 'REDNOTE', 'YOUTUBE'] as const).map((p) => (
-              <Button key={p} variant="outline" onClick={() => startConnect(p)}>
+            {(['INSTAGRAM', 'TIKTOK', 'REDNOTE', 'YOUTUBE', 'FACEBOOK', 'LINKEDIN'] as const).map((p) => (
+              <Button key={p} variant="outline" aria-label={`Connect ${p}`} onClick={() => startConnect(p)}>
                 <Plus className="mr-2 h-4 w-4" /> Connect {p}
               </Button>
             ))}
