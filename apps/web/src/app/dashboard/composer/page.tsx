@@ -14,7 +14,7 @@ interface VideoJobResponse {
 }
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Clapperboard, Calendar as CalendarIcon, Film, ImageIcon, Info, Loader2, Sparkles, Wand2, X } from 'lucide-react';
+import { Clapperboard, Calendar as CalendarIcon, Film, ImageIcon, Info, Loader2, Sparkles, Wand2, X, Youtube } from 'lucide-react';
 import { PLATFORM_SPECS, type SocialPlatform } from '@inboudly/shared/platforms';
 import { type ViralityScoreResponse } from '@inboudly/shared/schemas';
 import { buildCreatePostInput } from '@inboudly/shared';
@@ -62,6 +62,9 @@ export default function ComposerPage() {
   const [videoJobId, setVideoJobId] = useState<string | null>(null);
   const [videoProvider, setVideoProvider] = useState<'demo' | 'pollinations'>('demo');
   const [videoModel, setVideoModel] = useState('seedance');
+
+  // ----- YouTube-specific state -----
+  const [youtubePrivacy, setYoutubePrivacy] = useState<'public' | 'unlisted' | 'private'>('unlisted');
 
   // ----- Publishing state -----
   const [showSchedule, setShowSchedule] = useState(false);
@@ -166,12 +169,16 @@ export default function ComposerPage() {
 
   const createPost = useMutation({
     mutationFn: (scheduledFor?: string) => {
+      const platformOptions = selectedPlatforms.includes('YOUTUBE')
+        ? { YOUTUBE: { youtube: { privacyStatus: youtubePrivacy } } }
+        : undefined;
       const input = buildCreatePostInput({
         workspaceId: workspaceId!,
         selectedPlatforms,
         captions,
         hashtags,
         attachedImageIds,
+        platformOptions,
       });
       return api.post<{ id: string }>('/posts', input).then(async (post) => {
         let scheduleFailed = false;
@@ -830,6 +837,41 @@ export default function ComposerPage() {
             )}
           </div>
           )}
+
+          {/* YouTube-specific settings — only shown when YouTube is selected */}
+          {selectedPlatforms.includes('YOUTUBE') && (() => {
+            const ytHasVideo = (attachedImageIds['YOUTUBE'] ?? []).some((id) => attachedAssets[id]?.type === 'video');
+            return (
+              <div className="rounded-lg border bg-background p-4">
+                <h3 className="mb-2 flex items-center gap-2 text-sm font-medium">
+                  <Youtube className="h-4 w-4 text-[#ff0033]" aria-hidden="true" /> YouTube
+                </h3>
+                <label id="yt-privacy-label" className="text-xs font-medium">Privacy for this upload</label>
+                <div role="radiogroup" aria-labelledby="yt-privacy-label" className="mt-1 inline-flex overflow-hidden rounded-md border">
+                  {(['public', 'unlisted', 'private'] as const).map((p) => (
+                    <button
+                      key={p}
+                      type="button"
+                      role="radio"
+                      aria-checked={youtubePrivacy === p}
+                      onClick={() => setYoutubePrivacy(p)}
+                      className={`min-h-[40px] px-3 py-2 text-sm capitalize focus:outline-none focus:ring-2 focus:ring-ring ${youtubePrivacy === p ? 'bg-primary text-primary-foreground' : 'bg-background hover:bg-muted'}`}
+                    >
+                      {p}
+                    </button>
+                  ))}
+                </div>
+                {!ytHasVideo && (
+                  <p role="alert" className="mt-2 text-xs text-red-600 dark:text-red-400">
+                    No video attached. YouTube is video-only — attach or generate a clip, or remove YouTube from this post. Your draft still saves.
+                  </p>
+                )}
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Vertical &amp; ≤60s posts as a Short automatically. Uses the channel you connected in Settings.
+                </p>
+              </div>
+            );
+          })()}
 
           {/* Save / Schedule action bar */}
           <div className="rounded-lg border bg-background p-4">
