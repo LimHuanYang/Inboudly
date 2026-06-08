@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Phase 2B Export · Analytics · Pinterest — UI Design · Inboudly</title>
+<style>
+  :root{
+    --bg:#f6f7f9;--card:#fff;--fg:#0f172a;--muted:#64748b;--border:#e2e8f0;
+    --primary:#6366f1;--primary-fg:#fff;--ring:#6366f1;--ok:#059669;--ok-bg:rgba(5,150,105,.10);
+    --warn:#b45309;--warn-bg:rgba(217,119,6,.12);--err:#dc2626;--err-bg:rgba(220,38,38,.10);--err-bd:rgba(220,38,38,.3);
+    --accent:#7c3aed;--shadow:0 1px 3px rgba(15,23,42,.08);--pin:#e60023;
+    --c1:#6366f1;--c2:#059669;--c3:#d97706;
+  }
+  [data-theme="dark"]{
+    --bg:#0b1120;--card:#0f172a;--fg:#e2e8f0;--muted:#94a3b8;--border:#1e293b;
+    --primary:#818cf8;--primary-fg:#0b1120;--ok:#34d399;--ok-bg:rgba(52,211,153,.12);--warn:#fbbf24;--warn-bg:rgba(251,191,36,.14);
+    --err:#f87171;--err-bg:rgba(248,113,113,.14);--err-bd:rgba(248,113,113,.4);--accent:#a78bfa;--shadow:0 1px 3px rgba(0,0,0,.4);--pin:#ff405f;
+    --c1:#818cf8;--c2:#34d399;--c3:#fbbf24;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);line-height:1.55;font-family:ui-sans-serif,system-ui,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+  .mono{font-family:ui-monospace,Menlo,Consolas,monospace}
+  header{position:sticky;top:0;z-index:5;background:color-mix(in srgb,var(--bg) 90%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--border);padding:14px 24px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  header h1{font-size:15.5px;margin:0;font-weight:700}
+  header .sub{color:var(--muted);font-size:12.5px}
+  .pill{font-size:11px;padding:3px 9px;border-radius:999px;border:1px solid var(--border);color:var(--muted);background:var(--card)}
+  .tg{margin-left:auto;cursor:pointer;border:1px solid var(--border);background:var(--card);color:var(--fg);border-radius:8px;padding:6px 12px;font-size:12.5px;font-weight:600}
+  main{max-width:1040px;margin:0 auto;padding:24px 24px 80px}
+  h2.section{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--accent);margin:34px 0 4px;font-weight:700}
+  h2.section .n{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:6px;background:var(--accent);color:#fff;font-size:12px;margin-right:8px;vertical-align:middle}
+  .note{color:var(--muted);font-size:13px;margin:0 0 16px;max-width:90ch}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:13px;box-shadow:var(--shadow);padding:16px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:720px){.grid2{grid-template-columns:1fr}}
+  .cap{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin:0 0 9px}
+  .btn{border:0;background:var(--primary);color:var(--primary-fg);border-radius:8px;padding:9px 14px;font-size:12.5px;font-weight:700;cursor:pointer;min-height:40px;display:inline-flex;gap:7px;align-items:center;white-space:nowrap}
+  .btn.ghost{background:var(--card);color:var(--fg);border:1px solid var(--border)}
+  .btn.ok{background:var(--ok);color:#fff}
+  .btn[disabled]{opacity:.5;cursor:not-allowed}
+  .spin{width:14px;height:14px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;display:inline-block;animation:s .8s linear infinite}
+  @keyframes s{to{transform:rotate(360deg)}}
+  .filmstrip{display:flex;gap:5px;margin-bottom:12px}
+  .frame{flex:1;height:46px;border-radius:6px;background:linear-gradient(135deg,#cbd5e1,#94a3b8);display:grid;place-items:center;color:#fff;font-size:10px;font-weight:700}
+  [data-theme="dark"] .frame{background:linear-gradient(135deg,#334155,#1e293b)}
+  .err{display:flex;gap:8px;align-items:flex-start;font-size:12.5px;color:var(--err);background:var(--err-bg);border:1px solid var(--err-bd);border-radius:9px;padding:9px 11px}
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--border)}
+  th{font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:700}
+  td.num{font-variant-numeric:tabular-nums;text-align:right}
+  th.num{text-align:right}
+  .chip{font-size:10px;font-weight:700;padding:2px 7px;border-radius:5px}
+  .chip.ig{background:rgba(220,39,67,.12);color:#dc2743} .chip.yt{background:rgba(255,0,51,.12);color:#e60023} .chip.li{background:rgba(10,102,194,.14);color:#0a66c2}
+  .legend{display:flex;gap:14px;font-size:11.5px;margin-top:8px;flex-wrap:wrap}
+  .legend span{display:inline-flex;gap:5px;align-items:center}
+  .dot{width:9px;height:9px;border-radius:2px;display:inline-block}
+  .empty{border:1px dashed var(--border);border-radius:10px;padding:26px;text-align:center;color:var(--muted);font-size:12.5px}
+  .acct{display:flex;align-items:center;gap:11px;border:1px solid var(--border);border-radius:11px;padding:11px 13px;background:var(--card)}
+  .ico{width:36px;height:36px;border-radius:9px;flex:none;display:grid;place-items:center;color:#fff;font-weight:800}
+  .ico.pin{background:var(--pin)}
+  .who{flex:1;min-width:0}.who .nm{font-size:13.5px;font-weight:600}.who .s{font-size:11.5px;color:var(--muted)}
+  .new{font-size:10px;font-weight:700;color:var(--accent);background:color-mix(in srgb,var(--accent) 13%,transparent);border-radius:5px;padding:1px 6px;margin-left:5px}
+  .rationale{margin-top:16px;border:1px dashed var(--border);border-radius:11px;padding:14px 16px;background:var(--card)}
+  .rationale h4{margin:0 0 9px;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--accent)}
+  .rationale ul{margin:0;padding:0;list-style:none;display:grid;gap:7px}
+  .rationale li{font-size:12px;display:grid;grid-template-columns:auto 1fr;gap:9px;align-items:start}
+  .tag{font-size:10px;font-weight:700;color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,transparent);border-radius:5px;padding:2px 6px;white-space:nowrap;height:fit-content}
+  svg{flex:none}
+  footer{color:var(--muted);font-size:11.5px;text-align:center;margin-top:40px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Phase 2B Export · Post Analytics · Pinterest</h1>
+  <span class="sub">three features, one branch</span>
+  <span class="pill">ui-ux-pro-max</span>
+  <button class="tg" onclick="(function(){var h=document.documentElement,d=h.getAttribute('data-theme')==='dark';h.setAttribute('data-theme',d?'light':'dark');})()">◐ theme</button>
+</header>
+<main>
+
+  <!-- 1. EXPORT -->
+  <h2 class="section"><span class="n">1</span>Video MP4 export — faceless project page</h2>
+  <p class="note">A single action on the project page that stitches the scenes' clips into one downloadable MP4. Four states (idle → exporting → ready → failed) on the same control — clear status, recoverable error.</p>
+  <div class="grid2">
+    <div class="card">
+      <p class="cap">① Ready to export</p>
+      <div class="filmstrip"><span class="frame">1</span><span class="frame">2</span><span class="frame">3</span><span class="frame">4</span></div>
+      <button class="btn"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>Export MP4</button>
+      <p class="note" style="margin:9px 0 0">Enabled once every scene has a clip.</p>
+    </div>
+    <div class="card">
+      <p class="cap">② Exporting (polling)</p>
+      <div class="filmstrip"><span class="frame">1</span><span class="frame">2</span><span class="frame">3</span><span class="frame">4</span></div>
+      <button class="btn" disabled><span class="spin"></span>Stitching… ~2 min</button>
+      <p class="note" style="margin:9px 0 0">Polls <span class="mono">exportStatus</span> every 2.5s (BullMQ job).</p>
+    </div>
+    <div class="card">
+      <p class="cap">③ Ready — download</p>
+      <div class="filmstrip"><span class="frame" style="background:linear-gradient(135deg,#34d399,#059669)">▶</span><span class="frame" style="background:linear-gradient(135deg,#34d399,#059669)"></span><span class="frame" style="background:linear-gradient(135deg,#34d399,#059669)"></span><span class="frame" style="background:linear-gradient(135deg,#34d399,#059669)"></span></div>
+      <a class="btn ok" href="#"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></svg>Download MP4</a>
+      <span class="btn ghost" style="margin-left:8px">Re-export</span>
+    </div>
+    <div class="card">
+      <p class="cap">④ Failed — recover</p>
+      <div class="err" role="alert">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
+        <span>Export failed: a scene clip couldn't be fetched. <a href="#" style="color:var(--err);font-weight:600">Try again</a>.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. ANALYTICS -->
+  <h2 class="section"><span class="n">2</span>Post analytics — dashboard</h2>
+  <p class="note">Engagement pulled back from connected platforms into the analytics page: a trend chart + a per-post table + a manual Refresh. (Live metric fetch is parked until accounts are connected; the pipeline + UI are built and render seeded/empty states cleanly.)</p>
+  <div class="card" style="margin-bottom:14px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+      <p class="cap" style="margin:0">Engagement — last 30 days</p>
+      <button class="btn ghost"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/></svg>Refresh metrics</button>
+    </div>
+    <svg viewBox="0 0 600 170" width="100%" height="170" role="img" aria-label="Engagement over time: likes, comments, impressions trending up">
+      <line x1="40" y1="140" x2="590" y2="140" stroke="var(--border)"/>
+      <line x1="40" y1="20" x2="40" y2="140" stroke="var(--border)"/>
+      <polyline fill="none" stroke="var(--c1)" stroke-width="2.5" points="40,120 130,110 220,95 310,98 400,70 490,55 580,40"/>
+      <polyline fill="none" stroke="var(--c2)" stroke-width="2.5" points="40,132 130,128 220,120 310,122 400,110 490,104 580,96"/>
+      <polyline fill="none" stroke="var(--c3)" stroke-width="2.5" points="40,100 130,86 220,80 310,60 400,52 490,34 580,28"/>
+      <text x="40" y="158" font-size="10" fill="var(--muted)">May 10</text>
+      <text x="540" y="158" font-size="10" fill="var(--muted)">Jun 9</text>
+    </svg>
+    <div class="legend">
+      <span><i class="dot" style="background:var(--c1)"></i>Likes</span>
+      <span><i class="dot" style="background:var(--c2)"></i>Comments</span>
+      <span><i class="dot" style="background:var(--c3)"></i>Impressions</span>
+    </div>
+  </div>
+  <div class="grid2">
+    <div class="card">
+      <p class="cap">Per-post metrics</p>
+      <table>
+        <thead><tr><th>Platform</th><th>Post</th><th class="num">Likes</th><th class="num">Comm.</th><th class="num">Impr.</th></tr></thead>
+        <tbody>
+          <tr><td><span class="chip yt">YouTube</span></td><td>Behind the scenes…</td><td class="num">1,204</td><td class="num">88</td><td class="num">14.2k</td></tr>
+          <tr><td><span class="chip ig">Instagram</span></td><td>New drop 🔥</td><td class="num">932</td><td class="num">41</td><td class="num">9.8k</td></tr>
+          <tr><td><span class="chip li">LinkedIn</span></td><td>How we ship fast</td><td class="num">311</td><td class="num">27</td><td class="num">5.1k</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="card">
+      <p class="cap">Empty state (before first refresh)</p>
+      <div class="empty">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="margin-bottom:6px;color:var(--muted)"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+        <div><strong>No metrics yet.</strong></div>
+        <div>Publish posts, then hit <em>Refresh metrics</em> to pull engagement.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. PINTEREST -->
+  <h2 class="section"><span class="n">3</span>Pinterest — Settings connect row</h2>
+  <p class="note">The 7th platform: one more row in the connect list, reusing the generic connect / connected / reconnect-needed states. Brand colour on the icon chip only.</p>
+  <div class="card">
+    <div class="acct">
+      <span class="ico pin"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-3.6 19.3c-.1-.8-.2-2 0-2.9l1.2-5s-.3-.6-.3-1.5c0-1.4.8-2.4 1.8-2.4.9 0 1.3.6 1.3 1.4 0 .9-.5 2.2-.8 3.4-.2.9.5 1.7 1.5 1.7 1.8 0 3-2.3 3-5 0-2-1.4-3.6-4-3.6-2.9 0-4.7 2.2-4.7 4.6 0 .8.2 1.4.6 1.9.2.2.2.3.1.5l-.2.9c-.1.3-.3.4-.5.2-1-.4-1.5-1.6-1.5-2.9 0-2.2 1.8-4.8 5.5-4.8 2.9 0 4.9 2.1 4.9 4.4 0 3-1.7 5.2-4.1 5.2-.8 0-1.6-.4-1.8-.9l-.5 2c-.2.7-.6 1.4-1 2A10 10 0 1 0 12 2z"/></svg></span>
+      <div class="who"><div class="nm">Pinterest <span class="new">new</span></div><div class="s">Not connected · image Pins to a board</div></div>
+      <button class="btn ghost" aria-label="Connect Pinterest">Connect</button>
+    </div>
+  </div>
+
+  <div class="rationale">
+    <h4>Design notes (ui-ux-pro-max)</h4>
+    <ul>
+      <li><span class="tag">export · one control, 4 states</span> The Export button morphs idle → exporting (spinner, disabled) → ready (Download) → failed (recoverable) in place — no layout jump; status is icon+text, polling mirrors the existing Generations tray.</li>
+      <li><span class="tag">charts</span> Line chart has a legend + tooltip + accessible distinct colours (not red/green-only), tabular figures in the table, and a real <strong>empty state</strong> instead of a blank axis frame; respects reduced-motion.</li>
+      <li><span class="tag">error-recovery</span> A failed export states the cause + offers "Try again"; analytics refresh is explicit + toasts ("check back shortly") so the async pull isn't mistaken for instant.</li>
+      <li><span class="tag">consistency</span> Pinterest reuses the exact connect-row pattern + 3 states; brand red on the icon chip only; <span class="mono">aria-label</span> on Connect.</li>
+      <li><span class="tag">parked, not broken</span> Live platform metrics + Pinterest OAuth are parked; the UIs degrade to clear empty/not-connected states rather than errors.</li>
+    </ul>
+  </div>
+
+  <footer>Inboudly · Phase 2B export + analytics + Pinterest · illustrative mockup</footer>
+</main>
+</body>
+</html>
