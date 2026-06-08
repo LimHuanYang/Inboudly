@@ -43,6 +43,7 @@ interface VideoProjectDetail {
   voiceStatus: VideoStatus;
   videoStatus: VideoStatus;
   exportStatus: VideoStatus;
+  finalUrl: string | null;
   durationSec: number | null;
   modelUsed: string | null;
   errorMessage: string | null;
@@ -208,10 +209,13 @@ export default function VideoDetailPage({
     queryKey: ['video', id, workspaceId],
     queryFn: () => api.get<VideoProjectDetail>(`/videos/${id}?workspaceId=${workspaceId}`),
     enabled: !!workspaceId,
-    // Poll while script is still generating
+    // Poll while script is still generating or an export job is in-flight
     refetchInterval: (q) => {
       const d = q.state.data as VideoProjectDetail | undefined;
-      return d?.scriptStatus === 'GENERATING' || d?.scriptStatus === 'PENDING' ? 2000 : false;
+      if (!d) return false;
+      const scriptBusy = d.scriptStatus === 'GENERATING' || d.scriptStatus === 'PENDING';
+      const exportBusy = d.exportStatus === 'GENERATING';
+      return scriptBusy || exportBusy ? 2500 : false;
     },
   });
 
@@ -235,6 +239,22 @@ export default function VideoDetailPage({
     },
     onError: (err: any) => toast.error(err.message),
   });
+
+  // Export slice — enqueues an ffmpeg stitch job on the server.
+  // exportStatus flips GENERATING → READY (+ finalUrl) or FAILED.
+  // The refetchInterval above keeps polling until it settles.
+  const exportProject = useMutation({
+    mutationFn: () => api.post(`/videos/${id}/export`, { workspaceId }),
+    onSuccess: () => {
+      toast.success('Export started — we\'ll update the page when it\'s ready');
+      qc.invalidateQueries({ queryKey: ['video', id, workspaceId] });
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
+
+  // Derived: at least one scene has a videoUrl (required for export)
+  const hasExportableScenes =
+    !!project.data?.scenes.some((s) => s.videoUrl != null);
 
   if (project.isLoading) {
     return (
@@ -283,25 +303,25 @@ export default function VideoDetailPage({
         </CardHeader>
       </Card>
 
-      {/* Pipeline status row — Script + Voice now live; Video + Export still v2 */}
+      {/* Pipeline status row — Script + Voice + Export live; Video still v3 */}
       <div className="mt-4 grid grid-cols-4 gap-2">
         {[
-          { label: 'Script', status: p.scriptStatus, icon: Sparkles, v2: false },
-          { label: 'Voice',  status: p.voiceStatus,  icon: Mic2,     v2: false },
-          { label: 'Video',  status: p.videoStatus,  icon: Film,     v2: true },
-          { label: 'Export', status: p.exportStatus, icon: Download, v2: true },
-        ].map(({ label, status, icon: Icon, v2 }) => {
+          { label: 'Script', status: p.scriptStatus, icon: Sparkles, v3: false },
+          { label: 'Voice',  status: p.voiceStatus,  icon: Mic2,     v3: false },
+          { label: 'Video',  status: p.videoStatus,  icon: Film,     v3: true  },
+          { label: 'Export', status: p.exportStatus, icon: Download, v3: false },
+        ].map(({ label, status, icon: Icon, v3 }) => {
           const meta = STATUS_PILL[status];
           return (
             <div
               key={label}
-              className={`rounded-lg border bg-background p-3 ${v2 ? 'opacity-60' : ''}`}
-              title={v2 ? 'v3 — coming next sprint' : undefined}
+              className={`rounded-lg border bg-background p-3 ${v3 ? 'opacity-60' : ''}`}
+              title={v3 ? 'v3 — coming next sprint' : undefined}
             >
               <div className="flex items-center justify-between">
                 <Icon className="h-4 w-4 text-muted-foreground" />
                 <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${meta.className}`}>
-                  {v2 ? 'v3' : meta.label}
+                  {v3 ? 'v3' : meta.label}
                 </span>
               </div>
               <div className="mt-2 text-xs font-medium">{label}</div>
@@ -345,7 +365,68 @@ export default function VideoDetailPage({
         </Card>
       )}
 
-      {p.errorMessage && (
+      {/* Export MP4 panel — appears once at least one scene has a videoUrl */}
+      {hasExportableScenes && (
+        <Card className="mt-4">
+          <CardContent className="flex items-center justify-between py-4">
+            <div>
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <Film className="h-4 w-4 text-primary" />
+                Export MP4
+                <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${STATUS_PILL[p.exportStatus].className}`}>
+                  {p.exportStatus === 'GENERATING' && (
+                    <Loader2 className="mr-1 inline-block h-2.5 w-2.5 animate-spin" />
+                  )}
+                  {STATUS_PILL[p.exportStatus].label}
+                </span>
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Stitches all scene clips into a single downloadable MP4 via ffmpeg.
+                Export runs in the background — this page polls every 2.5 s until it's done.
+              </p>
+              {p.exportStatus === 'FAILED' && p.errorMessage && (
+                <p className="mt-2 flex items-start gap-1.5 text-xs text-red-700 dark:text-red-300">
+                  <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                  {p.errorMessage}
+                </p>
+              )}
+            </div>
+            <div className="ml-4 flex shrink-0 flex-col items-end gap-2">
+              {/* Download button — only when export is READY and finalUrl is set */}
+              {p.exportStatus === 'READY' && p.finalUrl ? (
+                <Button size="sm" asChild>
+                  <a href={p.finalUrl} download>
+                    <Download className="mr-2 h-3.5 w-3.5" />
+                    Download MP4
+                  </a>
+                </Button>
+              ) : null}
+
+              {/* Export / Exporting… / Retry button */}
+              {p.exportStatus !== 'READY' && (
+                <Button
+                  size="sm"
+                  variant={p.exportStatus === 'FAILED' ? 'destructive' : 'default'}
+                  onClick={() => exportProject.mutate()}
+                  disabled={
+                    exportProject.isPending || p.exportStatus === 'GENERATING'
+                  }
+                >
+                  {exportProject.isPending || p.exportStatus === 'GENERATING' ? (
+                    <><Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />Exporting…</>
+                  ) : p.exportStatus === 'FAILED' ? (
+                    <><RefreshCw className="mr-2 h-3.5 w-3.5" />Retry export</>
+                  ) : (
+                    <><Film className="mr-2 h-3.5 w-3.5" />Export MP4</>
+                  )}
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {p.errorMessage && p.exportStatus !== 'FAILED' && (
         <Card className="mt-4">
           <CardContent className="py-3">
             <p className="flex items-start gap-2 text-sm text-red-700 dark:text-red-300">
