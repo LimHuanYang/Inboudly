@@ -60,6 +60,8 @@ export default function ComposerPage() {
   const [videoAspect, setVideoAspect] = useState<'9:16' | '16:9' | '1:1'>('9:16');
   const [videoDuration, setVideoDuration] = useState(5);
   const [videoJobId, setVideoJobId] = useState<string | null>(null);
+  const [videoProvider, setVideoProvider] = useState<'demo' | 'pollinations'>('demo');
+  const [videoModel, setVideoModel] = useState('seedance');
 
   // ----- Publishing state -----
   const [showSchedule, setShowSchedule] = useState(false);
@@ -134,6 +136,8 @@ export default function ComposerPage() {
         prompt: videoPrompt,
         aspectRatio: videoAspect,
         durationSec: videoDuration,
+        provider: videoProvider,
+        model: videoProvider === 'pollinations' ? videoModel : undefined,
       }),
     onSuccess: (job) => {
       setVideoJobId(job.id);
@@ -314,6 +318,21 @@ export default function ComposerPage() {
     aiCredentials.data?.anthropic?.configured || aiCredentials.data?.gemini?.configured;
   const hasAnyImageKey =
     aiCredentials.data?.openai?.configured || aiCredentials.data?.gemini?.configured;
+  const pollinationsReady = !!aiCredentials.data?.pollinations?.configured;
+
+  // Default video provider/model from workspace AI credentials once loaded
+  useEffect(() => {
+    if (!aiCredentials.data) return;
+    if (pollinationsReady) {
+      setVideoProvider(
+        aiCredentials.data.preferredVideoProvider === 'pollinations' ? 'pollinations' : 'demo',
+      );
+      setVideoModel(aiCredentials.data.pollinationsVideoModel ?? 'seedance');
+    } else {
+      setVideoProvider('demo');
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aiCredentials.data]);
 
   const canPost =
     !!workspaceId &&
@@ -705,13 +724,51 @@ export default function ComposerPage() {
               </div>
             </div>
 
-            <p className="mt-3 flex items-start gap-1.5 text-xs text-muted-foreground">
-              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-              <span>
-                Demo returns a fixed sample clip — it doesn&apos;t read your prompt.
-                Prompt-driven video (Runway / Kling / Veo) is coming.
-              </span>
-            </p>
+            {/* Engine picker — provider + model */}
+            <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <label htmlFor="video-provider-inline" className="text-xs font-medium">Provider</label>
+                <select
+                  id="video-provider-inline"
+                  value={videoProvider}
+                  disabled={generateVideo.isPending || videoStatus.data?.status === 'GENERATING'}
+                  onChange={(e) => setVideoProvider(e.target.value as 'demo' | 'pollinations')}
+                  className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-60"
+                >
+                  <option value="demo">Demo — free sample</option>
+                  <option value="pollinations" disabled={!pollinationsReady}>
+                    Pollinations{!pollinationsReady ? ' — add key in Settings' : ' — real'}
+                  </option>
+                </select>
+              </div>
+              <div>
+                <label htmlFor="video-model-inline" className="text-xs font-medium">Model</label>
+                <select
+                  id="video-model-inline"
+                  value={videoModel}
+                  disabled={videoProvider !== 'pollinations' || generateVideo.isPending || videoStatus.data?.status === 'GENERATING'}
+                  onChange={(e) => setVideoModel(e.target.value)}
+                  className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-60"
+                >
+                  <option value="seedance">seedance — 2–10s</option>
+                  <option value="veo">veo — 4 / 6 / 8s</option>
+                  <option value="wan-fast">wan-fast — 2–15s</option>
+                </select>
+              </div>
+            </div>
+            {videoProvider === 'pollinations' ? (
+              <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
+                Uses your Pollinations credits (~1 clip). Falls back to Demo with a clear message if you&apos;re out of Pollen.
+              </p>
+            ) : (
+              <p className="mt-2 text-xs text-emerald-600 dark:text-emerald-400">
+                Free, instant — returns a fixed sample clip.{' '}
+                {!pollinationsReady && (
+                  <a href="/dashboard/settings" className="underline">Add a Pollinations key in Settings</a>
+                )}{' '}
+                to generate real prompt-driven clips.
+              </p>
+            )}
 
             <button
               type="button"
@@ -721,8 +778,10 @@ export default function ComposerPage() {
             >
               {generateVideo.isPending || videoStatus.data?.status === 'GENERATING' ? (
                 <><Loader2 className="h-4 w-4 animate-spin" /> Generating…</>
+              ) : videoProvider === 'pollinations' ? (
+                <>Generate with Pollinations</>
               ) : (
-                <>Generate video</>
+                <>Generate (Demo)</>
               )}
             </button>
 
@@ -740,7 +799,9 @@ export default function ComposerPage() {
                         className="w-full max-w-sm rounded-lg border"
                       />
                       <p className="mt-1 text-xs text-muted-foreground">
-                        Sample clip · Demo provider (not generated from your prompt).
+                        {videoProvider === 'pollinations'
+                          ? `Generated via Pollinations (${videoModel}).`
+                          : 'Sample clip · Demo provider (not generated from your prompt).'}
                       </p>
                       <button
                         type="button"
