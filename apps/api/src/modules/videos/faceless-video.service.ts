@@ -1,4 +1,6 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 import Anthropic from '@anthropic-ai/sdk';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { PrismaService } from '../../common/prisma/prisma.service';
@@ -51,6 +53,7 @@ export class FacelessVideoService {
     private prisma: PrismaService,
     private credentials: AiCredentialsService,
     private r2: R2StorageService,
+    @InjectQueue('video-export') private exportQueue: Queue,
   ) {}
 
   listNiches(): FacelessNiche[] {
@@ -264,6 +267,35 @@ export class FacelessVideoService {
     });
     if (!project) throw new NotFoundException('Project not found');
     await this.prisma.videoProject.delete({ where: { id } });
+  }
+
+  /**
+   * Enqueue a video-export job for the given project. Sets exportStatus to
+   * GENERATING immediately so the client can begin polling. Throws
+   * BadRequestException if no scenes have a videoUrl yet.
+   */
+  async exportProject(projectId: string): Promise<VideoProject> {
+    const project = await this.prisma.videoProject.findUniqueOrThrow({
+      where: { id: projectId },
+      include: { scenes: { where: { videoUrl: { not: null } } } },
+    });
+
+    if (project.scenes.length === 0) {
+      throw new BadRequestException('No scene videos to export');
+    }
+
+    const updated = await this.prisma.videoProject.update({
+      where: { id: projectId },
+      data: { exportStatus: 'GENERATING', errorMessage: null },
+    });
+
+    await this.exportQueue.add('video-export', { projectId }, {
+      attempts: 2,
+      removeOnComplete: { age: 7 * 24 * 3600 },
+      removeOnFail: { age: 30 * 24 * 3600 },
+    });
+
+    return updated;
   }
 
   // ----------------------------------------------------------------

@@ -108,6 +108,16 @@ export class VideosController {
     });
   }
 
+  @Post(':id/export')
+  async exportProject(
+    @Param('id') id: string,
+    @Body() body: { workspaceId: string },
+    @CurrentUser() user: { supabaseUserId: string },
+  ) {
+    await this.workspaces.assertMember(body.workspaceId, user.supabaseUserId);
+    return this.videos.exportProject(id);
+  }
+
   @Delete(':id')
   async remove(
     @Param('id') id: string,
