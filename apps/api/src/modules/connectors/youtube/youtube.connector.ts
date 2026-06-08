@@ -38,15 +38,19 @@ export class YouTubeConnector implements IPlatformConnector {
   }
 
   async completeOauth(code: string, _state: string, redirectUri: string): Promise<OauthTokenSet> {
-    const res = await axios.post(GOOGLE_TOKEN, null, {
-      params: {
+    // Send credentials in the form-encoded body (not the query string) so the
+    // client_secret can't surface in proxy/server access logs.
+    const res = await axios.post(
+      GOOGLE_TOKEN,
+      new URLSearchParams({
         code,
-        client_id: process.env.YOUTUBE_CLIENT_ID,
-        client_secret: process.env.YOUTUBE_CLIENT_SECRET,
+        client_id: process.env.YOUTUBE_CLIENT_ID ?? '',
+        client_secret: process.env.YOUTUBE_CLIENT_SECRET ?? '',
         redirect_uri: redirectUri,
         grant_type: 'authorization_code',
-      },
-    });
+      }),
+      { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } },
+    );
     const { access_token, refresh_token, expires_in } = res.data as {
       access_token: string;
       refresh_token?: string;
@@ -123,14 +127,16 @@ export class YouTubeConnector implements IPlatformConnector {
   }
 
   async refreshToken(refreshToken: string): Promise<OauthTokenSet> {
-    const res = await axios.post(GOOGLE_TOKEN, null, {
-      params: {
+    const res = await axios.post(
+      GOOGLE_TOKEN,
+      new URLSearchParams({
         refresh_token: refreshToken,
-        client_id: process.env.YOUTUBE_CLIENT_ID,
-        client_secret: process.env.YOUTUBE_CLIENT_SECRET,
+        client_id: process.env.YOUTUBE_CLIENT_ID ?? '',
+        client_secret: process.env.YOUTUBE_CLIENT_SECRET ?? '',
         grant_type: 'refresh_token',
-      },
-    });
+      }),
+      { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } },
+    );
     const { access_token, expires_in } = res.data as {
       access_token: string;
       expires_in: number;
