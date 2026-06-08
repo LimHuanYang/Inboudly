@@ -6,9 +6,10 @@ import { RedNoteConnector } from './rednote/rednote.connector';
 import { YouTubeConnector } from './youtube/youtube.connector';
 import { FacebookConnector } from './facebook/facebook.connector';
 import { LinkedInConnector } from './linkedin/linkedin.connector';
+import { PinterestConnector } from './pinterest/pinterest.connector';
 
 @Module({
-  providers: [InstagramConnector, TikTokConnector, RedNoteConnector, YouTubeConnector, FacebookConnector, LinkedInConnector, ConnectorRegistry],
+  providers: [InstagramConnector, TikTokConnector, RedNoteConnector, YouTubeConnector, FacebookConnector, LinkedInConnector, PinterestConnector, ConnectorRegistry],
   exports: [ConnectorRegistry],
 })
 export class ConnectorsModule {}

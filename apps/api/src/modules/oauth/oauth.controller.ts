@@ -22,6 +22,7 @@ const PLATFORM_FROM_PARAM: Record<string, SocialPlatform> = {
   youtube: 'YOUTUBE',
   facebook: 'FACEBOOK',
   linkedin: 'LINKEDIN',
+  pinterest: 'PINTEREST',
 };
 
 @ApiTags('oauth')
