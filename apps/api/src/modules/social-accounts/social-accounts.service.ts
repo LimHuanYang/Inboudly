@@ -72,4 +72,25 @@ export class SocialAccountsService {
       data: { status: AccountStatus.DISCONNECTED },
     });
   }
+
+  async updateTokens(
+    id: string,
+    tokens: { accessToken: string; tokenExpiresAt: Date | null; refreshToken?: string },
+  ) {
+    return this.prisma.socialAccount.update({
+      where: { id },
+      data: {
+        accessToken: tokens.accessToken,
+        tokenExpiresAt: tokens.tokenExpiresAt,
+        ...(tokens.refreshToken ? { refreshToken: tokens.refreshToken } : {}),
+      },
+    });
+  }
+
+  async markNeedsReconnect(id: string) {
+    return this.prisma.socialAccount.update({
+      where: { id },
+      data: { status: AccountStatus.PENDING_REAUTH },
+    });
+  }
 }
