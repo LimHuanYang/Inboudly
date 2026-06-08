@@ -6,7 +6,7 @@ import { api } from '@/lib/api-client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Plus } from 'lucide-react';
+import { AlertTriangle, Plus } from 'lucide-react';
 import { AiProvidersCard } from './ai-providers-card';
 import { AiDefaultsCard } from './ai-defaults-card';
 import { CurrencyCard } from './currency-card';
@@ -88,15 +88,47 @@ export default function SettingsPage() {
         <CardContent className="space-y-4">
           {accounts.data?.length ? (
             <ul className="divide-y">
-              {accounts.data.map((a) => (
-                <li key={a.id} className="flex items-center justify-between py-3">
-                  <div>
-                    <div className="font-medium">{a.handle}</div>
-                    <div className="text-xs uppercase text-muted-foreground">{a.platform}</div>
-                  </div>
-                  <Badge variant={a.status === 'ACTIVE' ? 'success' : 'warning'}>{a.status}</Badge>
-                </li>
-              ))}
+              {accounts.data.map((a) =>
+                a.status === 'PENDING_REAUTH' ? (
+                  <li
+                    key={a.id}
+                    role="alert"
+                    className="flex items-center justify-between gap-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-3 dark:border-amber-700/60 dark:bg-amber-950/30"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 font-medium">
+                        <AlertTriangle
+                          className="h-4 w-4 flex-none text-amber-600 dark:text-amber-400"
+                          aria-hidden="true"
+                        />
+                        <span>{a.handle}</span>
+                        <span className="text-xs font-semibold uppercase text-amber-600 dark:text-amber-400">
+                          Reconnect needed
+                        </span>
+                      </div>
+                      <div className="mt-0.5 text-xs text-amber-700 dark:text-amber-400">
+                        {a.platform} · Access expired — reconnect to keep publishing.
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      className="min-h-[40px] flex-none bg-amber-600 text-white hover:bg-amber-700 focus-visible:ring-amber-500 dark:bg-amber-500 dark:hover:bg-amber-400"
+                      aria-label={`Reconnect ${a.platform} account ${a.handle}`}
+                      onClick={() => startConnect(a.platform)}
+                    >
+                      Reconnect
+                    </Button>
+                  </li>
+                ) : (
+                  <li key={a.id} className="flex items-center justify-between py-3">
+                    <div>
+                      <div className="font-medium">{a.handle}</div>
+                      <div className="text-xs uppercase text-muted-foreground">{a.platform}</div>
+                    </div>
+                    <Badge variant={a.status === 'ACTIVE' ? 'success' : 'warning'}>{a.status}</Badge>
+                  </li>
+                ),
+              )}
             </ul>
           ) : (
             <p className="text-sm text-muted-foreground">No accounts connected yet.</p>
