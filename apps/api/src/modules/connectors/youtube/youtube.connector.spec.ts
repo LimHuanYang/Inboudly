@@ -77,3 +77,53 @@ describe('YouTubeConnector — publish', () => {
     expect(t.refreshToken).toBe('rt');
   });
 });
+
+describe('YouTubeConnector — getPostMetrics', () => {
+  const c = new YouTubeConnector();
+  beforeEach(() => { jest.clearAllMocks(); });
+
+  it('calls the statistics endpoint with the video id + Bearer token and maps counts to PostMetrics', async () => {
+    mockedAxios.get.mockResolvedValueOnce({
+      data: {
+        items: [{
+          statistics: { viewCount: '42000', likeCount: '1500', commentCount: '300' },
+        }],
+      },
+    } as any);
+
+    const account = { accessToken: 'tok_abc' } as any;
+    const metrics = await c.getPostMetrics!(account, 'vid_xyz');
+
+    // Verify the correct endpoint and query params were used
+    const [url, config] = mockedAxios.get.mock.calls[0]!;
+    expect(url).toBe('https://www.googleapis.com/youtube/v3/videos');
+    expect((config as any).params).toEqual({ part: 'statistics', id: 'vid_xyz' });
+    expect((config as any).headers.Authorization).toBe('Bearer tok_abc');
+
+    // Verify the mapping from string counts to PostMetrics numbers
+    expect(metrics.videoViews).toBe(42000);
+    expect(metrics.likes).toBe(1500);
+    expect(metrics.comments).toBe(300);
+    expect((metrics.extra as any).raw).toEqual({
+      viewCount: '42000',
+      likeCount: '1500',
+      commentCount: '300',
+    });
+  });
+
+  it('throws a clear error when the video id is not found', async () => {
+    mockedAxios.get.mockResolvedValueOnce({ data: { items: [] } } as any);
+    await expect(c.getPostMetrics!({ accessToken: 'tok' } as any, 'missing_id'))
+      .rejects.toThrow(/missing_id/);
+  });
+
+  it('returns undefined for stat fields absent from the statistics object', async () => {
+    mockedAxios.get.mockResolvedValueOnce({
+      data: { items: [{ statistics: { viewCount: '100' } }] },
+    } as any);
+    const metrics = await c.getPostMetrics!({ accessToken: 'tok' } as any, 'vid_partial');
+    expect(metrics.videoViews).toBe(100);
+    expect(metrics.likes).toBeUndefined();
+    expect(metrics.comments).toBeUndefined();
+  });
+});

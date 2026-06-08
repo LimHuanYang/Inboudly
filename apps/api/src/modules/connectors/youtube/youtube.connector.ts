@@ -1,10 +1,12 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import axios from 'axios';
 import { randomBytes } from 'crypto';
+import type { SocialAccount } from '@inboudly/database';
 import type {
   IPlatformConnector,
   OauthAuthorizeUrl,
   OauthTokenSet,
+  PostMetrics,
   PublishInput,
   PublishResult,
 } from '../connector.interface';
@@ -147,6 +149,26 @@ export class YouTubeConnector implements IPlatformConnector {
       expiresAt: new Date(Date.now() + expires_in * 1000),
       scopes: SCOPES,
       platformUser: await this.fetchChannel(access_token),
+    };
+  }
+
+  async getPostMetrics(account: SocialAccount, platformPostId: string): Promise<PostMetrics> {
+    const res = await axios.get(`${YT_API}/videos`, {
+      params: { part: 'statistics', id: platformPostId },
+      headers: { Authorization: `Bearer ${account.accessToken}` },
+    });
+    const item = res.data.items?.[0] as
+      | { statistics: { viewCount?: string; likeCount?: string; commentCount?: string } }
+      | undefined;
+    if (!item) {
+      throw new Error(`YouTube video not found: ${platformPostId}`);
+    }
+    const { viewCount, likeCount, commentCount } = item.statistics;
+    return {
+      videoViews: viewCount !== undefined ? Number(viewCount) : undefined,
+      likes: likeCount !== undefined ? Number(likeCount) : undefined,
+      comments: commentCount !== undefined ? Number(commentCount) : undefined,
+      extra: { raw: item.statistics },
     };
   }
 

@@ -29,6 +29,17 @@ export interface PublishResult {
   platformPostUrl?: string;
 }
 
+export interface PostMetrics {
+  likes?: number;
+  comments?: number;
+  shares?: number;
+  saves?: number;
+  reach?: number;
+  impressions?: number;
+  videoViews?: number;
+  extra?: Record<string, unknown>;
+}
+
 /**
  * Every platform we support implements this interface. The connector registry
  * (see connector-registry.service.ts) maps each SocialPlatform to its
@@ -53,4 +64,7 @@ export interface IPlatformConnector {
 
   /** Optional: refresh expired access tokens. */
   refreshToken?(refreshToken: string): Promise<OauthTokenSet>;
+
+  /** Optional: fetch engagement metrics for a previously published post. */
+  getPostMetrics?(account: SocialAccount, platformPostId: string): Promise<PostMetrics>;
 }
