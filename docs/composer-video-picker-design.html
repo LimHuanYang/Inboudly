@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Composer · Video engine + model picker — Inboudly</title>
+<style>
+  :root{
+    --bg:#f6f7f9;--card:#fff;--fg:#0f172a;--muted:#64748b;--border:#e2e8f0;--input:#fff;
+    --primary:#6366f1;--primary-fg:#fff;--ring:#6366f1;--ok:#059669;--ok-bg:rgba(5,150,105,.10);
+    --warn:#b45309;--warn-bg:rgba(217,119,6,.10);--accent:#7c3aed;--shadow:0 1px 3px rgba(15,23,42,.08);
+  }
+  [data-theme="dark"]{
+    --bg:#0b1120;--card:#0f172a;--fg:#e2e8f0;--muted:#94a3b8;--border:#1e293b;--input:#0b1120;
+    --primary:#818cf8;--primary-fg:#0b1120;--ring:#818cf8;--ok:#34d399;--ok-bg:rgba(52,211,153,.12);
+    --warn:#fbbf24;--warn-bg:rgba(251,191,36,.12);--accent:#a78bfa;--shadow:0 1px 3px rgba(0,0,0,.4);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);line-height:1.55;
+    font-family:ui-sans-serif,system-ui,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+  .mono{font-family:ui-monospace,Menlo,Consolas,monospace}
+  header{position:sticky;top:0;background:color-mix(in srgb,var(--bg) 90%,transparent);backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--border);padding:14px 24px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;z-index:5}
+  header h1{font-size:15.5px;margin:0;font-weight:700}
+  header .sub{color:var(--muted);font-size:12.5px}
+  .pill{font-size:11px;padding:3px 9px;border-radius:999px;border:1px solid var(--border);color:var(--muted);background:var(--card)}
+  .tg{margin-left:auto;cursor:pointer;border:1px solid var(--border);background:var(--card);color:var(--fg);border-radius:8px;padding:6px 12px;font-size:12.5px;font-weight:600}
+  main{max-width:1140px;margin:0 auto;padding:26px 24px 80px}
+  .lead{color:var(--muted);font-size:14px;max-width:82ch;margin:4px 0 24px}
+  .lead strong{color:var(--fg)}
+  .grid{display:grid;gap:18px;grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+  .cap{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin:0 0 8px;display:flex;gap:7px;align-items:center}
+  .cap .dot{width:7px;height:7px;border-radius:50%;background:var(--muted)} .cap.ok .dot{background:var(--ok)} .cap.wait .dot{background:var(--warn)}
+
+  /* Composer video panel mock */
+  .panel{background:var(--card);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow);overflow:hidden}
+  .seg{display:flex;border-bottom:1px solid var(--border)}
+  .seg button{flex:1;border:0;background:transparent;color:var(--muted);padding:10px;font-size:13px;font-weight:600;cursor:pointer}
+  .seg button.active{color:var(--fg);box-shadow:inset 0 -2px 0 var(--primary)}
+  .body{padding:14px;display:flex;flex-direction:column;gap:12px}
+  .ta{border:1px solid var(--border);background:var(--input);border-radius:9px;padding:10px 12px;font-size:13px;min-height:60px;color:var(--fg)}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .field label{font-size:11.5px;font-weight:600;display:block;margin-bottom:5px}
+  .sel{width:100%;border:1px solid var(--border);background:var(--input);color:var(--fg);border-radius:8px;padding:9px 11px;font-size:13px;min-height:40px}
+  .sel:focus{outline:none;box-shadow:0 0 0 2px var(--ring)}
+  .sel:disabled{opacity:.55}
+  .engine{border:1px solid var(--border);border-radius:10px;padding:11px;background:var(--bg)}
+  .engine .hdr{font-size:11.5px;font-weight:700;color:var(--accent);display:flex;gap:6px;align-items:center;margin-bottom:9px;text-transform:uppercase;letter-spacing:.04em}
+  .cost{display:flex;gap:7px;align-items:flex-start;font-size:11.5px;border-radius:8px;padding:7px 9px;margin-top:9px}
+  .cost.free{color:var(--ok);background:var(--ok-bg)}
+  .cost.paid{color:var(--warn);background:var(--warn-bg);border:1px solid color-mix(in srgb,var(--warn) 28%,transparent)}
+  .gen{display:flex;gap:9px;align-items:center;margin-top:2px}
+  .btn{border:0;background:var(--primary);color:var(--primary-fg);border-radius:9px;padding:10px 15px;font-size:13.5px;font-weight:700;cursor:pointer;min-height:42px;display:inline-flex;gap:7px;align-items:center;flex:1;justify-content:center}
+  .btn[disabled]{opacity:.55;cursor:not-allowed}
+  .link{color:var(--primary);text-decoration:none} .link:hover{text-decoration:underline}
+  .slot{border:1px dashed var(--border);border-radius:9px;aspect-ratio:9/16;max-height:130px;margin:2px auto 0;display:grid;place-items:center;color:var(--muted);font-size:11px;width:74px;position:relative;background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 12%,var(--card)),var(--card))}
+  .spin{width:22px;height:22px;border-radius:50%;border:3px solid var(--border);border-top-color:var(--primary);animation:r .8s linear infinite}
+  @keyframes r{to{transform:rotate(360deg)}} @media (prefers-reduced-motion:reduce){.spin{animation:none}}
+  .rationale{margin-top:18px;border:1px dashed var(--border);border-radius:11px;padding:14px 16px;background:var(--card)}
+  .rationale h4{margin:0 0 9px;font-size:12.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--accent)}
+  .rationale ul{margin:0;padding:0;list-style:none;display:grid;gap:8px}
+  .rationale li{font-size:12.5px;display:grid;grid-template-columns:auto 1fr;gap:9px;align-items:start}
+  .rule{font-size:10.5px;font-weight:700;color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,transparent);border-radius:5px;padding:2px 7px;white-space:nowrap;height:fit-content}
+  svg{flex:none}
+  footer{color:var(--muted);font-size:11.5px;text-align:center;margin-top:44px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Composer · Video engine + model picker</h1>
+  <span class="sub">pick provider + model at generation time</span>
+  <span class="pill">ui-ux-pro-max</span>
+  <button class="tg" onclick="(function(){var h=document.documentElement,d=h.getAttribute('data-theme')==='dark';h.setAttribute('data-theme',d?'light':'dark');})()">◐ theme</button>
+</header>
+<main>
+  <p class="lead">A compact <strong>Engine</strong> block added to the Composer's Video panel (above Generate) lets the user choose the
+    <strong>provider</strong> (Demo — free, always works · Pollinations — their key, real, costs Pollen) and, for Pollinations, the
+    <strong>model</strong> (seedance / veo / wan-fast) — without leaving the Composer. The per-request <span class="mono">provider</span> +
+    <span class="mono">model</span> already exist on the backend schema, so this is front-end only. Three states:</p>
+
+  <div class="grid">
+    <!-- STATE A: no key -->
+    <div>
+      <p class="cap"><span class="dot"></span>No Pollinations key</p>
+      <div class="panel">
+        <div class="seg"><button>Image</button><button class="active">Video</button></div>
+        <div class="body">
+          <div class="field"><label>Prompt</label><div class="ta">a red panda surfing a big wave at sunset, cinematic</div></div>
+          <div class="two">
+            <div class="field"><label>Aspect</label><select class="sel"><option>9:16 (vertical)</option><option>16:9</option></select></div>
+            <div class="field"><label>Duration</label><select class="sel"><option>5s</option></select></div>
+          </div>
+          <div class="engine">
+            <div class="hdr"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m22 8-6 4 6 4V8Z"/><rect width="14" height="12" x="2" y="6" rx="2"/></svg> Engine</div>
+            <div class="two">
+              <div class="field"><label for="pa">Provider</label>
+                <select class="sel" id="pa">
+                  <option selected>Demo — free sample</option>
+                  <option disabled>Pollinations — add key in Settings</option>
+                </select>
+              </div>
+              <div class="field"><label>Model</label><select class="sel" disabled><option>—</option></select></div>
+            </div>
+            <div class="cost free">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>
+              <span>Free, instant — returns a fixed sample clip. <a class="link" href="#">Add a Pollinations key in Settings</a> for real prompt-driven video.</span>
+            </div>
+          </div>
+          <div class="gen"><button class="btn">✦ Generate (Demo)</button></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STATE B: key saved, pollinations -->
+    <div>
+      <p class="cap ok"><span class="dot"></span>Key saved · Pollinations</p>
+      <div class="panel">
+        <div class="seg"><button>Image</button><button class="active">Video</button></div>
+        <div class="body">
+          <div class="field"><label>Prompt</label><div class="ta">a red panda surfing a big wave at sunset, cinematic</div></div>
+          <div class="two">
+            <div class="field"><label>Aspect</label><select class="sel"><option>9:16 (vertical)</option><option>16:9</option></select></div>
+            <div class="field"><label>Duration</label><select class="sel"><option>5s</option></select></div>
+          </div>
+          <div class="engine">
+            <div class="hdr"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m22 8-6 4 6 4V8Z"/><rect width="14" height="12" x="2" y="6" rx="2"/></svg> Engine</div>
+            <div class="two">
+              <div class="field"><label for="pb">Provider</label>
+                <select class="sel" id="pb">
+                  <option>Demo — free sample</option>
+                  <option selected>Pollinations — real</option>
+                </select>
+              </div>
+              <div class="field"><label for="mb">Model</label>
+                <select class="sel" id="mb">
+                  <option selected>seedance — 2–10s</option>
+                  <option>veo — 4 / 6 / 8s</option>
+                  <option>wan-fast — 2–15s</option>
+                </select>
+              </div>
+            </div>
+            <div class="cost paid">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
+              <span><strong>Uses your Pollinations credits</strong> (~1 clip). Falls back to Demo with a clear message if you're out of Pollen.</span>
+            </div>
+          </div>
+          <div class="gen"><button class="btn">✦ Generate with Pollinations</button></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STATE C: generating -->
+    <div>
+      <p class="cap wait"><span class="dot"></span>Generating</p>
+      <div class="panel">
+        <div class="seg"><button>Image</button><button class="active">Video</button></div>
+        <div class="body">
+          <div class="field"><label>Prompt</label><div class="ta" style="opacity:.7">a red panda surfing a big wave at sunset, cinematic</div></div>
+          <div class="engine" style="opacity:.65">
+            <div class="hdr"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m22 8-6 4 6 4V8Z"/><rect width="14" height="12" x="2" y="6" rx="2"/></svg> Engine</div>
+            <div class="two">
+              <div class="field"><label>Provider</label><select class="sel" disabled><option>Pollinations — real</option></select></div>
+              <div class="field"><label>Model</label><select class="sel" disabled><option>seedance</option></select></div>
+            </div>
+          </div>
+          <div class="slot"><div style="text-align:center"><div class="spin" style="margin:0 auto 6px"></div>~30s</div></div>
+          <div class="gen"><button class="btn" disabled><span class="spin" style="width:15px;height:15px;border-width:2px"></span> Generating…</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="rationale">
+    <h4>Why these choices (ui-ux-pro-max)</h4>
+    <ul>
+      <li><span class="rule">progressive-disclosure</span> The Model select only enables for Pollinations — Demo has no model, so showing one would be noise. Picking a provider reveals exactly the options it needs.</li>
+      <li><span class="rule">empty-state · nav</span> When no key is saved, the Pollinations option stays visible but disabled with "add key in Settings" + an inline link — it explains *why* and the fix, instead of silently hiding the capability.</li>
+      <li><span class="rule">cost-clarity</span> The cost line swaps with the provider: green "Free, instant" for Demo, amber "Uses your Pollinations credits (~1 clip)" for Pollinations — the spend is disclosed at the decision point, reinforced by text (not color alone).</li>
+      <li><span class="rule">sensible-default</span> Defaults to <strong>Demo</strong> when no key (so Generate always works), otherwise the workspace's saved default provider/model — the picker is an override, not a required choice.</li>
+      <li><span class="rule">graceful-failure</span> Choosing Pollinations with no Pollen still fails cleanly to a "no credit" message (existing backend behavior); the cost cue sets that expectation up front.</li>
+      <li><span class="rule">loading-buttons · a11y</span> During generation both selects + Generate disable; every control has a real <code>&lt;label htmlFor&gt;</code>, ≥40px height, and a visible focus ring; the Generate label reflects the chosen engine ("Generate with Pollinations").</li>
+      <li><span class="rule">consistency</span> Same select styling, grid, and spacing as the existing Aspect/Duration row and the Settings video block — one mental model across the app.</li>
+    </ul>
+  </div>
+
+  <footer>Inboudly · Composer video engine picker · illustrative mockup, front-end only (backend already accepts per-request provider + model)</footer>
+</main>
+</body>
+</html>
