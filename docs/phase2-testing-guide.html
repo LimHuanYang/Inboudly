@@ -182,7 +182,7 @@
 <header>
   <div class="logo"><span class="dot"></span> INBOUDLY</div>
   <h1>Phase 2 Testing Guide</h1>
-  <p>Now live: real <b>Pollinations BYOK video</b> + Composer <b>Save draft / Schedule</b> · validate features 7–8</p>
+  <p>Core AI (1–3) testable with your Gemini key · image / video / voice / publishing are parked until paid keys + credit are in place</p>
 </header>
 
 <div class="progress-shell">
@@ -214,7 +214,22 @@
     <span class="chip"><span class="n">5</span> Faceless Video — Voice</span>
     <span class="chip"><span class="n">6</span> Free Image Gen</span>
   </div>
-  <p style="color:var(--muted); font-size:13.5px;">Tiers 1–4 need only your Gemini key. Tier 5 (voice) additionally needs an ElevenLabs key + Cloudflare R2 configured. <b>#6 (free image gen) needs no key at all</b> — start there if you just want to see images.</p>
+  <p style="color:var(--muted); font-size:13.5px;">⚠ That order assumes every service is configured — but see <b>Current testing status</b> below for what's actually runnable right now.</p>
+
+  <div class="callout warn">
+    <h3>⚠ Current testing status — read first</h3>
+    <p style="margin:0 0 10px;">Based on what's set up right now (Gemini text key only — no paid media/voice services, no seeded comments):</p>
+    <p style="margin:0 0 6px;"><b>✅ Testable today</b> (covered by your Gemini key):
+      <b>1 · Niche Intelligence</b> · <b>2 · Trend Radar</b> · <b>3 · Faceless Video — Script</b>.</p>
+    <p style="margin:0;"><b>⛔ Parked for now</b> — blocked on paid services or missing data:</p>
+    <ul style="margin:6px 0 0; padding-left:20px; font-size:14px;">
+      <li><b>4 · Comment Intent</b> — no comments in the inbox to classify yet (needs seeded/real comments).</li>
+      <li><b>5 · Faceless Voice</b> — needs an <b>ElevenLabs</b> key + <b>Cloudflare R2</b> (both paid).</li>
+      <li><b>6 · Image generation</b> &amp; <b>7 · AI Video (Pollinations)</b> — need a paid Pollinations <b>Pollen</b> balance (image/video models are no longer free/keyless).</li>
+      <li><b>8 · Save draft / Schedule</b> — parked alongside the generation features above for now.</li>
+    </ul>
+    <p style="margin:10px 0 0; font-size:13.5px; color:var(--muted);">Zero-cost smoke tests if you ever want them: the <b>Demo</b> video provider (Composer → Video → Demo) returns a sample clip with no key/credit, and <b>Save draft</b> works text-only (no media needed). Otherwise these stay parked until the paid keys/credit are in place.</p>
+  </div>
 
   <!-- FEATURE 1 -->
   <details class="feature" open>
