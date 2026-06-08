@@ -18,6 +18,7 @@ export function buildCreatePostInput(args: {
   captions: Rec<string>;
   hashtags: Rec<string>;
   attachedImageIds: Rec<string[]>;
+  platformOptions?: Rec<Record<string, unknown>>;
 }): CreatePostInput {
   return {
     workspaceId: args.workspaceId,
@@ -28,6 +29,7 @@ export function buildCreatePostInput(args: {
       hashtags: parseHashtags(args.hashtags[p]),
       mentions: [],
       mediaAssetIds: args.attachedImageIds[p] ?? [],
+      ...(args.platformOptions?.[p] ? { platformOptions: args.platformOptions[p] } : {}),
     })),
     approvalRequired: false,
   };

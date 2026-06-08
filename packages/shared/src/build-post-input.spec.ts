@@ -62,4 +62,19 @@ describe('buildCreatePostInput', () => {
       mediaAssetIds: [],
     });
   });
+
+  it('threads per-platform platformOptions onto the matching variant', () => {
+    const input = buildCreatePostInput({
+      workspaceId: 'ws_1',
+      selectedPlatforms: ['INSTAGRAM', 'YOUTUBE'],
+      captions: { INSTAGRAM: 'hi', YOUTUBE: 'hello' },
+      hashtags: { INSTAGRAM: '', YOUTUBE: '#a' },
+      attachedImageIds: { INSTAGRAM: [], YOUTUBE: ['vid_1'] },
+      platformOptions: { YOUTUBE: { youtube: { privacyStatus: 'unlisted' } } },
+    });
+    const yt = input.variants.find((v) => v.platform === 'YOUTUBE');
+    const ig = input.variants.find((v) => v.platform === 'INSTAGRAM');
+    expect(yt?.platformOptions).toEqual({ youtube: { privacyStatus: 'unlisted' } });
+    expect(ig?.platformOptions).toBeUndefined();
+  });
 });
