@@ -19,6 +19,7 @@ const PLATFORM_FROM_PARAM: Record<string, SocialPlatform> = {
   instagram: 'INSTAGRAM',
   tiktok: 'TIKTOK',
   rednote: 'REDNOTE',
+  youtube: 'YOUTUBE',
 };
 
 @ApiTags('oauth')
