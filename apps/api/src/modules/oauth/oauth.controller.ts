@@ -20,6 +20,8 @@ const PLATFORM_FROM_PARAM: Record<string, SocialPlatform> = {
   tiktok: 'TIKTOK',
   rednote: 'REDNOTE',
   youtube: 'YOUTUBE',
+  facebook: 'FACEBOOK',
+  linkedin: 'LINKEDIN',
 };
 
 @ApiTags('oauth')
