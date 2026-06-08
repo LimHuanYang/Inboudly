@@ -182,7 +182,7 @@
 <header>
   <div class="logo"><span class="dot"></span> INBOUDLY</div>
   <h1>Phase 2 Testing Guide</h1>
-  <p>6 features built — awaiting your validation · AI video generation (Demo) now testable</p>
+  <p>Now live: real <b>Pollinations BYOK video</b> + Composer <b>Save draft / Schedule</b> · validate features 7–8</p>
 </header>
 
 <div class="progress-shell">
@@ -426,60 +426,96 @@
     </div>
   </details>
 
-  <!-- FEATURE 7 — PLANNED -->
-  <details class="feature planned-feature">
+  <!-- FEATURE 7 — AI VIDEO (Demo + Pollinations live) -->
+  <details class="feature" open>
     <summary>
       <span class="badge-num">7</span>
-      <span class="ttl"><h2>AI Video Generation</h2><span class="path">/dashboard/composer · /dashboard/videos</span></span>
-      <span class="tier t1">Demo ready</span>
+      <span class="ttl"><h2>AI Video Generation — Demo + Pollinations</h2><span class="path">/dashboard/composer</span></span>
+      <span class="tier t1">Live</span>
       <span class="caret">▸</span>
     </summary>
     <div class="body">
-      <p class="lead">Text → video clips from the Composer, with a Generations tray + status polling. A built-in <b>Demo</b> generator is the free, zero-setup default (<b>live now</b>); <b>Pollinations / Runway / Kling / Veo</b> adapters and per-scene Faceless clips arrive in upcoming updates.</p>
+      <p class="lead">Text → video from the Composer, with a Generations tray + status polling. <b>Demo</b> (free, instant sample) is the zero-setup default; <b>Pollinations</b> (your key, real prompt-driven) is now live via BYOK. Choose the provider + model right in the Composer's new <b>Engine</b> picker. Runway / Kling / Veo arrive later.</p>
       <div class="callout" style="margin:14px 0;">
-        <h3>✅ Demo generator is live — try it now</h3>
-        The <b>backbone shipped.</b> Pick <b>Video</b> in the Composer's "Generate with AI" card, type a prompt, and Generate — the free <b>Demo</b> provider returns a sample clip in ~1–2s, so you can validate the whole flow end-to-end: Composer Image/Video toggle → inline progress → <b>Generations tray</b> (bottom-right) → <b>Attach to post</b> → <b>Media library</b> in-flight tile. Settings → AI defaults now has a <b>Video generation</b> block (Demo selected by default).<br/><br/>
-        <b>Still coming</b> (Plans 2 &amp; 3): the real <b>Runway / Kling / Veo</b> and free <b>Pollinations</b> video adapters (shown in Settings but marked "coming soon"), per-scene AI clips in Faceless, and Cancel/Retry.
+        <h3>✅ Demo + Pollinations are both live</h3>
+        <b>Demo</b> needs no key and returns a fixed sample clip in ~1–2s — use it to validate the whole pipeline for free. <b>Pollinations</b> is real, prompt-driven video using <b>your own API key</b> (a <b>secret</b> <code>sk_…</code> from <a href="https://enter.pollinations.ai" target="_blank" rel="noreferrer">enter.pollinations.ai</a>) and <b>spends your Pollen credits per clip</b>. Both are selectable in <b>Settings → AI defaults → Video</b> and in the Composer's per-generation Engine picker.
       </div>
 
-      <div class="section-label">✅ Test the Demo flow now</div>
-      <ol class="steps" data-group="video">
-        <li><input type="checkbox" id="v-1"><label for="v-1"><b>Settings → AI defaults</b>: a <b>Video generation</b> block exists, Provider defaults to <b>Demo</b>, and Runway / Kling / Veo / Pollinations show <em>"(coming soon)"</em> and are not selectable.</label></li>
-        <li><input type="checkbox" id="v-2"><label for="v-2"><b>Composer</b> → the "Generate with AI" card shows an <code>[ Image | Video ]</code> toggle. Click <b>Video</b>.</label></li>
-        <li><input type="checkbox" id="v-3"><label for="v-3">Type a prompt (e.g. <code>a cat surfing a wave</code>), pick aspect <b>9:16</b>, set duration ~5s, click <b>Generate video</b>.</label></li>
-        <li><input type="checkbox" id="v-4"><label for="v-4">Button shows <b>Generating…</b>, then within ~1–2s a playable <code>&lt;video&gt;</code> with controls appears.</label></li>
-        <li><input type="checkbox" id="v-5"><label for="v-5">The <b>Generations tray</b> (bottom-right) shows the job — spinner while generating, then a <b>Ready</b> row with a thumbnail.</label></li>
-        <li><input type="checkbox" id="v-6"><label for="v-6">Click <b>Attach to post</b> → you get a <em>"Video attached to post"</em> toast.</label></li>
-        <li><input type="checkbox" id="v-7"><label for="v-7"><b>Media</b> (/dashboard/media): a dashed <em>"Rendering…"</em> tile appears while generating; the finished clip shows as a video tile afterwards.</label></li>
-        <li><input type="checkbox" id="v-8"><label for="v-8">Toggle back to <b>Image</b> — the image card returns unchanged and image generation still works (no regression).</label></li>
+      <div class="section-label">A · Demo flow (free, no key)</div>
+      <ol class="steps" data-group="demo-video">
+        <li><input type="checkbox" id="dv-1"><label for="dv-1"><b>Composer</b> → the "Generate with AI" card shows an <code>[ Image | Video ]</code> toggle. Click <b>Video</b>.</label></li>
+        <li><input type="checkbox" id="dv-2"><label for="dv-2">In the <b>Engine</b> picker, leave <b>Provider = Demo</b> (green <em>"Free, instant"</em> note shows).</label></li>
+        <li><input type="checkbox" id="dv-3"><label for="dv-3">Type a prompt (e.g. <code>a cat surfing a wave</code>), pick aspect <b>9:16</b>, ~5s, click <b>Generate (Demo)</b>.</label></li>
+        <li><input type="checkbox" id="dv-4"><label for="dv-4">Button shows <b>Generating…</b>, then within ~1–2s a playable <code>&lt;video&gt;</code> with controls appears.</label></li>
+        <li><input type="checkbox" id="dv-5"><label for="dv-5">The <b>Generations tray</b> (bottom-right) shows the job — spinner → <b>Ready</b> row with a thumbnail.</label></li>
+        <li><input type="checkbox" id="dv-6"><label for="dv-6">Click <b>Attach to post</b> → <em>"Video attached to post"</em> toast + the Attached-media strip shows it.</label></li>
+        <li><input type="checkbox" id="dv-7"><label for="dv-7"><b>Media</b> (/dashboard/media): a dashed <em>"Rendering…"</em> tile while generating; the finished clip shows afterwards.</label></li>
+        <li><input type="checkbox" id="dv-8"><label for="dv-8">Toggle back to <b>Image</b> — image generation still works (no regression).</label></li>
       </ol>
 
-      <div class="section-label">Full vision (roadmap — Plans 2 &amp; 3)</div>
-      <ul class="preview-list">
-        <li><b>Composer media toggle</b> — a <code>[ Image | Video ]</code> segmented switch in the "Generate with AI" card; the prompt stays shared, controls swap per mode.</li>
-        <li><b>Video controls</b> — prompt, duration (provider-dependent, e.g. 4s/8s), aspect ratio, in-Composer provider + model picker, and an optional "Animate an image" reference.</li>
-        <li><b>Async progress</b> — inline "Rendering… ~2 min" bar with Cancel; navigate away and the job continues, announced by a toast + tray badge on completion.</li>
-        <li><b>Result handling</b> — finished clip attaches to the post draft (click-to-attach, like images) <em>and</em> auto-saves to the media library.</li>
-        <li><b>Generations tray</b> — header <code>Activity</code> button + count badge; rows show status (rendering / ready / failed) with Cancel / View / Attach / Retry actions.</li>
-        <li><b>Settings → AI defaults</b> — a third "Video generation" block (Provider + Model), matching Caption and Image; paid providers disabled until their key is saved.</li>
-        <li><b>Faceless per-scene</b> — each scene gets a <code>Still | AI clip | Upload</code> source picker, plus a project-level <b>Generate all clips</b>.</li>
-        <li><b>Media library</b> — in-flight renders appear as shimmer placeholders that resolve into the real clip (no layout shift).</li>
-      </ul>
+      <div class="section-label">B · Pollinations BYOK (real, prompt-driven — needs your key + Pollen)</div>
+      <div class="prereq">Prereq: a <b>secret</b> Pollinations key (<code>sk_…</code>) from <a href="https://enter.pollinations.ai" target="_blank" rel="noreferrer">enter.pollinations.ai</a> with <b>Pollen credit</b> (video models are paid). Use the <b>Secret</b> key (backend), not a publishable <code>pk_</code> one.</div>
+      <ol class="steps" data-group="pollinations-video">
+        <li><input type="checkbox" id="pv-1"><label for="pv-1"><b>Settings → AI Providers</b> → the new <b>Pollinations (video)</b> card → paste your <code>sk_…</code> key → <b>Save</b>.</label></li>
+        <li><input type="checkbox" id="pv-2"><label for="pv-2">Badge flips to <b>"✓ Configured · key ending …"</b>. (If Save is rejected, tell me — the real key vs the ≥10-char rule.)</label></li>
+        <li><input type="checkbox" id="pv-3"><label for="pv-3"><b>Settings → AI defaults → Video</b>: the <b>Pollinations</b> option now reads <em>"— Seedance / Veo / Wan"</em> and is selectable (no longer "add key first").</label></li>
+        <li><input type="checkbox" id="pv-4"><label for="pv-4"><b>Composer → Video → Engine</b>: set <b>Provider = Pollinations</b> (amber <em>"uses your credits"</em> note shows), <b>Model = seedance</b>.</label></li>
+        <li><input type="checkbox" id="pv-5"><label for="pv-5">Prompt e.g. <code>a red panda surfing a big wave at sunset, cinematic</code> → <b>Generate with Pollinations</b>.</label></li>
+        <li><input type="checkbox" id="pv-6"><label for="pv-6">Job goes <b>GENERATING → READY</b> (~10–60s); the clip is <b>prompt-relevant</b> (not the sample) and plays. Caption reads <em>"Generated via Pollinations (seedance)"</em>.</label></li>
+        <li><input type="checkbox" id="pv-7"><label for="pv-7"><b>No-credit path:</b> with an empty Pollen balance, Generate fails <b>cleanly</b> with a message like <em>"…402… check your key and Pollen credit"</em> — no broken file. This is correct behaviour.</label></li>
+        <li><input type="checkbox" id="pv-8"><label for="pv-8"><b>Clear the key</b> (Settings → Pollinations → Clear) → provider falls back to <b>Demo</b> with no error; the Composer option re-gates to "add key in Settings".</label></li>
+      </ol>
 
-      <div class="expected">
-        <b>v1 scope notes:</b>
-        <ul>
-          <li>Cost line shows <b>time-only ETAs</b> (e.g. "~90s") — no dollar figures in v1.</li>
-          <li>Clips are short (≈4–10s per provider); long narratives come from stitching Faceless scenes.</li>
-          <li>Free Pollinations is the keyless default — works with no key, like image gen.</li>
-        </ul>
-      </div>
+      <div class="section-label">C · The in-Composer Engine picker</div>
+      <ol class="steps" data-group="engine-picker">
+        <li><input type="checkbox" id="ep-1"><label for="ep-1">With <b>no</b> Pollinations key: the Composer <b>Provider</b> dropdown shows <b>Pollinations — add key in Settings</b> (disabled), defaulting to <b>Demo</b>.</label></li>
+        <li><input type="checkbox" id="ep-2"><label for="ep-2">The <b>Model</b> dropdown is disabled for Demo, and enables (seedance / veo / wan-fast) only when Pollinations is selected.</label></li>
+        <li><input type="checkbox" id="ep-3"><label for="ep-3">The cost note swaps: green <em>"Free, instant"</em> for Demo, amber <em>"Uses your Pollinations credits"</em> for Pollinations.</label></li>
+        <li><input type="checkbox" id="ep-4"><label for="ep-4">During generation both dropdowns disable; the Generate button label reflects the provider.</label></li>
+      </ol>
+
+      <div class="breaks"><b>If it breaks:</b> stuck on GENERATING &gt;10 min → the cron reaper fails it as "timed out" (safety net). Pollinations <b>401</b> → bad key. <b>402</b> / no clip → out of Pollen credit (top up at pollinations.ai). Provider silently Demo → no key saved, or you picked Demo.</div>
 
       <div class="doc-links">
-        <a href="./architecture.html">🏗️ Architecture &amp; tech stack</a>
-        <a href="./superpowers/specs/2026-05-29-video-image-generation-ui-design.md">📄 UI design spec</a>
-        <a href="./video-image-ui-mockup.html">🎬 Interactive mockup</a>
+        <a href="./pollinations-video-ui-design.html">🎬 Pollinations video UI design</a>
+        <a href="./composer-video-picker-design.html">🎛️ Engine picker design</a>
+        <a href="./architecture.html">🏗️ Architecture</a>
       </div>
+    </div>
+  </details>
+
+  <!-- FEATURE 8 — Composer publishing (Save draft / Schedule) -->
+  <details class="feature" open>
+    <summary>
+      <span class="badge-num">8</span>
+      <span class="ttl"><h2>Composer — Save draft &amp; Schedule</h2><span class="path">/dashboard/composer</span></span>
+      <span class="tier t1">Live</span>
+      <span class="caret">▸</span>
+    </summary>
+    <div class="body">
+      <p class="lead">Turn a Composer draft into a real <b>Post</b> — <b>Save draft</b> now, or <b>Schedule</b> it for a future time — wired to the existing publishing pipeline. Includes a connected-account advisory note.</p>
+      <div class="prereq">Prereq: signed in + a workspace. A connected social account is <b>not</b> required to save/schedule a draft (only to actually publish later).</div>
+
+      <div class="section-label">Steps</div>
+      <ol class="steps" data-group="publishing">
+        <li><input type="checkbox" id="pub-1"><label for="pub-1"><b>Composer</b> → pick a platform (e.g. Instagram) → write a caption + a couple of hashtags.</label></li>
+        <li><input type="checkbox" id="pub-2"><label for="pub-2">In the action bar, click <b>Save draft</b> → success toast; the post is created as a draft.</label></li>
+        <li><input type="checkbox" id="pub-3"><label for="pub-3">Go to <b>Calendar</b> (/dashboard/calendar) → the new draft appears.</label></li>
+        <li><input type="checkbox" id="pub-4"><label for="pub-4">Back in Composer, click <b>Schedule…</b> → a panel opens with a date/time picker.</label></li>
+        <li><input type="checkbox" id="pub-5"><label for="pub-5">Pick a <b>future</b> time → confirm → success toast (the confirm button stays disabled until a valid future time + a caption exist).</label></li>
+        <li><input type="checkbox" id="pub-6"><label for="pub-6">If <b>no</b> selected platform has a caption, Save/Schedule are disabled (can't post an empty draft).</label></li>
+        <li><input type="checkbox" id="pub-7"><label for="pub-7"><b>Advisory note:</b> if a selected platform has no connected account, an amber line shows <em>"No connected account for … — connect in Settings"</em> (your draft still saves).</label></li>
+      </ol>
+
+      <div class="expected">
+        <b>Expected result:</b>
+        <ul>
+          <li>Save draft → a <code>POST /posts</code> creates the draft; it shows in Calendar / Posts</li>
+          <li>Schedule → additionally sets <code>scheduledFor</code>; if scheduling fails the draft is still kept (a warning toast, not an error)</li>
+          <li>Captions / hashtags / attached media carry into the post variant per platform</li>
+        </ul>
+      </div>
+      <div class="breaks"><b>If it breaks:</b> "Couldn't save" → check you're signed in + the API is up. Schedule button stuck disabled → set a future time + ensure a selected platform has a caption.</div>
     </div>
   </details>
 
