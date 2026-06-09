@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional, ServiceUnavailableException } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { PrismaService } from '../../common/prisma/prisma.service';
@@ -7,7 +7,7 @@ import { PrismaService } from '../../common/prisma/prisma.service';
 export class AnalyticsService {
   constructor(
     private prisma: PrismaService,
-    @InjectQueue('analytics-pull') private readonly pullQueue: Queue,
+    @Optional() @InjectQueue('analytics-pull') private readonly pullQueue?: Queue,
   ) {}
 
   async overview(workspaceId: string, days = 30) {
@@ -155,6 +155,11 @@ export class AnalyticsService {
 
   /** Enqueue an analytics-pull job for the workspace. */
   async enqueueRefresh(workspaceId: string) {
+    if (!this.pullQueue) {
+      throw new ServiceUnavailableException(
+        'Analytics refresh requires queues enabled (set REDIS_URL).',
+      );
+    }
     await this.pullQueue.add('pull', { workspaceId });
   }
 }

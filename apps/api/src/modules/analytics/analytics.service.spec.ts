@@ -1,3 +1,4 @@
+import { ServiceUnavailableException } from '@nestjs/common';
 import { AnalyticsService } from './analytics.service';
 
 // ---------------------------------------------------------------------------
@@ -290,5 +291,19 @@ describe('AnalyticsService.enqueueRefresh', () => {
     const { svc, queue } = buildService();
     await svc.enqueueRefresh('ws_test');
     expect(queue.add).toHaveBeenCalledWith('pull', { workspaceId: 'ws_test' });
+  });
+
+  it('throws ServiceUnavailableException when queues are disabled (no queue injected)', async () => {
+    const prisma = {
+      post: { count: jest.fn() },
+      socialAccount: { findMany: jest.fn() },
+      postPublication: { findMany: jest.fn() },
+      publicationMetrics: { findFirst: jest.fn(), findMany: jest.fn() },
+    };
+    // No pullQueue injected — mirrors local dev without REDIS_URL.
+    const svc = new AnalyticsService(prisma as any, undefined);
+    await expect(svc.enqueueRefresh('ws_test')).rejects.toBeInstanceOf(
+      ServiceUnavailableException,
+    );
   });
 });

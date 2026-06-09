@@ -115,7 +115,7 @@ export class VideosController {
     @CurrentUser() user: { supabaseUserId: string },
   ) {
     await this.workspaces.assertMember(body.workspaceId, user.supabaseUserId);
-    return this.videos.exportProject(id);
+    return this.videos.exportProject(id, body.workspaceId);
   }
 
   @Delete(':id')
