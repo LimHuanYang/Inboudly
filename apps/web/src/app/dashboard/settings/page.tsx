@@ -7,11 +7,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { AlertTriangle, Plus } from 'lucide-react';
+import { toast } from 'sonner';
 import { AiProvidersCard } from './ai-providers-card';
 import { AiDefaultsCard } from './ai-defaults-card';
 import { CurrencyCard } from './currency-card';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
 
 interface SocialAccount {
   id: string;
@@ -43,15 +42,25 @@ export default function SettingsPage() {
     enabled: !!workspaceId,
   });
 
-  const startConnect = (platform: string) => {
+  const startConnect = async (platform: string) => {
     if (!workspaceId) return;
     const slug = PLATFORM_OAUTH_PATH[platform];
     if (!slug) return;
-    window.open(
-      `${API_URL}/api/v1/oauth/${slug}/start?workspaceId=${workspaceId}`,
-      'inboudly_oauth',
-      'width=600,height=700',
-    );
+    // Open the popup synchronously (inside the click) so the browser doesn't
+    // block it, then send it to the platform consent URL once we've fetched it.
+    // We must fetch /start through the authed api client — it's behind the
+    // Supabase guard, so a bare window.open (no Bearer header) gets a 401.
+    const popup = window.open('about:blank', 'inboudly_oauth', 'width=600,height=700');
+    try {
+      const { url } = await api.get<{ url: string; state: string }>(
+        `/oauth/${slug}/start?workspaceId=${workspaceId}`,
+      );
+      if (popup) popup.location.href = url;
+      else window.location.href = url; // popup blocked → full-page redirect
+    } catch (e) {
+      popup?.close();
+      toast.error(`Couldn't start ${platform} connection: ${(e as Error).message}`);
+    }
   };
 
   return (
