@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Settings redesign — UI Design · Inboudly</title>
+<style>
+  :root{
+    --bg:#f6f7f9;--card:#fff;--fg:#0f172a;--muted:#64748b;--border:#e2e8f0;--subtle:#f8fafc;
+    --primary:#6366f1;--primary-fg:#fff;--ring:#6366f1;--ok:#059669;--ok-bg:rgba(5,150,105,.10);
+    --warn:#b45309;--warn-bg:rgba(217,119,6,.12);--warn-bd:rgba(217,119,6,.35);--accent:#7c3aed;
+    --shadow:0 1px 3px rgba(15,23,42,.07);--navsel:rgba(99,102,241,.10);
+    --ig:linear-gradient(45deg,#f09433,#dc2743,#bc1888);--tt:#000;--rn:#ff2442;--yt:#ff0033;--fb:#1877f2;--li:#0a66c2;--pin:#e60023;
+  }
+  [data-theme="dark"]{
+    --bg:#0b1120;--card:#0f172a;--fg:#e2e8f0;--muted:#94a3b8;--border:#1e293b;--subtle:#0b1120;
+    --primary:#818cf8;--primary-fg:#0b1120;--ring:#818cf8;--ok:#34d399;--ok-bg:rgba(52,211,153,.12);
+    --warn:#fbbf24;--warn-bg:rgba(251,191,36,.14);--warn-bd:rgba(251,191,36,.4);--accent:#a78bfa;
+    --shadow:0 1px 3px rgba(0,0,0,.4);--navsel:rgba(129,140,248,.16);
+    --tt:#e2e8f0;--fb:#4293ff;--li:#3b9aff;--pin:#ff405f;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);line-height:1.55;font-family:ui-sans-serif,system-ui,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+  .mono{font-family:ui-monospace,Menlo,Consolas,monospace}
+  header{position:sticky;top:0;z-index:5;background:color-mix(in srgb,var(--bg) 90%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--border);padding:14px 24px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  header h1{font-size:15.5px;margin:0;font-weight:700}
+  header .sub{color:var(--muted);font-size:12.5px}
+  .pill{font-size:11px;padding:3px 9px;border-radius:999px;border:1px solid var(--border);color:var(--muted);background:var(--card)}
+  .tg{margin-left:auto;cursor:pointer;border:1px solid var(--border);background:var(--card);color:var(--fg);border-radius:8px;padding:6px 12px;font-size:12.5px;font-weight:600}
+  main{max-width:1040px;margin:0 auto;padding:24px 24px 80px}
+  h2.sec{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--accent);margin:30px 0 10px;font-weight:700}
+  .lead{color:var(--muted);font-size:13.5px;margin:0 0 14px;max-width:92ch}
+
+  /* settings shell */
+  .shell{display:grid;grid-template-columns:212px 1fr;background:var(--card);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow);overflow:hidden;min-height:520px}
+  .rail{border-right:1px solid var(--border);padding:16px 12px;background:var(--subtle)}
+  .rail .t{font-size:16px;font-weight:800;padding:4px 10px 12px}
+  .nav{display:flex;flex-direction:column;gap:2px}
+  .nav a{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:9px;font-size:13.5px;font-weight:500;color:var(--fg);text-decoration:none;cursor:pointer}
+  .nav a .ico{color:var(--muted);display:inline-flex}
+  .nav a:hover{background:color-mix(in srgb,var(--fg) 5%,transparent)}
+  .nav a.active{background:var(--navsel);color:var(--primary);font-weight:700}
+  .nav a.active .ico{color:var(--primary)}
+  .nav a .badge{margin-left:auto;font-size:10px;font-weight:700;background:var(--warn-bg);color:var(--warn);border-radius:999px;padding:1px 7px}
+  .pane{padding:22px 24px}
+  .pane h3{margin:0;font-size:17px;font-weight:700}
+  .pane .pd{color:var(--muted);font-size:13px;margin:4px 0 18px;max-width:74ch}
+
+  /* unified account rows */
+  ul.rows{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+  .grouplbl{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin:16px 0 2px}
+  .grouplbl:first-child{margin-top:0}
+  .row{display:flex;align-items:center;gap:12px;border:1px solid var(--border);border-radius:11px;padding:11px 13px;background:var(--card)}
+  .row.warn{border-color:var(--warn-bd);background:var(--warn-bg)}
+  .ico{width:38px;height:38px;border-radius:10px;flex:none;display:grid;place-items:center;color:#fff}
+  .ico.ig{background:var(--ig)} .ico.tt{background:var(--tt)} .ico.rn{background:var(--rn)} .ico.yt{background:var(--yt)} .ico.fb{background:var(--fb)} .ico.li{background:var(--li)} .ico.pin{background:var(--pin)}
+  .who{flex:1;min-width:0}
+  .who .nm{font-size:14px;font-weight:600;display:flex;align-items:center;gap:8px}
+  .who .s{font-size:12px;color:var(--muted);margin-top:1px}
+  .who .s.warn{color:var(--warn)}
+  .stat{font-size:11.5px;font-weight:600;display:inline-flex;gap:5px;align-items:center}
+  .stat.ok{color:var(--ok)} .stat.warn{color:var(--warn)}
+  .btn{border:0;background:var(--primary);color:var(--primary-fg);border-radius:8px;padding:8px 13px;font-size:12.5px;font-weight:700;cursor:pointer;min-height:38px;display:inline-flex;gap:6px;align-items:center;white-space:nowrap}
+  .btn.ghost{background:var(--card);color:var(--fg);border:1px solid var(--border)}
+  .btn.warn{background:var(--warn);color:#fff}
+  .avatar{width:38px;height:38px;border-radius:50%;background:#cbd5e1;flex:none;display:grid;place-items:center;color:#475569;font-weight:700;font-size:14px}
+
+  /* AI provider disclosure rows */
+  .prov{border:1px solid var(--border);border-radius:11px;background:var(--card);overflow:hidden}
+  .prov + .prov{margin-top:8px}
+  .prov .head{display:flex;align-items:center;gap:12px;padding:12px 14px;cursor:pointer}
+  .prov .tagcat{font-size:10px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--muted);border:1px solid var(--border);border-radius:5px;padding:1px 6px}
+  .prov .nm{font-size:14px;font-weight:600}
+  .prov .right{margin-left:auto;display:flex;align-items:center;gap:10px}
+  .pillok{font-size:11.5px;font-weight:600;color:var(--ok);display:inline-flex;gap:5px;align-items:center}
+  .pillno{font-size:11.5px;color:var(--muted)}
+  .chev{color:var(--muted)}
+  .prov.open .body{display:block} .prov .body{display:none;border-top:1px solid var(--border);padding:14px;background:var(--subtle)}
+  .field label{font-size:11.5px;font-weight:600;display:block;margin-bottom:4px}
+  .inp{width:100%;border:1px solid var(--border);background:var(--card);color:var(--fg);border-radius:8px;padding:8px 11px;font-size:13px}
+  .inp.mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px}
+  .frow{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end}
+  .arow{display:flex;gap:8px;align-items:center;margin-top:11px}
+  .lnk{color:var(--primary);text-decoration:none;font-size:12px} .lnk:hover{text-decoration:underline}
+
+  /* task default cards */
+  .task{border:1px solid var(--border);border-radius:11px;padding:13px 14px;background:var(--card)}
+  .task + .task{margin-top:8px}
+  .task .th{display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:600;margin-bottom:10px}
+  .task .th .i{color:var(--primary)}
+  .sel{width:100%;border:1px solid var(--border);background:var(--card);color:var(--fg);border-radius:8px;padding:8px 11px;font-size:13px}
+  .cost{font-size:11.5px;margin-top:8px} .cost.free{color:var(--ok)} .cost.paid{color:var(--warn)}
+
+  .rationale{margin-top:18px;border:1px dashed var(--border);border-radius:11px;padding:14px 16px;background:var(--card)}
+  .rationale h4{margin:0 0 9px;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--accent)}
+  .rationale ul{margin:0;padding:0;list-style:none;display:grid;gap:8px}
+  .rationale li{font-size:12.5px;display:grid;grid-template-columns:auto 1fr;gap:9px;align-items:start}
+  .tag{font-size:10px;font-weight:700;color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,transparent);border-radius:5px;padding:2px 7px;white-space:nowrap;height:fit-content}
+  .twocol{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .kv{display:flex;justify-content:space-between;border:1px solid var(--border);border-radius:9px;padding:11px 13px;font-size:13px}
+  .kv .k{color:var(--muted)} .kv .v{font-weight:600}
+  svg{flex:none}
+  footer{color:var(--muted);font-size:11.5px;text-align:center;margin-top:40px}
+  @media(max-width:680px){.shell{grid-template-columns:1fr}.rail{border-right:0;border-bottom:1px solid var(--border)}.frow{grid-template-columns:1fr}.twocol{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Settings — redesign</h1>
+  <span class="sub">two-pane layout · unified connect list · collapsible providers</span>
+  <span class="pill">ui-ux-pro-max</span>
+  <button class="tg" onclick="(function(){var h=document.documentElement,d=h.getAttribute('data-theme')==='dark';h.setAttribute('data-theme',d?'light':'dark');})()">◐ theme</button>
+</header>
+<main>
+  <p class="lead">Today Settings is one long scroll of 4 cards. The redesign gives it a <strong>section rail + focused pane</strong>, fixes the redundant connect UI (one row per platform), and collapses the 5 always-open AI-key forms behind summaries. Same data + actions — better hierarchy.</p>
+
+  <!-- VIEW A: shell + Social accounts -->
+  <h2 class="sec">View A — Social accounts (the headline fix)</h2>
+  <div class="shell">
+    <aside class="rail">
+      <div class="t">Settings</div>
+      <nav class="nav">
+        <a><span class="ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg></span>Workspace</a>
+        <a class="active"><span class="ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg></span>Social accounts<span class="badge">1 fix</span></a>
+        <a><span class="ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/><circle cx="12" cy="12" r="4"/></svg></span>AI providers</a>
+        <a><span class="ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg></span>AI defaults</a>
+        <a><span class="ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg></span>Billing &amp; currency</a>
+      </nav>
+    </aside>
+    <section class="pane">
+      <h3>Social accounts</h3>
+      <p class="pd">Connect the platforms you publish to. Each platform appears once — connect, reconnect, or disconnect inline.</p>
+      <ul class="rows">
+        <div class="grouplbl">Connected · 1</div>
+        <li class="row">
+          <span class="avatar">A</span>
+          <div class="who"><div class="nm">Acme Studio</div><div class="s">Instagram</div></div>
+          <span class="stat ok"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>Connected</span>
+          <button class="btn ghost" style="margin-left:12px" aria-label="Disconnect Instagram">Disconnect</button>
+        </li>
+
+        <div class="grouplbl">Needs attention · 1</div>
+        <li class="row warn">
+          <span class="ico yt"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M23 7.5a3 3 0 0 0-2.1-2.1C19 5 12 5 12 5s-7 0-8.9.4A3 3 0 0 0 1 7.5 31 31 0 0 0 .6 12 31 31 0 0 0 1 16.5a3 3 0 0 0 2.1 2.1C5 19 12 19 12 19s7 0 8.9-.4a3 3 0 0 0 2.1-2.1A31 31 0 0 0 23.4 12 31 31 0 0 0 23 7.5zM9.8 15.3V8.7l5.7 3.3z"/></svg></span>
+          <div class="who"><div class="nm">Acme <span class="stat warn"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>Reconnect needed</span></div><div class="s warn">YouTube · access expired</div></div>
+          <button class="btn warn" aria-label="Reconnect YouTube">↻ Reconnect</button>
+        </li>
+
+        <div class="grouplbl">Available · 5</div>
+        <li class="row">
+          <span class="ico tt"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M16 8.2a5 5 0 0 0 3 1V6.7a3 3 0 0 1-3-3h-2.5v11.3a2 2 0 1 1-2-2c.2 0 .4 0 .5.1V10a4.6 4.6 0 1 0 4 4.5V8.2z"/></svg></span>
+          <div class="who"><div class="nm">TikTok</div><div class="s">Not connected</div></div>
+          <button class="btn" aria-label="Connect TikTok">Connect</button>
+        </li>
+        <li class="row">
+          <span class="ico fb"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M22 12a10 10 0 1 0-11.6 9.9v-7H7.9V12h2.5V9.8c0-2.5 1.5-3.9 3.8-3.9 1.1 0 2.2.2 2.2.2v2.5h-1.3c-1.2 0-1.6.8-1.6 1.6V12h2.8l-.4 2.9h-2.3v7A10 10 0 0 0 22 12z"/></svg></span>
+          <div class="who"><div class="nm">Facebook</div><div class="s">Not connected · Page posting</div></div>
+          <button class="btn" aria-label="Connect Facebook">Connect</button>
+        </li>
+        <li class="row">
+          <span class="ico li"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M20.4 3H3.6A.6.6 0 0 0 3 3.6v16.8a.6.6 0 0 0 .6.6h16.8a.6.6 0 0 0 .6-.6V3.6a.6.6 0 0 0-.6-.6zM8.3 18.3H5.5V9.4h2.8v8.9zM6.9 8.2a1.6 1.6 0 1 1 0-3.3 1.6 1.6 0 0 1 0 3.3zm11.4 10.1h-2.8v-4.3c0-1 0-2.4-1.4-2.4s-1.7 1.1-1.7 2.3v4.4H9.6V9.4h2.7v1.2h.1a3 3 0 0 1 2.6-1.4c2.9 0 3.4 1.9 3.4 4.3v4.8z"/></svg></span>
+          <div class="who"><div class="nm">LinkedIn</div><div class="s">Not connected · posts public</div></div>
+          <button class="btn" aria-label="Connect LinkedIn">Connect</button>
+        </li>
+        <li class="row">
+          <span class="ico rn">小</span>
+          <div class="who"><div class="nm">RedNote</div><div class="s">Not connected</div></div>
+          <button class="btn" aria-label="Connect RedNote">Connect</button>
+        </li>
+        <li class="row">
+          <span class="ico pin"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-3.6 19.3c-.1-.8-.2-2 0-2.9l1.2-5s-.3-.6-.3-1.5c0-1.4.8-2.4 1.8-2.4.9 0 1.3.6 1.3 1.4 0 .9-.5 2.2-.8 3.4-.2.9.5 1.7 1.5 1.7 1.8 0 3-2.3 3-5 0-2-1.4-3.6-4-3.6-2.9 0-4.7 2.2-4.7 4.6 0 .8.2 1.4.6 1.9.2.2.2.3.1.5l-.2.9c-.1.3-.3.4-.5.2-1-.4-1.5-1.6-1.5-2.9 0-2.2 1.8-4.8 5.5-4.8 2.9 0 4.9 2.1 4.9 4.4 0 3-1.7 5.2-4.1 5.2-.8 0-1.6-.4-1.8-.9l-.5 2c-.2.7-.6 1.4-1 2A10 10 0 1 0 12 2z"/></svg></span>
+          <div class="who"><div class="nm">Pinterest</div><div class="s">Not connected · image Pins</div></div>
+          <button class="btn" aria-label="Connect Pinterest">Connect</button>
+        </li>
+      </ul>
+    </section>
+  </div>
+  <p class="lead" style="margin-top:10px"><strong>Before:</strong> connected accounts in one list + a separate row of 7 "Connect X" buttons → a connected platform appeared twice, others once. <strong>After:</strong> one row per platform, grouped Connected → Needs-attention → Available, each with the single right action.</p>
+
+  <!-- VIEW B: AI providers (disclosure) -->
+  <h2 class="sec">View B — AI providers (progressive disclosure)</h2>
+  <div class="shell">
+    <aside class="rail">
+      <div class="t">Settings</div>
+      <nav class="nav">
+        <a>Workspace</a>
+        <a>Social accounts</a>
+        <a class="active"><span class="ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg></span>AI providers</a>
+        <a>AI defaults</a>
+        <a>Billing &amp; currency</a>
+      </nav>
+    </aside>
+    <section class="pane">
+      <h3>AI providers</h3>
+      <p class="pd">Bring your own keys — encrypted at rest, you pay each provider directly. Resolver order: <strong>Anthropic → Gemini</strong> (text) · <strong>OpenAI → Gemini</strong> (image) · <strong>ElevenLabs</strong> (voice). Configured providers collapse; click to edit.</p>
+
+      <div class="prov"><div class="head"><span class="tagcat">Text</span><span class="nm">Anthropic (Claude)</span><span class="right"><span class="pillno">Not configured</span><svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></span></div></div>
+
+      <div class="prov open"><div class="head"><span class="tagcat">Text</span><span class="nm">Google (Gemini)</span><span class="right"><span class="pillok"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>Configured · ····f7bU</span><svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="transform:rotate(90deg)"><path d="m9 18 6-6-6-6"/></svg></span></div>
+        <div class="body">
+          <div class="frow">
+            <div class="field"><label>API key</label><input class="inp mono" type="password" placeholder="(unchanged)"></div>
+            <div class="field"><label>Model</label><select class="sel mono"><option>gemini-2.5-flash — fast &amp; free (default)</option><option>gemini-2.5-pro — best quality</option></select></div>
+            <button class="btn">Save</button>
+          </div>
+          <div class="arow"><button class="btn ghost" style="min-height:34px;padding:6px 11px">Test</button><button class="btn ghost" style="min-height:34px;padding:6px 11px">Clear</button><span class="pillok"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>Works · 412ms</span><a class="lnk" style="margin-left:auto" href="#">Get a key (free tier) ↗</a></div>
+        </div>
+      </div>
+
+      <div class="prov"><div class="head"><span class="tagcat">Image</span><span class="nm">OpenAI</span><span class="right"><span class="pillno">Not configured</span><svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></span></div></div>
+      <div class="prov"><div class="head"><span class="tagcat">Voice</span><span class="nm">ElevenLabs</span><span class="right"><span class="pillno">Not configured</span><svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></span></div></div>
+      <div class="prov"><div class="head"><span class="tagcat">Video</span><span class="nm">Pollinations</span><span class="right"><span class="pillno">Not configured</span><svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></span></div></div>
+    </section>
+  </div>
+
+  <!-- VIEW C: AI defaults + Workspace (compact) -->
+  <h2 class="sec">View C — AI defaults &amp; Workspace (compact previews)</h2>
+  <div class="twocol">
+    <section class="pane" style="border:1px solid var(--border);border-radius:14px;background:var(--card)">
+      <h3 style="font-size:15px">AI defaults</h3>
+      <p class="pd" style="margin-bottom:12px">Which engine runs each task. Only providers you have a key for are selectable.</p>
+      <div class="task"><div class="th"><span class="i"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m12 3 1.9 4.5L19 9l-4.5 1.9L12 16l-1.9-5.1L5 9l5.1-1.5z"/></svg></span>Caption generation</div><select class="sel"><option>Gemini · gemini-2.5-flash</option></select></div>
+      <div class="task"><div class="th"><span class="i"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></svg></span>Image generation</div><select class="sel"><option>Free — Pollinations (no key)</option></select><div class="cost free">Free, no key</div></div>
+      <div class="task"><div class="th"><span class="i"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="14" height="12" rx="2"/><path d="m16 10 6-3v10l-6-3z"/></svg></span>Video generation</div><select class="sel"><option>Demo — instant sample (free)</option></select><div class="cost free">Free · Pollinations uses credits</div></div>
+    </section>
+    <section class="pane" style="border:1px solid var(--border);border-radius:14px;background:var(--card)">
+      <h3 style="font-size:15px">Workspace</h3>
+      <p class="pd" style="margin-bottom:12px">Identity + money formatting for this workspace.</p>
+      <div class="kv"><span class="k">Name</span><span class="v">Acme Studio</span></div>
+      <div class="kv" style="margin-top:8px"><span class="k">Plan</span><span class="v">Free</span></div>
+      <div class="kv" style="margin-top:8px"><span class="k">Currency</span><span class="v">USD · $ (preview $1,234.50)</span></div>
+      <p class="pd" style="margin:10px 0 0">Currency moves here from its own card — Niche RPM estimates use it natively.</p>
+    </section>
+  </div>
+
+  <div class="rationale">
+    <h4>Design notes (ui-ux-pro-max)</h4>
+    <ul>
+      <li><span class="tag">nav-hierarchy</span> A left section rail replaces the 4-card scroll — Workspace / Social / AI providers / AI defaults / Billing are scannable + jumpable. On ≥1024px it's a sidebar; under 680px it collapses to a top tab strip (<span class="mono">adaptive-navigation</span>).</li>
+      <li><span class="tag">consistency · state-clarity</span> Social accounts = <strong>one row per platform</strong>, grouped Connected → Needs-attention → Available, each with exactly one action (Disconnect / Reconnect / Connect). Kills the old list-plus-7-buttons redundancy; the reconnect-needed amber state stays consistent with the token-refresh design.</li>
+      <li><span class="tag">progressive-disclosure</span> AI-key providers collapse to a one-line summary (category tag + Configured ····key / Not configured); click to expand the key + model + Test/Clear. Five always-open forms → a calm list you scan in seconds.</li>
+      <li><span class="tag">flow</span> Order is now <strong>providers → defaults</strong> conceptually (keys exist before you pick which runs each task); the "no key" options stay disabled with a reason instead of silently failing.</li>
+      <li><span class="tag">brand · icon-only</span> Platform brand colour lives only on the 38px icon chip; provider rows stay neutral. Status is icon+text+colour, never colour alone (<span class="mono">color-not-only</span>), with aria-labels on every action.</li>
+      <li><span class="tag">consistency · components</span> Implementation swaps the ad-hoc <span class="mono">&lt;input&gt;/&lt;select&gt;</span> for the app's shadcn Input/Select so focus rings, dark mode, and spacing match the rest of the dashboard.</li>
+    </ul>
+  </div>
+
+  <footer>Inboudly · Settings redesign · illustrative mockup — same data + actions, restructured</footer>
+</main>
+</body>
+</html>
