@@ -58,7 +58,7 @@ export function extractMediaMeta(
           type: 'VIDEO',
           width: video.videoWidth,
           height: video.videoHeight,
-          durationSec: video.duration,
+          durationSec: Number.isFinite(video.duration) ? video.duration : undefined,
         });
       };
       video.onerror = () => {
