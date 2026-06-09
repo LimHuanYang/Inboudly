@@ -14,10 +14,11 @@ interface VideoJobResponse {
 }
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Clapperboard, Calendar as CalendarIcon, Film, ImageIcon, Info, Loader2, Sparkles, Wand2, X, Youtube } from 'lucide-react';
+import { Clapperboard, Calendar as CalendarIcon, Film, ImageIcon, Info, Loader2, Sparkles, Upload, Wand2, X, Youtube } from 'lucide-react';
 import { PLATFORM_SPECS, type SocialPlatform } from '@inboudly/shared/platforms';
 import { type ViralityScoreResponse } from '@inboudly/shared/schemas';
 import { buildCreatePostInput } from '@inboudly/shared';
+import { uploadFile, extractMediaMeta, validateForPlatform } from '@/lib/upload';
 
 const PHASE_1_PLATFORMS: SocialPlatform[] = ['INSTAGRAM', 'TIKTOK', 'REDNOTE'];
 
@@ -62,6 +63,10 @@ export default function ComposerPage() {
   const [videoJobId, setVideoJobId] = useState<string | null>(null);
   const [videoProvider, setVideoProvider] = useState<'demo' | 'pollinations'>('demo');
   const [videoModel, setVideoModel] = useState('seedance');
+
+  // ----- Upload state -----
+  const [uploadPct, setUploadPct] = useState<number | null>(null);
+  const uploadInputRef = useRef<HTMLInputElement>(null);
 
   // ----- YouTube-specific state -----
   const [youtubePrivacy, setYoutubePrivacy] = useState<'public' | 'unlisted' | 'private'>('unlisted');
@@ -245,6 +250,49 @@ export default function ComposerPage() {
       ...prev,
       [activePlatform]: (prev[activePlatform] ?? []).filter((x) => x !== id),
     }));
+  };
+
+  // Upload-your-own handler: validate → upload → attach to active platform.
+  const handleUpload = async (file: File) => {
+    if (!workspaceId) return;
+    let meta: Awaited<ReturnType<typeof extractMediaMeta>>;
+    try {
+      meta = await extractMediaMeta(file);
+    } catch (err: any) {
+      toast.error(err?.message ?? 'Could not read file metadata.');
+      return;
+    }
+    const v = validateForPlatform(file, meta, activePlatform);
+    if (!v.ok) {
+      toast.error(v.error!);
+      return;
+    }
+    setUploadPct(0);
+    try {
+      const asset = await uploadFile({
+        workspaceId,
+        file,
+        onProgress: setUploadPct,
+      });
+      // Attach to active platform — same pattern as AI-generated media.
+      setAttachedImageIds((prev) => {
+        const current = prev[activePlatform] ?? [];
+        return current.includes(asset.id)
+          ? prev
+          : { ...prev, [activePlatform]: [...current, asset.id] };
+      });
+      setAttachedAssets((m) => ({
+        ...m,
+        [asset.id]: { url: asset.url, type: asset.type === 'VIDEO' ? 'video' : 'image' },
+      }));
+      toast.success('Uploaded & attached');
+      // Reset input so the same file can be re-picked.
+      if (uploadInputRef.current) uploadInputRef.current.value = '';
+    } catch (err: any) {
+      toast.error("Upload failed", { description: err?.message ?? 'Please try again.' });
+    } finally {
+      setUploadPct(null);
+    }
   };
 
   // Attached assets for the active platform, resolved to {id,url,type} for the strip.
@@ -654,6 +702,48 @@ export default function ComposerPage() {
                 )}
               </Button>
 
+              {/* Upload your own image */}
+              <div className="flex flex-col gap-1">
+                <input
+                  ref={uploadInputRef}
+                  type="file"
+                  accept="image/*,video/*"
+                  className="sr-only"
+                  aria-label="Upload your own image or video"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleUpload(file);
+                  }}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={uploadPct !== null || !workspaceId}
+                  className="w-full"
+                  onClick={() => uploadInputRef.current?.click()}
+                >
+                  {uploadPct !== null ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Uploading… {uploadPct}%
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="mr-2 h-4 w-4" />
+                      Upload your own
+                    </>
+                  )}
+                </Button>
+                {uploadPct !== null && (
+                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-secondary">
+                    <div
+                      className="h-full bg-primary transition-all duration-200"
+                      style={{ width: `${uploadPct}%` }}
+                    />
+                  </div>
+                )}
+              </div>
+
               {generatedImages.length > 0 && (
                 <div>
                   <div className="mb-2 text-xs text-muted-foreground">
@@ -791,6 +881,30 @@ export default function ComposerPage() {
                 <>Generate (Demo)</>
               )}
             </button>
+
+            {/* Upload your own video (shares the same input ref + handler as image mode) */}
+            <div className="mt-2 flex flex-col gap-1">
+              <button
+                type="button"
+                disabled={uploadPct !== null || !workspaceId}
+                onClick={() => uploadInputRef.current?.click()}
+                className="inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium hover:bg-secondary disabled:opacity-50"
+              >
+                {uploadPct !== null ? (
+                  <><Loader2 className="h-4 w-4 animate-spin" /> Uploading… {uploadPct}%</>
+                ) : (
+                  <><Upload className="h-4 w-4" /> Upload your own</>
+                )}
+              </button>
+              {uploadPct !== null && (
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-secondary">
+                  <div
+                    className="h-full bg-primary transition-all duration-200"
+                    style={{ width: `${uploadPct}%` }}
+                  />
+                </div>
+              )}
+            </div>
 
             {videoStatus.data?.status === 'READY' && videoStatus.data?.mediaAsset && (
               <div className="mt-4">
