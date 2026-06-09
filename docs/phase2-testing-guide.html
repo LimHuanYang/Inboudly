@@ -182,7 +182,7 @@
 <header>
   <div class="logo"><span class="dot"></span> INBOUDLY</div>
   <h1>Phase 2 Testing Guide</h1>
-  <p>Core AI (1–3) testable with your Gemini key · image / video / voice / publishing are parked until paid keys + credit are in place</p>
+  <p>Core AI (1–3) testable with your Gemini key · image / video / voice parked on paid keys · <b>7 publishing connectors + analytics + MP4 export shipped</b> — live tests need OAuth apps / Redis</p>
 </header>
 
 <div class="progress-shell">
@@ -226,7 +226,10 @@
       <li><b>4 · Comment Intent</b> — no comments in the inbox to classify yet (needs seeded/real comments).</li>
       <li><b>5 · Faceless Voice</b> — needs an <b>ElevenLabs</b> key + <b>Cloudflare R2</b> (both paid).</li>
       <li><b>6 · Image generation</b> &amp; <b>7 · AI Video (Pollinations)</b> — need a paid Pollinations <b>Pollen</b> balance (image/video models are no longer free/keyless).</li>
-      <li><b>8 · Save draft / Schedule</b> — parked alongside the generation features above for now.</li>
+      <li><b>8 · Save draft / Schedule</b> — <b>now live</b> (text-only works with no media).</li>
+      <li><b>9 · Publishing connectors</b> (YouTube · Facebook · LinkedIn · Pinterest) — connect rows are live to <b>view</b> in Settings → Social accounts; connecting + publishing needs each platform's <b>OAuth app</b> (parked).</li>
+      <li><b>10 · Video MP4 export</b> — built; the Export button shows on a faceless-video project, but stitching needs <b>Redis</b> (queues) + per-scene clips → returns a clean 503 without Redis.</li>
+      <li><b>11 · Post analytics</b> — the dashboard + chart/table <b>render now</b> (empty states); real metrics need connected accounts + Redis (parked).</li>
     </ul>
     <p style="margin:10px 0 0; font-size:13.5px; color:var(--muted);">Zero-cost smoke tests if you ever want them: the <b>Demo</b> video provider (Composer → Video → Demo) returns a sample clip with no key/credit, and <b>Save draft</b> works text-only (no media needed). Otherwise these stay parked until the paid keys/credit are in place.</p>
   </div>
@@ -534,9 +537,84 @@
     </div>
   </details>
 
+  <!-- FEATURE 9 — Publishing connectors -->
+  <details class="feature">
+    <summary>
+      <span class="badge-num">9</span>
+      <span class="ttl"><h2>Publishing connectors — YouTube · Facebook · LinkedIn · Pinterest</h2><span class="path">/dashboard/settings → Social accounts</span></span>
+      <span class="tier t2">Built · live parked</span>
+      <span class="caret">▸</span>
+    </summary>
+    <div class="body">
+      <p class="lead">Seven platforms now plug into the publishing pipeline — Instagram · TikTok · RedNote (pre-existing) + <b>YouTube · Facebook · LinkedIn · Pinterest</b> (new). Each is a connector behind the same OAuth seam, with a per-platform Connect row and a <b>"Reconnect needed"</b> state when a token can't be refreshed.</p>
+      <div class="prereq">Eyeball now: no key needed to <b>see</b> the rows. <b>Live connect + publish</b> needs each platform's OAuth app (Google / Meta / LinkedIn / Pinterest) + its <code>*_CLIENT_ID</code>/<code>*_SECRET</code> in <code>.env</code> — that's the parked part. <b>Don't enter any credentials yourself.</b></div>
+
+      <div class="section-label">Eyeball now (no setup)</div>
+      <ol class="steps" data-group="connectors">
+        <li><input type="checkbox" id="cx-1"><label for="cx-1"><b>Settings → Social accounts</b> → confirm <b>7</b> connect rows: Instagram, TikTok, RedNote, YouTube, Facebook, LinkedIn, Pinterest — each with a <b>Connect</b> button.</label></li>
+        <li><input type="checkbox" id="cx-2"><label for="cx-2">Clicking <b>Connect</b> with no OAuth app set will bounce/err at the platform — expected until the app exists.</label></li>
+        <li><input type="checkbox" id="cx-3"><label for="cx-3"><b>Composer</b> → select <b>YouTube</b> → the per-post <b>privacy</b> radio (Public / Unlisted / Private) + a video-only guard appear.</label></li>
+      </ol>
+
+      <div class="section-label">Live (parked — needs OAuth apps)</div>
+      <ol class="steps" data-group="connectors-live">
+        <li><input type="checkbox" id="cl-1"><label for="cl-1"><b>YouTube</b> reminder is set (this morning); <b>Facebook + LinkedIn</b> reminder set for tomorrow. <b>Pinterest</b> needs a Pinterest app when you're ready.</label></li>
+        <li><input type="checkbox" id="cl-2"><label for="cl-2">Once an app's <code>CLIENT_ID</code>/<code>SECRET</code> are in <code>.env</code> → Connect → consent → the row shows connected → Composer → publish.</label></li>
+      </ol>
+      <div class="expected"><b>Expected (eyeball):</b><ul><li>All 7 rows render; a connected account shows a green ✓; a lapsed one shows the amber <b>"Reconnect needed"</b> row with a Reconnect button.</li></ul></div>
+      <div class="doc-links">
+        <a href="./youtube-connector-ui-design.html">YouTube UI</a>
+        <a href="./social-connectors-ui-design.html">FB / LinkedIn UI</a>
+        <a href="./token-refresh-ui-design.html">Reconnect state</a>
+      </div>
+    </div>
+  </details>
+
+  <!-- FEATURE 10 — MP4 export -->
+  <details class="feature">
+    <summary>
+      <span class="badge-num">10</span>
+      <span class="ttl"><h2>Faceless Video — MP4 export</h2><span class="path">/dashboard/videos/[id]</span></span>
+      <span class="tier t2">Built · needs Redis</span>
+      <span class="caret">▸</span>
+    </summary>
+    <div class="body">
+      <p class="lead">Stitch a project's scene clips into one downloadable MP4 (ffmpeg concat → R2). The Export button + its states live on the project page.</p>
+      <div class="prereq">Eyeball now: the Export panel renders on a project. <b>Actually exporting</b> needs (a) <b>Redis</b> running + <code>REDIS_URL</code> set (the queue), and (b) scenes with per-scene clips (<code>videoUrl</code>). Without Redis the action returns a clean <b>503</b>, not a crash.</div>
+      <div class="section-label">Steps</div>
+      <ol class="steps" data-group="export">
+        <li><input type="checkbox" id="ex-1"><label for="ex-1">Open a faceless-video project → the <b>Export MP4</b> panel appears (button enabled only when scenes have clips).</label></li>
+        <li><input type="checkbox" id="ex-2"><label for="ex-2">Without Redis: clicking Export surfaces <b>"Video export requires queues enabled"</b> (503) — correct.</label></li>
+        <li><input type="checkbox" id="ex-3"><label for="ex-3">With Redis + clips: Export → status polls <b>GENERATING → READY</b> → a <b>Download MP4</b> link to the stitched file.</label></li>
+      </ol>
+      <div class="doc-links"><a href="./phase2b-analytics-pinterest-ui-design.html">Export UI design</a></div>
+    </div>
+  </details>
+
+  <!-- FEATURE 11 — Post analytics -->
+  <details class="feature">
+    <summary>
+      <span class="badge-num">11</span>
+      <span class="ttl"><h2>Post Analytics — dashboard</h2><span class="path">/dashboard/analytics</span></span>
+      <span class="tier t2">Built · live parked</span>
+      <span class="caret">▸</span>
+    </summary>
+    <div class="body">
+      <p class="lead">An engagement-over-time chart + per-post metrics table, fed by a metrics-pull pipeline. The dashboard renders now; live numbers need connected accounts + Redis.</p>
+      <div class="prereq">Eyeball now: the Analytics page renders the chart + table + Refresh button (empty states before any data). <b>Real metrics</b> need connected accounts + the metric-pull job (Redis).</div>
+      <div class="section-label">Steps</div>
+      <ol class="steps" data-group="analytics">
+        <li><input type="checkbox" id="an-1"><label for="an-1"><b>Analytics</b> in the sidebar → the existing overview + a new <b>engagement chart</b> + <b>per-post table</b> render.</label></li>
+        <li><input type="checkbox" id="an-2"><label for="an-2">With no metrics yet → tidy empty states ("No metrics yet — publish + Refresh"), not blank chart frames.</label></li>
+        <li><input type="checkbox" id="an-3"><label for="an-3"><b>Refresh metrics</b> → without Redis returns a clean 503; with Redis + connected accounts it enqueues a pull.</label></li>
+      </ol>
+      <div class="doc-links"><a href="./phase2b-analytics-pinterest-ui-design.html">Analytics UI design</a></div>
+    </div>
+  </details>
+
   <div class="callout">
     <h3>📋 When you're done</h3>
-    Tell me which checkboxes you couldn't tick and what you saw (error text / screenshot). Everything green → we move to <b>Phase 2B.v3</b> (video clips + MP4 export) or <b>Phase 2C</b> (Facebook / LinkedIn / YouTube / Pinterest connectors).
+    Tell me which checkboxes you couldn't tick and what you saw (error text / screenshot). The <b>connectors, MP4 export, and analytics are all built + merged</b> — most live tests are parked on OAuth apps / Redis. Next candidates: wire <b>Redis</b> locally to exercise export + analytics end-to-end, or stand up an <b>OAuth app</b> to go live on a platform.
   </div>
 
   <footer>
