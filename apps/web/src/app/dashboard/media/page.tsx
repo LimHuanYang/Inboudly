@@ -1,9 +1,13 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { useRef, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Upload } from 'lucide-react';
+import { toast } from 'sonner';
 import { api } from '@/lib/api-client';
+import { uploadFile, validateBasic } from '@/lib/upload';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
@@ -28,8 +32,37 @@ const SOURCE_LABEL: Record<string, string> = {
 };
 
 export default function MediaPage() {
+  const queryClient = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadPct, setUploadPct] = useState<number | null>(null);
+  const uploading = uploadPct !== null;
+
   const me = useQuery({ queryKey: ['me'], queryFn: () => api.get<any>('/auth/me') });
   const workspaceId = me.data?.memberships?.[0]?.workspace?.id;
+
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !workspaceId) return;
+
+    const v = validateBasic(file);
+    if (!v.ok) {
+      toast.error(v.error!);
+      e.target.value = '';
+      return;
+    }
+
+    setUploadPct(0);
+    try {
+      await uploadFile({ workspaceId, file, onProgress: setUploadPct });
+      toast.success('Uploaded');
+      queryClient.invalidateQueries({ queryKey: ['media', workspaceId] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Upload failed');
+    } finally {
+      setUploadPct(null);
+      e.target.value = '';
+    }
+  }
 
   const list = useQuery({
     queryKey: ['media', workspaceId],
@@ -58,11 +91,36 @@ export default function MediaPage() {
 
   return (
     <div className="container py-8">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold">Media library</h1>
-        <p className="text-sm text-muted-foreground">
-          Uploads, AI-generated images and videos, and repurposed clips.
-        </p>
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold">Media library</h1>
+          <p className="text-sm text-muted-foreground">
+            Uploads, AI-generated images and videos, and repurposed clips.
+          </p>
+        </div>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*,video/*"
+          className="hidden"
+          onChange={handleFileChange}
+        />
+        <Button
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploading || !workspaceId}
+        >
+          {uploading ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              {uploadPct}%
+            </>
+          ) : (
+            <>
+              <Upload className="mr-2 h-4 w-4" />
+              Upload
+            </>
+          )}
+        </Button>
       </div>
 
       {!list.data?.length && !pending.length ? (
@@ -70,7 +128,8 @@ export default function MediaPage() {
           <CardHeader>
             <CardTitle className="text-base">Empty for now</CardTitle>
             <CardDescription>
-              Anything you generate in the Composer or output from the Repurpose engine lands here.
+              Upload a file using the button above, or anything you generate in the Composer or
+              output from the Repurpose engine will appear here.
             </CardDescription>
           </CardHeader>
         </Card>
