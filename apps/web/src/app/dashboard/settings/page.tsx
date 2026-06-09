@@ -1,208 +1,192 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import Link from 'next/link';
 import { api } from '@/lib/api-client';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { AlertTriangle, Plus } from 'lucide-react';
-import { toast } from 'sonner';
+import Link from 'next/link';
+import { SettingsNav, type SectionId } from './settings-nav';
+import { SocialAccountsSection } from './social-accounts-section';
 import { AiProvidersCard } from './ai-providers-card';
 import { AiDefaultsCard } from './ai-defaults-card';
 import { CurrencyCard } from './currency-card';
 
-interface SocialAccount {
-  id: string;
-  platform: string;
-  handle: string;
-  status: string;
-  tokenExpiresAt: string | null;
+// ── helpers ──────────────────────────────────────────────────────────────────
+
+const SECTION_IDS: SectionId[] = ['workspace', 'social', 'providers', 'defaults', 'billing'];
+
+function isSectionId(v: string): v is SectionId {
+  return (SECTION_IDS as string[]).includes(v);
 }
 
-const PLATFORM_OAUTH_PATH: Record<string, string> = {
-  INSTAGRAM: 'instagram',
-  TIKTOK: 'tiktok',
-  REDNOTE: 'rednote',
-  YOUTUBE: 'youtube',
-  FACEBOOK: 'facebook',
-  LINKEDIN: 'linkedin',
-  PINTEREST: 'pinterest',
-};
+function readHashSection(): SectionId {
+  if (typeof window === 'undefined') return 'social';
+  const hash = window.location.hash.replace('#', '');
+  return isSectionId(hash) ? hash : 'social';
+}
+
+// ── page ─────────────────────────────────────────────────────────────────────
 
 export default function SettingsPage() {
-  const me = useQuery({ queryKey: ['me'], queryFn: () => api.get<any>('/auth/me') });
-  const workspaceId = me.data?.memberships?.[0]?.workspace?.id;
-  const workspaceName = me.data?.memberships?.[0]?.workspace?.name;
-  const workspaceCurrency = me.data?.memberships?.[0]?.workspace?.currency;
+  const [section, setSection] = useState<SectionId>('social');
 
+  // Initialise from hash on mount and keep hash in sync
+  useEffect(() => {
+    setSection(readHashSection());
+  }, []);
+
+  const handleSelect = (s: SectionId) => {
+    setSection(s);
+    window.history.replaceState(null, '', `#${s}`);
+  };
+
+  // ── workspace / user data ────────────────────────────────────────────────
+  const me = useQuery({ queryKey: ['me'], queryFn: () => api.get<any>('/auth/me') });
+
+  const workspaceId: string | undefined = me.data?.memberships?.[0]?.workspace?.id;
+  const workspaceName: string | undefined = me.data?.memberships?.[0]?.workspace?.name;
+  const workspaceCurrency: string | undefined =
+    me.data?.memberships?.[0]?.workspace?.currency;
+
+  // ── social accounts — only to compute attentionCount ────────────────────
+  // SocialAccountsSection queries the same key; TanStack deduplicates the request.
   const accounts = useQuery({
     queryKey: ['social-accounts', workspaceId],
-    queryFn: () => api.get<SocialAccount[]>(`/social-accounts?workspaceId=${workspaceId}`),
+    queryFn: () => api.get<{ status: string }[]>(`/social-accounts?workspaceId=${workspaceId}`),
     enabled: !!workspaceId,
   });
 
-  const startConnect = async (platform: string) => {
-    if (!workspaceId) return;
-    const slug = PLATFORM_OAUTH_PATH[platform];
-    if (!slug) return;
-    // Open the popup synchronously (inside the click) so the browser doesn't
-    // block it, then send it to the platform consent URL once we've fetched it.
-    // We must fetch /start through the authed api client — it's behind the
-    // Supabase guard, so a bare window.open (no Bearer header) gets a 401.
-    const popup = window.open('about:blank', 'inboudly_oauth', 'width=600,height=700');
-    try {
-      const { url } = await api.get<{ url: string; state: string }>(
-        `/oauth/${slug}/start?workspaceId=${workspaceId}`,
-      );
-      if (popup) popup.location.href = url;
-      else window.location.href = url; // popup blocked → full-page redirect
-    } catch (e) {
-      popup?.close();
-      toast.error(`Couldn't start ${platform} connection: ${(e as Error).message}`);
-    }
-  };
+  const attentionCount =
+    accounts.data?.filter((a) => a.status === 'PENDING_REAUTH').length ?? 0;
 
+  // ── no workspace yet guard ───────────────────────────────────────────────
+  if (me.data && !workspaceId) {
+    return (
+      <div className="container max-w-3xl py-8">
+        <h1 className="text-3xl font-bold">Settings</h1>
+        <p className="mt-4 text-sm text-muted-foreground">
+          You don&apos;t have a workspace yet. Create one to continue.
+        </p>
+      </div>
+    );
+  }
+
+  // ── layout ───────────────────────────────────────────────────────────────
   return (
-    <div className="container max-w-3xl py-8">
+    <div className="container max-w-5xl py-8">
       <div className="mb-6">
         <h1 className="text-3xl font-bold">Settings</h1>
-        <p className="text-sm text-muted-foreground">{workspaceName ?? 'Workspace'}</p>
+        {workspaceName && (
+          <p className="text-sm text-muted-foreground">{workspaceName}</p>
+        )}
       </div>
 
-      {/* AI Providers — BYOK. Place above social accounts because users
-          need keys before they can generate content in the composer. */}
-      {workspaceId && (
-        <div className="mb-4">
-          <AiProvidersCard workspaceId={workspaceId} />
-        </div>
-      )}
+      <div className="grid gap-6 lg:grid-cols-[220px_1fr]">
+        {/* ── left: nav rail ─────────────────────────────────────────────── */}
+        <SettingsNav
+          active={section}
+          onSelect={handleSelect}
+          attentionCount={attentionCount}
+        />
 
-      {/* AI defaults — pick provider + model per task (captions / images). */}
-      {workspaceId && (
-        <div className="mb-4">
-          <AiDefaultsCard workspaceId={workspaceId} />
-        </div>
-      )}
-
-      {/* Currency — workspace money display + AI RPM estimation currency. */}
-      {workspaceId && (
-        <div className="mb-4">
-          <CurrencyCard workspaceId={workspaceId} currentCurrency={workspaceCurrency} />
-        </div>
-      )}
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Connected accounts</CardTitle>
-          <CardDescription>OAuth into the platforms you publish to.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {accounts.data?.length ? (
-            <ul className="divide-y">
-              {accounts.data.map((a) =>
-                a.status === 'PENDING_REAUTH' ? (
-                  <li
-                    key={a.id}
-                    role="alert"
-                    className="flex items-center justify-between gap-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-3 dark:border-amber-700/60 dark:bg-amber-950/30"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 font-medium">
-                        <AlertTriangle
-                          className="h-4 w-4 flex-none text-amber-600 dark:text-amber-400"
-                          aria-hidden="true"
-                        />
-                        <span>{a.handle}</span>
-                        <span className="text-xs font-semibold uppercase text-amber-600 dark:text-amber-400">
-                          Reconnect needed
-                        </span>
-                      </div>
-                      <div className="mt-0.5 text-xs text-amber-700 dark:text-amber-400">
-                        {a.platform} · Access expired — reconnect to keep publishing.
-                      </div>
-                    </div>
-                    <Button
-                      size="sm"
-                      className="min-h-[40px] flex-none bg-amber-600 text-white hover:bg-amber-700 focus-visible:ring-amber-500 dark:bg-amber-500 dark:hover:bg-amber-400"
-                      aria-label={`Reconnect ${a.platform} account ${a.handle}`}
-                      onClick={() => startConnect(a.platform)}
-                    >
-                      Reconnect
+        {/* ── right: active section pane ─────────────────────────────────── */}
+        <div>
+          {section === 'workspace' && (
+            <div className="space-y-4">
+              <div>
+                <h2 className="text-lg font-semibold">Workspace</h2>
+                <p className="text-sm text-muted-foreground">
+                  Identity and money formatting for this workspace.
+                </p>
+              </div>
+              <Card>
+                <CardContent className="pt-6 space-y-0">
+                  <div className="flex justify-between border-b py-3 text-sm">
+                    <span className="text-muted-foreground">Name</span>
+                    <span className="font-semibold">{workspaceName ?? '—'}</span>
+                  </div>
+                  <div className="flex justify-between border-b py-3 text-sm">
+                    <span className="text-muted-foreground">Email</span>
+                    <span className="font-semibold">{me.data?.email ?? '—'}</span>
+                  </div>
+                  <div className="flex justify-between py-3 text-sm">
+                    <span className="text-muted-foreground">Plan</span>
+                    <span className="font-semibold">
+                      {me.data?.memberships?.[0]?.workspace?.tenant?.plan ?? 'Free'}
+                    </span>
+                  </div>
+                  <div className="pt-4">
+                    <Button variant="outline" asChild>
+                      <Link href="/sign-in">Sign out</Link>
                     </Button>
-                  </li>
-                ) : (
-                  <li key={a.id} className="flex items-center justify-between py-3">
-                    <div>
-                      <div className="font-medium">{a.handle}</div>
-                      <div className="text-xs uppercase text-muted-foreground">{a.platform}</div>
-                    </div>
-                    <Badge variant={a.status === 'ACTIVE' ? 'success' : 'warning'}>{a.status}</Badge>
-                  </li>
-                ),
+                  </div>
+                </CardContent>
+              </Card>
+              {workspaceId && (
+                <CurrencyCard
+                  workspaceId={workspaceId}
+                  currentCurrency={workspaceCurrency}
+                />
               )}
-            </ul>
-          ) : (
-            <p className="text-sm text-muted-foreground">No accounts connected yet.</p>
+            </div>
           )}
 
-          <div className="flex flex-wrap gap-2 border-t pt-4">
-            {(['INSTAGRAM', 'TIKTOK', 'REDNOTE', 'YOUTUBE', 'FACEBOOK', 'LINKEDIN', 'PINTEREST'] as const).map((p) => (
-              <Button key={p} variant="outline" aria-label={`Connect ${p}`} onClick={() => startConnect(p)}>
-                <Plus className="mr-2 h-4 w-4" /> Connect {p}
-              </Button>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+          {section === 'social' && (
+            <div className="space-y-4">
+              <div>
+                <h2 className="text-lg font-semibold">Social accounts</h2>
+                <p className="text-sm text-muted-foreground">
+                  Connect the platforms you publish to. Each platform appears once — connect,
+                  reconnect, or disconnect inline.
+                </p>
+              </div>
+              {workspaceId && <SocialAccountsSection workspaceId={workspaceId} />}
+            </div>
+          )}
 
-      <Card className="mt-4">
-        <CardHeader>
-          <CardTitle className="text-base">Brand kit</CardTitle>
-          <CardDescription>Colours, fonts, and logo used by AI generation.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
-            Brand kit editor lands later this week. Default kit is already created for your workspace.
-          </p>
-        </CardContent>
-      </Card>
+          {section === 'providers' && (
+            <div className="space-y-4">
+              <div>
+                <h2 className="text-lg font-semibold">AI providers</h2>
+                <p className="text-sm text-muted-foreground">
+                  Bring your own keys — encrypted at rest, you pay each provider directly.
+                </p>
+              </div>
+              {workspaceId && <AiProvidersCard workspaceId={workspaceId} />}
+            </div>
+          )}
 
-      <Card className="mt-4">
-        <CardHeader>
-          <CardTitle className="text-base">Brand voice</CardTitle>
-          <CardDescription>
-            Train the AI on your past posts so generated content sounds like you.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
-            Paste 5–20 of your best posts in the voice training screen (coming next). Stored as
-            embeddings in Pinecone — used as in-context examples by the Composer.
-          </p>
-        </CardContent>
-      </Card>
+          {section === 'defaults' && (
+            <div className="space-y-4">
+              <div>
+                <h2 className="text-lg font-semibold">AI defaults</h2>
+                <p className="text-sm text-muted-foreground">
+                  Which engine runs each task. Only providers you have a key for are selectable.
+                </p>
+              </div>
+              {workspaceId && <AiDefaultsCard workspaceId={workspaceId} />}
+            </div>
+          )}
 
-      <Card className="mt-4">
-        <CardHeader>
-          <CardTitle className="text-base">Account</CardTitle>
-        </CardHeader>
-        <CardContent className="text-sm">
-          <div className="flex justify-between border-b py-2">
-            <span className="text-muted-foreground">Email</span>
-            <span>{me.data?.email}</span>
-          </div>
-          <div className="flex justify-between py-2">
-            <span className="text-muted-foreground">Plan</span>
-            <span>{me.data?.memberships?.[0]?.workspace?.tenant?.plan ?? '—'}</span>
-          </div>
-          <div className="mt-4">
-            <Button variant="outline" asChild>
-              <Link href="/sign-in">Sign out</Link>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+          {section === 'billing' && (
+            <div className="space-y-4">
+              <div>
+                <h2 className="text-lg font-semibold">Billing &amp; currency</h2>
+                <p className="text-sm text-muted-foreground">
+                  Workspace currency used for RPM estimates and money display.
+                </p>
+              </div>
+              {workspaceId && (
+                <CurrencyCard
+                  workspaceId={workspaceId}
+                  currentCurrency={workspaceCurrency}
+                />
+              )}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
