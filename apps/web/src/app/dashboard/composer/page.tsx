@@ -66,6 +66,8 @@ export default function ComposerPage() {
 
   // ----- Video generation state -----
   const [mediaMode, setMediaMode] = useState<'image' | 'video'>('image');
+  // YouTube is a video-only platform — force the media mode so the image
+  // generation UI never appears and only the video card is shown.
   const [videoPrompt, setVideoPrompt] = useState('');
   const [videoAspect, setVideoAspect] = useState<'9:16' | '16:9' | '1:1'>('9:16');
   const [videoDuration, setVideoDuration] = useState(5);
@@ -261,6 +263,12 @@ export default function ComposerPage() {
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accounts.data]);
+
+  // YouTube is video-only — force the media mode so the image generation UI
+  // is never shown when the user switches to the YouTube variant.
+  useEffect(() => {
+    if (activePlatform === 'YOUTUBE') setMediaMode('video');
+  }, [activePlatform]);
 
   const toggleAttachImage = (imageId: string) => {
     setAttachedImageIds((prev) => {
@@ -653,25 +661,31 @@ export default function ComposerPage() {
           </Card>
 
           {/* AI Image Generation */}
-          {/* Media-mode toggle */}
-          <div className="mb-3 inline-flex rounded-lg border p-1">
-            <button
-              type="button"
-              aria-pressed={mediaMode === 'image'}
-              onClick={() => setMediaMode('image')}
-              className={`rounded-md px-3 py-1.5 text-sm ${mediaMode === 'image' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}
-            >
-              Image
-            </button>
-            <button
-              type="button"
-              aria-pressed={mediaMode === 'video'}
-              onClick={() => setMediaMode('video')}
-              className={`rounded-md px-3 py-1.5 text-sm ${mediaMode === 'video' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}
-            >
-              Video
-            </button>
-          </div>
+          {/* Media-mode toggle (hidden for video-only platforms like YouTube) */}
+          {activePlatform === 'YOUTUBE' ? (
+            <p className="mb-3 text-xs text-muted-foreground">
+              YouTube supports video only.
+            </p>
+          ) : (
+            <div className="mb-3 inline-flex rounded-lg border p-1">
+              <button
+                type="button"
+                aria-pressed={mediaMode === 'image'}
+                onClick={() => setMediaMode('image')}
+                className={`rounded-md px-3 py-1.5 text-sm ${mediaMode === 'image' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}
+              >
+                Image
+              </button>
+              <button
+                type="button"
+                aria-pressed={mediaMode === 'video'}
+                onClick={() => setMediaMode('video')}
+                className={`rounded-md px-3 py-1.5 text-sm ${mediaMode === 'video' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}
+              >
+                Video
+              </button>
+            </div>
+          )}
 
           {mediaMode === 'image' && (
           <Card>
