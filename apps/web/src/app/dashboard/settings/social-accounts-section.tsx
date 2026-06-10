@@ -30,7 +30,6 @@ const PLATFORMS = [
   'YOUTUBE',
   'FACEBOOK',
   'LINKEDIN',
-  'PINTEREST',
 ] as const;
 
 type Platform = (typeof PLATFORMS)[number];
@@ -42,7 +41,6 @@ const PLATFORM_LABEL: Record<Platform, string> = {
   YOUTUBE: 'YouTube',
   FACEBOOK: 'Facebook',
   LINKEDIN: 'LinkedIn',
-  PINTEREST: 'Pinterest',
 };
 
 // ---------------------------------------------------------------------------
@@ -55,7 +53,6 @@ const OFFICIAL_PNG: Record<Platform, string> = {
   INSTAGRAM: '/brand/instagram_icon.png',
   TIKTOK: '/brand/tiktok_icon.png',
   LINKEDIN: '/brand/linkedin_icon.png',
-  PINTEREST: '/brand/pinterest_icon.png',
   REDNOTE: '/brand/rednote_icon.png',
 };
 
