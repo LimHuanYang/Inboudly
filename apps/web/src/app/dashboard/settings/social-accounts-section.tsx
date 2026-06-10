@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, Check, Youtube, Facebook, Linkedin } from 'lucide-react';
 import { toast } from 'sonner';
@@ -263,6 +264,23 @@ export function SocialAccountsSection({ workspaceId }: { workspaceId: string }) 
     queryFn: () => api.get<SocialAccount[]>(`/social-accounts?workspaceId=${workspaceId}`),
     enabled: !!workspaceId,
   });
+
+  // Listen for postMessage from the OAuth popup callback so the row
+  // updates the moment the user finishes consent, without a manual refresh.
+  useEffect(() => {
+    function onMsg(e: MessageEvent) {
+      const d = e.data as { type?: string; platform?: string; message?: string } | null;
+      if (!d || typeof d !== 'object') return;
+      if (d.type === 'inboudly:oauth:success') {
+        qc.invalidateQueries({ queryKey: ['social-accounts', workspaceId] });
+        toast.success(`${d.platform ?? 'Account'} connected`);
+      } else if (d.type === 'inboudly:oauth:error') {
+        toast.error(`Couldn't connect ${d.platform ?? 'account'}: ${d.message ?? 'unknown error'}`);
+      }
+    }
+    window.addEventListener('message', onMsg);
+    return () => window.removeEventListener('message', onMsg);
+  }, [qc, workspaceId]);
 
   const disconnect = useMutation({
     mutationFn: (id: string) => api.delete(`/social-accounts/${id}`),

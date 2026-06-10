@@ -84,23 +84,28 @@ export class OAuthController {
 
     const connector = this.registry.get(platform);
     const redirectUri = this.redirectUriFor(platformParam);
-    const tokens = await connector.completeOauth(code, state, redirectUri);
 
-    await this.accounts.upsertFromOauth({
-      workspaceId,
-      platform,
-      platformUserId: tokens.platformUser.id,
-      handle: tokens.platformUser.handle,
-      displayName: tokens.platformUser.displayName,
-      avatarUrl: tokens.platformUser.avatarUrl,
-      accessToken: tokens.accessToken,
-      refreshToken: tokens.refreshToken,
-      tokenExpiresAt: tokens.expiresAt,
-      scopes: tokens.scopes,
-      meta: tokens.platformUser.extra,
-    });
+    try {
+      const tokens = await connector.completeOauth(code, state, redirectUri);
 
-    res.send(this.popupResponseHtml(platform, tokens.platformUser.handle));
+      await this.accounts.upsertFromOauth({
+        workspaceId,
+        platform,
+        platformUserId: tokens.platformUser.id,
+        handle: tokens.platformUser.handle,
+        displayName: tokens.platformUser.displayName,
+        avatarUrl: tokens.platformUser.avatarUrl,
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+        tokenExpiresAt: tokens.expiresAt,
+        scopes: tokens.scopes,
+        meta: tokens.platformUser.extra,
+      });
+
+      res.send(this.popupResponseHtml(platform, tokens.platformUser.handle));
+    } catch (err) {
+      res.status(200).send(this.popupErrorHtml(platform, (err as Error).message));
+    }
   }
 
   private redirectUriFor(platform: string): string {
@@ -114,7 +119,7 @@ export class OAuthController {
 <body style="font-family:system-ui;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;">
 <div style="text-align:center;">
   <h2 style="color:#0a0a0a;margin:0 0 8px">${platform} connected</h2>
-  <p style="color:#666;margin:0">${handle}</p>
+  <p style="color:#666;margin:0">${this.escape(handle)}</p>
   <p style="color:#999;font-size:12px;margin-top:24px">You can close this window.</p>
 </div>
 <script>
@@ -124,5 +129,39 @@ export class OAuthController {
   }
 </script>
 </body></html>`;
+  }
+
+  /** HTML rendered in the popup when completeOauth (or upsert) throws.
+   *  Posts an error message to the opener so Settings can toast it,
+   *  and shows a human-friendly inline message + a Close button so the
+   *  user can read it if the auto-close fails. Special-cases the common
+   *  YouTube "no channel on this Google account" with a help link. */
+  private popupErrorHtml(platform: SocialPlatform, rawMessage: string): string {
+    const message = rawMessage || 'Connection failed.';
+    const isNoYtChannel = platform === 'YOUTUBE' && /channel/i.test(message);
+    const help = isNoYtChannel
+      ? '<p style="color:#666;font-size:13px;margin:12px 0 0">Your Google account doesn\'t have a YouTube channel yet. <a href="https://www.youtube.com/account" target="_blank" style="color:#6366f1">Create one at youtube.com/account</a>, then try Connect again.</p>'
+      : '';
+    return `<!doctype html>
+<html><head><meta charset="utf-8"><title>Connection failed</title></head>
+<body style="font-family:system-ui;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;padding:24px;">
+<div style="text-align:center;max-width:420px">
+  <h2 style="color:#dc2626;margin:0 0 8px">Couldn't connect ${platform}</h2>
+  <p style="color:#0a0a0a;margin:0">${this.escape(message)}</p>
+  ${help}
+  <button onclick="window.close()" style="margin-top:20px;padding:8px 16px;border-radius:8px;border:1px solid #e5e7eb;background:#fff;cursor:pointer;font:inherit">Close</button>
+</div>
+<script>
+  if (window.opener) {
+    window.opener.postMessage({ type: 'inboudly:oauth:error', platform: '${platform}', message: ${JSON.stringify(message)} }, '*');
+  }
+</script>
+</body></html>`;
+  }
+
+  private escape(s: string): string {
+    return String(s ?? '').replace(/[&<>"']/g, (c) =>
+      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!),
+    );
   }
 }
