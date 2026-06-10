@@ -55,6 +55,7 @@ const OFFICIAL_PNG: Partial<Record<Platform, string>> = {
   YOUTUBE: '/brand/yt_icon_red.png',
   REDNOTE: '/brand/rednote_icon.png',
   PINTEREST: '/brand/pinterest_icon.png',
+  FACEBOOK: '/brand/facebook_icon.png',
 };
 
 // Inline SVG paths from simple-icons (CC0). Rendered in white on the brand-colored chip.
