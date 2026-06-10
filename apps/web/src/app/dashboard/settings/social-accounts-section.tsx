@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle, Check, Youtube, Facebook, Linkedin } from 'lucide-react';
+import { AlertTriangle, Check, Facebook, Linkedin } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '@/lib/api-client';
 import { Button } from '@/components/ui/button';
@@ -56,10 +56,15 @@ function PlatformChip({ platform }: { platform: Platform }) {
 
   switch (platform) {
     case 'YOUTUBE':
+      // Official YouTube brand mark — the PNG includes its own play-button shape, so no chip background.
       return (
-        <span className={base} style={{ background: '#FF0033' }} aria-hidden="true">
-          <Youtube className="h-5 w-5" fill="white" stroke="none" />
-        </span>
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src="/brand/yt_icon_red.png"
+          alt=""
+          aria-hidden="true"
+          className="h-[38px] w-[38px] flex-none select-none object-contain"
+        />
       );
     case 'FACEBOOK':
       return (
