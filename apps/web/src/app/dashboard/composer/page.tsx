@@ -20,7 +20,16 @@ import { type ViralityScoreResponse } from '@inboudly/shared/schemas';
 import { buildCreatePostInput } from '@inboudly/shared';
 import { uploadFile, extractMediaMeta, validateForPlatform } from '@/lib/upload';
 
-const PHASE_1_PLATFORMS: SocialPlatform[] = ['INSTAGRAM', 'TIKTOK', 'REDNOTE'];
+// Stable ordering reference — `availablePlatforms` (derived from the workspace's
+// CONNECTED accounts) is sorted using this order so the picker is consistent.
+const PLATFORM_ORDER: SocialPlatform[] = [
+  'INSTAGRAM',
+  'TIKTOK',
+  'REDNOTE',
+  'YOUTUBE',
+  'FACEBOOK',
+  'LINKEDIN',
+];
 
 export default function ComposerPage() {
   const [selectedPlatforms, setSelectedPlatforms] = useState<SocialPlatform[]>(['INSTAGRAM']);
@@ -230,7 +239,28 @@ export default function ComposerPage() {
   const connectedPlatforms = new Set(
     (accounts.data ?? []).filter((a) => a.status === 'ACTIVE').map((a) => a.platform),
   );
+  // The picker only shows platforms with an ACTIVE connected account.
+  const availablePlatforms = PLATFORM_ORDER.filter((p) => connectedPlatforms.has(p));
   const unconnected = selectedPlatforms.filter((p) => !connectedPlatforms.has(p));
+
+  // Once accounts load, ensure selectedPlatforms + activePlatform are platforms
+  // the user actually has connected. Defaults to the first connected platform.
+  // Runs only when accounts.data changes (not on every render).
+  useEffect(() => {
+    if (!accounts.data) return;
+    const connected = new Set(
+      accounts.data.filter((a) => a.status === 'ACTIVE').map((a) => a.platform),
+    );
+    const ordered = PLATFORM_ORDER.filter((p) => connected.has(p)) as SocialPlatform[];
+    setSelectedPlatforms((prev) => {
+      const filtered = prev.filter((p) => connected.has(p));
+      return filtered.length ? filtered : ordered.length ? [ordered[0]!] : [];
+    });
+    setActivePlatform((prev) =>
+      connected.has(prev) ? prev : (ordered[0] ?? prev),
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accounts.data]);
 
   const toggleAttachImage = (imageId: string) => {
     setAttachedImageIds((prev) => {
@@ -442,19 +472,28 @@ export default function ComposerPage() {
               <CardTitle className="text-base">Platforms</CardTitle>
             </CardHeader>
             <CardContent className="flex flex-wrap gap-2">
-              {PHASE_1_PLATFORMS.map((p) => (
-                <button
-                  key={p}
-                  onClick={() => togglePlatform(p)}
-                  className={`rounded-full border px-4 py-1.5 text-sm transition-colors ${
-                    selectedPlatforms.includes(p)
-                      ? 'border-primary bg-primary text-primary-foreground'
-                      : 'bg-background hover:bg-secondary'
-                  }`}
-                >
-                  {PLATFORM_SPECS[p].displayName}
-                </button>
-              ))}
+              {accounts.data && availablePlatforms.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No connected accounts yet.{' '}
+                  <a href="/dashboard/settings#social" className="text-primary hover:underline">
+                    Connect one in Settings →
+                  </a>
+                </p>
+              ) : (
+                availablePlatforms.map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => togglePlatform(p)}
+                    className={`rounded-full border px-4 py-1.5 text-sm transition-colors ${
+                      selectedPlatforms.includes(p)
+                        ? 'border-primary bg-primary text-primary-foreground'
+                        : 'bg-background hover:bg-secondary'
+                    }`}
+                  >
+                    {PLATFORM_SPECS[p].displayName}
+                  </button>
+                ))
+              )}
             </CardContent>
           </Card>
 
