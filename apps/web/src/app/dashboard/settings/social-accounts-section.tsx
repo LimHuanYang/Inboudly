@@ -49,6 +49,14 @@ const PLATFORM_LABEL: Record<Platform, string> = {
 // Brand icon chips
 // ---------------------------------------------------------------------------
 
+// Official brand-mark PNGs (each provides its own brand-correct background shape).
+// Rendered standalone at 38×38 with object-contain — no chip wrapper.
+const OFFICIAL_PNG: Partial<Record<Platform, string>> = {
+  YOUTUBE: '/brand/yt_icon_red.png',
+  REDNOTE: '/brand/rednote_icon.png',
+  PINTEREST: '/brand/pinterest_icon.png',
+};
+
 // Inline SVG paths from simple-icons (CC0). Rendered in white on the brand-colored chip.
 // We keep these as raw paths (not a runtime dep) so there's no bundle overhead.
 const BRAND_GLYPH: Record<Exclude<Platform, 'YOUTUBE' | 'REDNOTE'>, string> = {
@@ -75,12 +83,15 @@ const BRAND_BG: Record<Exclude<Platform, 'YOUTUBE'>, string> = {
 
 /** Returns a 38×38 chip with the platform brand colour + icon. */
 function PlatformChip({ platform }: { platform: Platform }) {
-  // YouTube uses the official PNG mark (it already includes its own red play-button shape).
-  if (platform === 'YOUTUBE') {
+  // YouTube / RedNote / Pinterest ship their full brand mark as a PNG.
+  // Render standalone (no chip wrapper) since the PNG provides its own
+  // brand-correct shape + background.
+  const pngSrc = OFFICIAL_PNG[platform];
+  if (pngSrc) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
-        src="/brand/yt_icon_red.png"
+        src={pngSrc}
         alt=""
         aria-hidden="true"
         className="h-[38px] w-[38px] flex-none select-none object-contain"
@@ -88,22 +99,16 @@ function PlatformChip({ platform }: { platform: Platform }) {
     );
   }
 
+  // The remaining 4 (Instagram, TikTok, Facebook, LinkedIn) use a brand-color
+  // chip + white glyph (simple-icons SVG paths).
   const chipCls =
     'flex h-[38px] w-[38px] flex-none items-center justify-center rounded-[10px] text-white select-none';
-
-  // Xiaohongshu has no widely-used vector mark; "小" is literally the first character of 小红书.
-  if (platform === 'REDNOTE') {
-    return (
-      <span className={chipCls} style={{ background: BRAND_BG.REDNOTE }} aria-hidden="true">
-        <span className="text-lg font-bold leading-none">小</span>
-      </span>
-    );
-  }
-
+  const bg = BRAND_BG[platform as Exclude<Platform, 'YOUTUBE'>];
+  const glyph = BRAND_GLYPH[platform as Exclude<Platform, 'YOUTUBE' | 'REDNOTE'>];
   return (
-    <span className={chipCls} style={{ background: BRAND_BG[platform] }} aria-hidden="true">
+    <span className={chipCls} style={{ background: bg }} aria-hidden="true">
       <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="white">
-        <path d={BRAND_GLYPH[platform]} />
+        <path d={glyph} />
       </svg>
     </span>
   );
