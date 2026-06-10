@@ -1,6 +1,6 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import axios from 'axios';
-import { randomBytes } from 'crypto';
+import { randomBytes, createHash } from 'crypto';
 import type {
   IPlatformConnector,
   OauthAuthorizeUrl,
@@ -33,18 +33,30 @@ export class TikTokConnector implements IPlatformConnector {
   private readonly logger = new Logger(TikTokConnector.name);
 
   async startOauth(workspaceId: string, redirectUri: string): Promise<OauthAuthorizeUrl> {
-    const state = `${workspaceId}.${randomBytes(16).toString('hex')}`;
+    // TikTok REQUIRES PKCE on every Login Kit auth (unlike most platforms where
+    // it's optional). We generate a verifier, send its SHA-256 challenge in the
+    // auth URL, and stash the verifier in `state` so completeOauth can recover
+    // it (TikTok preserves `state` verbatim across the redirect).
+    const codeVerifier = randomBytes(32).toString('base64url');
+    const codeChallenge = createHash('sha256').update(codeVerifier).digest('base64url');
+    const state = `${workspaceId}.${randomBytes(16).toString('hex')}.${codeVerifier}`;
     const params = new URLSearchParams({
       client_key: process.env.TIKTOK_CLIENT_KEY ?? '',
       response_type: 'code',
       scope: 'user.info.basic,video.publish,video.upload',
       redirect_uri: redirectUri,
       state,
+      code_challenge: codeChallenge,
+      code_challenge_method: 'S256',
     });
     return { url: `${TT_OAUTH}?${params.toString()}`, state };
   }
 
-  async completeOauth(code: string, _state: string, redirectUri: string): Promise<OauthTokenSet> {
+  async completeOauth(code: string, state: string, redirectUri: string): Promise<OauthTokenSet> {
+    // Recover the PKCE verifier we stashed in `state` during startOauth.
+    const codeVerifier = state.split('.')[2];
+    if (!codeVerifier) throw new BadRequestException('Missing PKCE verifier in state');
+
     // 1. Token exchange
     const tokenRes = await axios.post(
       `${TT_API}/oauth/token/`,
@@ -54,6 +66,7 @@ export class TikTokConnector implements IPlatformConnector {
         code,
         grant_type: 'authorization_code',
         redirect_uri: redirectUri,
+        code_verifier: codeVerifier,
       }),
       { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } },
     );
