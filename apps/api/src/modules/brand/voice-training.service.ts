@@ -16,10 +16,10 @@ interface TrainingExample {
 /**
  * Brand Voice Training (BYOK)
  *
- * Embeddings use OpenAI text-embedding-3-large, so this service needs the
- * workspace's OpenAI key. Resolved per-call via AiCredentialsService.
+ * Embeddings use Gemini gemini-embedding-001, so this service needs the
+ * workspace's Gemini key. Resolved per-call via AiCredentialsService.
  *
- * If the workspace has no OpenAI key configured, training/retrieval gracefully
+ * If the workspace has no Gemini key configured, training/retrieval gracefully
  * degrade — generation falls back to platform-spec-only prompts (no exemplars).
  */
 @Injectable()
@@ -34,18 +34,18 @@ export class VoiceTrainingService {
     private credentials: AiCredentialsService,
   ) {}
 
-  /** Resolves the workspace OpenAI key for the brand voice's workspace. */
-  private async getOpenAiKeyForVoice(brandVoiceId: string): Promise<{
+  /** Resolves the workspace Gemini key for the brand voice's workspace. */
+  private async getGeminiKeyForVoice(brandVoiceId: string): Promise<{
     workspaceId: string;
-    openaiKey: string | null;
+    geminiKey: string | null;
   } | null> {
     const voice = await this.prisma.brandVoice.findUnique({
       where: { id: brandVoiceId },
       select: { workspaceId: true },
     });
     if (!voice) return null;
-    const openaiKey = await this.credentials.getDecryptedKey(voice.workspaceId, 'openaiKey');
-    return { workspaceId: voice.workspaceId, openaiKey };
+    const geminiKey = await this.credentials.getDecryptedKey(voice.workspaceId, 'geminiKey');
+    return { workspaceId: voice.workspaceId, geminiKey };
   }
 
   async ingest(brandVoiceId: string, examples: TrainingExample[]) {
@@ -59,17 +59,17 @@ export class VoiceTrainingService {
       return { ingested: 0, warning: 'Pinecone not configured' };
     }
 
-    const resolved = await this.getOpenAiKeyForVoice(brandVoiceId);
-    if (!resolved?.openaiKey) {
+    const resolved = await this.getGeminiKeyForVoice(brandVoiceId);
+    if (!resolved?.geminiKey) {
       return {
         ingested: 0,
         warning:
-          'No OpenAI API key in workspace — embeddings cannot be created. Add a key in Settings → AI Providers.',
+          'No Gemini API key in workspace — embeddings cannot be created. Add a key in Settings → AI Providers.',
       };
     }
 
     const vectors = await this.embeddings.embedMany(
-      resolved.openaiKey,
+      resolved.geminiKey,
       examples.map((e) => e.text),
     );
 
@@ -97,7 +97,7 @@ export class VoiceTrainingService {
 
   /**
    * Retrieve the top-K past posts most similar to the user's current intent.
-   * Degrades gracefully: returns [] if Pinecone/OpenAI key not configured.
+   * Degrades gracefully: returns [] if Pinecone/Gemini key not configured.
    */
   async retrieveExamples(
     brandVoiceId: string,
@@ -109,10 +109,10 @@ export class VoiceTrainingService {
     const voice = await this.prisma.brandVoice.findUnique({ where: { id: brandVoiceId } });
     if (!voice || voice.trainedOnPostCount === 0) return [];
 
-    const resolved = await this.getOpenAiKeyForVoice(brandVoiceId);
-    if (!resolved?.openaiKey) return [];
+    const resolved = await this.getGeminiKeyForVoice(brandVoiceId);
+    if (!resolved?.geminiKey) return [];
 
-    const queryVec = await this.embeddings.embedOne(resolved.openaiKey, intent);
+    const queryVec = await this.embeddings.embedOne(resolved.geminiKey, intent);
     const matches = await this.pinecone.query(voice.embeddingNamespace, queryVec, topK);
 
     return matches.map((m) => ({
