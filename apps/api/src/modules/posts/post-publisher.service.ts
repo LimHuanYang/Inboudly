@@ -43,6 +43,12 @@ export class PostPublisherService {
     });
     if (!post) { this.logger.warn(`Post ${postId} not found`); return; }
 
+    if (post.variants.length === 0) {
+      this.logger.warn(`Post ${postId} has no variants — cannot publish`);
+      await this.prisma.post.update({ where: { id: postId }, data: { status: PostStatus.FAILED } });
+      return;
+    }
+
     await this.prisma.post.update({ where: { id: postId }, data: { status: PostStatus.PUBLISHING } });
 
     let succeeded = 0;
@@ -86,6 +92,8 @@ export class PostPublisherService {
   }
 
   private async recordFailure(postVariantId: string, socialAccountId: string, message: string) {
+    // Single-writer assumption: the publish cron runs one instance, so this
+    // read-then-upsert of retryCount isn't atomic but won't race in practice.
     const existing = await this.prisma.postPublication.findUnique({
       where: { postVariantId_socialAccountId: { postVariantId, socialAccountId } },
     });
