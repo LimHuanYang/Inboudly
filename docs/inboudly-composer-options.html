@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inboudly — Composer entry: 3 options</title>
+<style>
+  :root{
+    --bg:#0b0f17;--panel:#121826;--panel2:#161d2e;--ink:#e7ecf4;--muted:#94a3b8;
+    --line:#243049;--accent:#22d3ee;--primary:#6366f1;--ok:#10b981;--warn:#f59e0b;
+    --ig:#ec4899;--fb:#3b82f6;--li:#0a66c2;--rn:#ef4444;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:15px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif}
+  .wrap{max-width:1240px;margin:0 auto;padding:34px 20px 80px}
+  h1{font-size:26px;margin:0 0 4px;letter-spacing:-.4px}
+  .sub{color:var(--muted);margin:0 0 6px}
+  .cols{display:grid;grid-template-columns:1fr;gap:20px;margin-top:22px}
+  @media(min-width:980px){.cols{grid-template-columns:repeat(3,1fr)}}
+  .col{display:flex;flex-direction:column;gap:12px}
+  .opthdr{display:flex;align-items:center;gap:8px}
+  .badge{width:24px;height:24px;border-radius:7px;background:var(--primary);color:#fff;font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center}
+  .optname{font-weight:700;font-size:15px}
+  /* app frame */
+  .app{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.35)}
+  .topbar{display:flex;align-items:center;gap:8px;padding:9px 12px;background:var(--panel2);border-bottom:1px solid var(--line)}
+  .logo{font-weight:800;font-size:13px;letter-spacing:-.2px}
+  .logo b{color:var(--accent)}
+  .ws{margin-left:auto;font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:2px 8px}
+  .body{padding:13px;min-height:430px}
+  .ico{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;vertical-align:-2px}
+  .h{font-size:14px;font-weight:700;margin:0 0 2px;display:flex;align-items:center;gap:7px}
+  .hsub{font-size:11.5px;color:var(--muted);margin:0 0 11px}
+  /* platform chips */
+  .chips{display:flex;gap:5px;flex-wrap:wrap}
+  .chip{font-size:10px;font-weight:700;border-radius:999px;padding:2px 8px;border:1px solid var(--line);display:flex;align-items:center;gap:4px}
+  .pdot{width:7px;height:7px;border-radius:50%}
+  /* draft card */
+  .draft{background:var(--panel2);border:1px solid var(--line);border-radius:11px;padding:11px;margin-bottom:10px}
+  .draftTop{display:flex;gap:10px}
+  .thumb{width:54px;height:54px;border-radius:8px;flex:0 0 auto;background:linear-gradient(135deg,#1e293b,#334155);position:relative;overflow:hidden}
+  .thumb.v::after{content:"";position:absolute;inset:0;margin:auto;width:0;height:0;border-left:11px solid #fff;border-top:7px solid transparent;border-bottom:7px solid transparent;opacity:.85}
+  .cap{font-size:11.5px;color:#cbd5e1;margin:6px 0 0;line-height:1.5}
+  .zh{color:#a5b4fc}
+  .acts{display:flex;gap:6px;margin-top:10px}
+  .btn{font-size:11px;font-weight:700;border-radius:8px;padding:6px 10px;border:1px solid var(--line);background:transparent;color:var(--ink);display:flex;align-items:center;gap:5px;cursor:pointer}
+  .btn.primary{background:var(--primary);border-color:var(--primary);color:#fff}
+  .btn.ok{background:var(--ok);border-color:var(--ok);color:#04231a}
+  .btn.ghost{color:var(--muted)}
+  .btn.block{width:100%;justify-content:center}
+  .center{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;min-height:300px;gap:14px;padding:0 8px}
+  .promptbox{width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:14px;text-align:left}
+  .promptbox .ph{color:var(--muted);font-size:13px}
+  .examples{display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
+  .ex{font-size:11px;border:1px dashed var(--line);border-radius:999px;padding:4px 10px;color:var(--muted)}
+  .field{margin-bottom:11px}
+  .lbl{font-size:11px;font-weight:600;color:var(--muted);margin-bottom:4px;display:block}
+  .input{background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:9px 11px;font-size:12px;color:var(--muted);min-height:34px}
+  .input.tall{min-height:74px}
+  .suggestbar{display:flex;align-items:center;gap:8px;background:linear-gradient(90deg,rgba(99,102,241,.18),rgba(34,211,238,.10));border:1px solid #3a3f6e;border-radius:10px;padding:9px 11px;margin-bottom:12px}
+  .suggestbar .t{font-size:11.5px}
+  .actionbar{display:flex;gap:8px;margin-top:12px;border-top:1px solid var(--line);padding-top:11px}
+  /* verdict */
+  .verdict{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:13px 15px;border-top:3px solid var(--primary)}
+  .verdict h4{margin:0 0 7px;font-size:13px}
+  .verdict ul{margin:0;padding-left:16px}
+  .verdict li{font-size:12px;margin:3px 0;color:#cbd5e1}
+  .pro::marker{color:var(--ok)} .con::marker{color:var(--warn)}
+  .dep{margin-top:9px;font-size:11.5px;background:#1c1410;border:1px solid #5b3d23;border-radius:8px;padding:7px 9px;color:#f0b072}
+  .bestfor{margin-top:8px;font-size:11.5px;color:var(--accent)}
+  footer{margin-top:34px;color:var(--muted);font-size:12px;border-top:1px solid var(--line);padding-top:14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Composer entry — 3 options, side by side</h1>
+  <p class="sub">Mockups in Inboudly's real style. Each: what you'd see · verdict · the dependency. Pick after you compare.</p>
+
+  <!-- shared SVG icon defs -->
+  <svg width="0" height="0" style="position:absolute"><defs>
+    <g id="i-spark"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2 2M16 16l2 2M18 6l-2 2M8 16l-2 2"/></g>
+    <g id="i-check"><path d="M20 6 9 17l-5-5"/></g>
+    <g id="i-cal"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></g>
+    <g id="i-edit"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></g>
+    <g id="i-refresh"><path d="M21 12a9 9 0 1 1-3-6.7L21 8M21 3v5h-5"/></g>
+    <g id="i-img"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></g>
+    <g id="i-send"><path d="m22 2-7 20-4-9-9-4Z"/></g>
+  </defs></svg>
+
+  <div class="cols">
+
+    <!-- ============ OPTION A ============ -->
+    <div class="col">
+      <div class="opthdr"><span class="badge">A</span><span class="optname">Generation-first home</span></div>
+      <div class="app">
+        <div class="topbar"><span class="logo">In<b>boudly</b></span><span class="ws">Mei's Cafe · 4 connected</span></div>
+        <div class="body">
+          <p class="h"><svg class="ico" style="stroke:var(--accent)"><use href="#i-spark"/></svg> Ready to post</p>
+          <p class="hsub">4 drafts in your voice, waiting. Approve, tweak, or skip.</p>
+
+          <div class="draft">
+            <div class="chips" style="margin-bottom:9px">
+              <span class="chip"><span class="pdot" style="background:var(--ig)"></span>Instagram</span>
+              <span class="chip"><span class="pdot" style="background:var(--rn)"></span>RedNote</span>
+            </div>
+            <div class="draftTop">
+              <div class="thumb"></div>
+              <div>
+                <div class="cap">New matcha lattes just dropped 🍵 cooling off the KL heat, one cup at a time.</div>
+                <div class="cap zh">全新抹茶拿铁上线啦 🍵 这个天气最适合来一杯～</div>
+              </div>
+            </div>
+            <div class="acts">
+              <button class="btn ok"><svg class="ico"><use href="#i-check"/></svg>Approve &amp; schedule</button>
+              <button class="btn"><svg class="ico"><use href="#i-edit"/></svg>Edit</button>
+              <button class="btn ghost"><svg class="ico"><use href="#i-refresh"/></svg></button>
+            </div>
+          </div>
+
+          <div class="draft">
+            <div class="chips" style="margin-bottom:9px">
+              <span class="chip"><span class="pdot" style="background:var(--fb)"></span>Facebook</span>
+            </div>
+            <div class="draftTop">
+              <div class="thumb v"></div>
+              <div>
+                <div class="cap">Weekend vibes at Mei's ☕ Bring a friend — buy one, get one on all iced drinks, Sat &amp; Sun.</div>
+              </div>
+            </div>
+            <div class="acts">
+              <button class="btn ok"><svg class="ico"><use href="#i-check"/></svg>Approve &amp; schedule</button>
+              <button class="btn"><svg class="ico"><use href="#i-edit"/></svg>Edit</button>
+              <button class="btn ghost"><svg class="ico"><use href="#i-refresh"/></svg></button>
+            </div>
+          </div>
+
+          <button class="btn block" style="margin-top:2px"><svg class="ico"><use href="#i-spark"/></svg>Generate more</button>
+        </div>
+      </div>
+      <div class="verdict">
+        <h4>Verdict</h4>
+        <ul>
+          <li class="pro">Pure moat posture — "it's already done, just approve."</li>
+          <li class="pro">Lowest effort for a time-poor non-marketer.</li>
+          <li class="con">Hardest to build; drafts feel generic until the moat learns you.</li>
+        </ul>
+        <div class="dep">Depends on: brand memory (dormant) + a "what to post about" source (themes/trends). Solve cold-start or day-1 feels off.</div>
+        <div class="bestfor">Best for: the actual strategy, if you commit to the moat.</div>
+      </div>
+    </div>
+
+    <!-- ============ OPTION B ============ -->
+    <div class="col">
+      <div class="opthdr"><span class="badge">B</span><span class="optname">Prompt-first</span></div>
+      <div class="app">
+        <div class="topbar"><span class="logo">In<b>boudly</b></span><span class="ws">Mei's Cafe · 4 connected</span></div>
+        <div class="body">
+          <div class="center">
+            <p class="h" style="font-size:16px;justify-content:center"><svg class="ico" style="stroke:var(--accent)"><use href="#i-spark"/></svg> What do you want to post about?</p>
+            <div class="promptbox"><span class="ph">e.g. our new matcha latte, weekend BOGO promo…</span></div>
+            <button class="btn primary block" style="max-width:230px"><svg class="ico"><use href="#i-spark"/></svg>Generate a full post</button>
+            <div class="examples">
+              <span class="ex">New menu item</span>
+              <span class="ex">Weekend promo</span>
+              <span class="ex">Behind the scenes</span>
+            </div>
+            <p class="hsub" style="margin-top:6px">→ One idea becomes a caption + image + video, drafted for every connected platform in EN &amp; 中文.</p>
+          </div>
+        </div>
+      </div>
+      <div class="verdict">
+        <h4>Verdict</h4>
+        <ul>
+          <li class="pro">Still feels generative — no blank-box intimidation.</li>
+          <li class="pro">Ships without the moat; one box, clear ask.</li>
+          <li class="con">User supplies the spark every time (not "already done").</li>
+          <li class="con">Less differentiated — ChatGPT-ish entry.</li>
+        </ul>
+        <div class="bestfor">Best for: a strong MVP that proves generation value before the moat exists.</div>
+      </div>
+    </div>
+
+    <!-- ============ OPTION C ============ -->
+    <div class="col">
+      <div class="opthdr"><span class="badge">C</span><span class="optname">Blank composer + Suggest</span></div>
+      <div class="app">
+        <div class="topbar"><span class="logo">In<b>boudly</b></span><span class="ws">Mei's Cafe · 4 connected</span></div>
+        <div class="body">
+          <div class="suggestbar">
+            <svg class="ico" style="stroke:var(--accent)"><use href="#i-spark"/></svg>
+            <span class="t">Not sure what to post? <b>Suggest ideas for me</b></span>
+          </div>
+          <div class="chips" style="margin-bottom:11px">
+            <span class="chip"><span class="pdot" style="background:var(--ig)"></span>Instagram</span>
+            <span class="chip"><span class="pdot" style="background:var(--fb)"></span>Facebook</span>
+            <span class="chip"><span class="pdot" style="background:var(--li)"></span>LinkedIn</span>
+            <span class="chip"><span class="pdot" style="background:var(--rn)"></span>RedNote</span>
+          </div>
+          <div class="field"><span class="lbl">Caption</span><div class="input tall">Write or generate…</div></div>
+          <div class="field"><span class="lbl">Media</span><div class="input" style="display:flex;align-items:center;gap:7px"><svg class="ico" style="stroke:var(--muted)"><use href="#i-img"/></svg>Add image / video</div></div>
+          <div class="actionbar">
+            <button class="btn">Save draft</button>
+            <button class="btn primary"><svg class="ico"><use href="#i-cal"/></svg>Schedule…</button>
+          </div>
+        </div>
+      </div>
+      <div class="verdict">
+        <h4>Verdict</h4>
+        <ul>
+          <li class="pro">Ships fastest — it's basically today's Composer + a button.</li>
+          <li class="pro">No moat dependency.</li>
+          <li class="con">Still a blank box you operate — not the strategy.</li>
+          <li class="con">"Suggest" feels bolted-on, easy to ignore.</li>
+        </ul>
+        <div class="bestfor">Best for: a stopgap if you want publishing working before any generation-first investment.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <footer>Mockups only — not wired. Style matches Inboudly's dashboard (cyan/indigo, Lucide-style icons, AA contrast). View: <code>docs/inboudly-composer-options.html</code></footer>
+</div>
+</body>
+</html>

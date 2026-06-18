@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inboudly — Gemini + Higgsfield Smoke Test</title>
+<style>
+  :root{
+    --bg:#0b0f17;--panel:#121826;--panel2:#161d2e;--ink:#e7ecf4;--muted:#94a3b8;
+    --line:#222c3f;--ok:#16a34a;--warn:#f59e0b;--bad:#ef4444;--accent:#22d3ee;--key:#a855f7;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:15px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif}
+  .wrap{max-width:1000px;margin:0 auto;padding:36px 22px 80px}
+  h1{font-size:27px;margin:0 0 4px;letter-spacing:-.4px}
+  h2{font-size:18px;margin:38px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+  .sub{color:var(--muted);margin:0}
+  code{background:#0c1120;color:#9fd5ff;padding:1px 6px;border-radius:5px;
+    font:12px/1.5 ui-monospace,Consolas,monospace;word-break:break-word}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-top:14px}
+  .green{border-left:5px solid var(--ok)}
+  .auto{display:grid;grid-template-columns:1fr;gap:6px}
+  @media(min-width:680px){.auto{grid-template-columns:1fr 1fr}}
+  .auto div{font-size:13.5px}
+  .tick{color:var(--ok);font-weight:700}
+  .setup{background:#0c1f2b;border:1px solid #0e3a52;border-radius:12px;padding:16px 18px;margin-top:14px}
+  .setup ol{margin:6px 0 0;padding-left:20px}
+  .setup li{margin:6px 0;font-size:13.5px}
+  .t{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-top:12px;
+    display:grid;grid-template-columns:30px 1fr;gap:12px;align-items:start}
+  .t input[type=checkbox]{width:20px;height:20px;margin-top:3px;accent-color:var(--accent);cursor:pointer}
+  .t .id{font-size:11px;font-weight:800;letter-spacing:.5px;color:var(--accent);text-transform:uppercase}
+  .t h3{margin:2px 0 6px;font-size:15px}
+  .t .steps{margin:0;padding-left:18px;font-size:13.5px}
+  .t .steps li{margin:3px 0}
+  .exp{margin-top:8px;font-size:13px;background:#0e1c16;border:1px solid #1c5238;border-radius:8px;padding:7px 10px}
+  .exp b{color:#5ee29a}
+  .fail{margin-top:6px;font-size:12.5px;background:#1c1410;border:1px solid #5b3d23;border-radius:8px;padding:7px 10px;color:#f0b072}
+  .keychip{display:inline-block;background:#1a0e2c;border:1px solid #4a2c6e;color:#d6a9f5;border-radius:999px;padding:1px 8px;font-size:11px;font-weight:700;margin-left:6px}
+  .bar{position:sticky;top:0;background:rgba(11,15,23,.92);backdrop-filter:blur(6px);border-bottom:1px solid var(--line);
+    padding:10px 0;margin:0 0 8px;font-size:13px;color:var(--muted);z-index:5}
+  .bar b{color:var(--ink)}
+  footer{margin-top:40px;color:var(--muted);font-size:12px;border-top:1px solid var(--line);padding-top:14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Smoke Test — Gemini + Higgsfield creative engine</h1>
+  <p class="sub">Branch <code>feat/gemini-higgsfield-creative-engine</code> · what's already auto-verified vs. what only YOU can verify (needs your API keys + eyes).</p>
+
+  <div class="bar" id="bar">Manual checklist: <b><span id="done">0</span>/<span id="total">0</span></b> done</div>
+
+  <h2>✅ Already verified automatically (no action needed)</h2>
+  <div class="panel green">
+    <div class="auto">
+      <div><span class="tick">✓</span> Type-check — 4/4 packages clean</div>
+      <div><span class="tick">✓</span> API unit/integration tests — <b>95/95 pass</b></div>
+      <div><span class="tick">✓</span> Web compiles · API boots (Nest DI resolves)</div>
+      <div><span class="tick">✓</span> Web <code>:3000</code> → HTTP 200</div>
+      <div><span class="tick">✓</span> <code>POST /ai/video</code> → 401 (wired + auth-guarded)</div>
+      <div><span class="tick">✓</span> Ghost-grep — zero refs to deleted providers/fields</div>
+    </div>
+    <p style="margin:10px 0 0;font-size:12.5px;color:var(--muted)">These prove the code is internally consistent and the wiring is sound. They do <em>not</em> prove the live Gemini/Higgsfield calls work — that's the manual part below (needs your keys).</p>
+  </div>
+
+  <h2>🔧 Setup before manual testing</h2>
+  <div class="setup">
+    <ol>
+      <li>Point the web app at the local API: set <code>NEXT_PUBLIC_API_URL="http://localhost:3002"</code> in <code>.env</code> (it currently points at your ngrok domain), then restart <code>pnpm dev</code> (Next bakes <code>NEXT_PUBLIC_*</code> at build).</li>
+      <li>Have a <b>Google Gemini API key</b> ready (free tier: <code>aistudio.google.com/apikey</code>). Note: Gemini's free tier does NOT include image generation — image tests need paid billing enabled on the key's project.</li>
+      <li>Have a <b>Higgsfield key</b> ready as <code>api_key:api_key_secret</code> from <code>cloud.higgsfield.ai</code> (with credit).</li>
+      <li>Open <code>http://localhost:3000</code> → log in → go to <b>Dashboard → Settings</b>.</li>
+    </ol>
+  </div>
+
+  <h2>📋 Manual tests</h2>
+
+  <div class="t">
+    <input type="checkbox" class="chk">
+    <div>
+      <div class="id">S1 · Settings → AI Providers</div>
+      <h3>Only two providers exist</h3>
+      <ol class="steps">
+        <li>Open the <b>AI Providers</b> card.</li>
+        <li>Confirm exactly <b>two</b> rows: <b>Google (Gemini)</b> tagged "Text + Image", and <b>Higgsfield (video)</b> tagged "Video".</li>
+        <li>No Anthropic / OpenAI / Pollinations / ElevenLabs / Runway / Kling / fal.ai / Sora rows anywhere.</li>
+      </ol>
+      <div class="exp"><b>Expected:</b> two rows only; Higgsfield placeholder shows <code>api_key:api_key_secret</code>.</div>
+    </div>
+  </div>
+
+  <div class="t">
+    <input type="checkbox" class="chk">
+    <div>
+      <div class="id">S2 · Gemini key + Test <span class="keychip">Gemini key</span></div>
+      <h3>Save + Test the Gemini key</h3>
+      <ol class="steps">
+        <li>Paste your Gemini key into the Gemini row, pick a model, Save.</li>
+        <li>Click <b>Test</b>.</li>
+      </ol>
+      <div class="exp"><b>Expected:</b> "Configured" with masked tail; <b>Test</b> returns success + latency. A toast confirms save.</div>
+      <div class="fail">If Test fails: the key is wrong, or the model isn't enabled on it. Try <code>gemini-2.5-flash</code>.</div>
+    </div>
+  </div>
+
+  <div class="t">
+    <input type="checkbox" class="chk">
+    <div>
+      <div class="id">S3 · Higgsfield key <span class="keychip">Higgsfield key</span></div>
+      <h3>Save the Higgsfield key</h3>
+      <ol class="steps">
+        <li>Paste <code>api_key:api_key_secret</code> into the Higgsfield row, Save.</li>
+        <li>(No Test button — that's expected; key-only provider.)</li>
+      </ol>
+      <div class="exp"><b>Expected:</b> "Configured" with masked tail. If you paste a key WITHOUT a colon, generation later will reject it with a clear message.</div>
+    </div>
+  </div>
+
+  <div class="t">
+    <input type="checkbox" class="chk">
+    <div>
+      <div class="id">S4 · Settings → AI defaults</div>
+      <h3>Gemini fixed; Higgsfield enabled</h3>
+      <ol class="steps">
+        <li>Open the <b>AI defaults</b> card.</li>
+        <li>Caption + Image both show <b>Gemini</b> as a fixed engine (no provider picker) with a model dropdown each.</li>
+        <li>Video shows <b>Higgsfield</b> with an <b>Enabled</b> badge (because S3 set the key).</li>
+      </ol>
+      <div class="exp"><b>Expected:</b> no Claude/OpenAI/Pollinations choices anywhere; changing a model dropdown shows a "Model saved" toast.</div>
+    </div>
+  </div>
+
+  <div class="t">
+    <input type="checkbox" class="chk">
+    <div>
+      <div class="id">C1 · Composer — caption (English) <span class="keychip">Gemini key</span></div>
+      <h3>Generate an English caption</h3>
+      <ol class="steps">
+        <li>Open <b>Composer</b>, pick a platform, type a topic, generate a caption in English.</li>
+      </ol>
+      <div class="exp"><b>Expected:</b> a coherent English caption appears within a few seconds.</div>
+    </div>
+  </div>
+
+  <div class="t">
+    <input type="checkbox" class="chk">
+    <div>
+      <div class="id">C2 · Composer — caption (中文) <span class="keychip">Gemini key</span></div>
+      <h3>Generate a Chinese caption — the bilingual edge</h3>
+      <ol class="steps">
+        <li>Generate a caption with a Chinese prompt, or set language to 中文.</li>
+        <li>Read the output critically — is the Mandarin natural, not machine-stiff?</li>
+      </ol>
+      <div class="exp"><b>Expected:</b> fluent, natural 中文. <b>This is your core differentiator — judge the quality honestly.</b></div>
+      <div class="fail">If the Mandarin is stiff/awkward, that's a prompt-engineering finding, not a wiring bug — worth noting for the brand-voice work.</div>
+    </div>
+  </div>
+
+  <div class="t">
+    <input type="checkbox" class="chk">
+    <div>
+      <div class="id">C3 · Composer — image <span class="keychip">Gemini key (paid)</span></div>
+      <h3>Generate an image</h3>
+      <ol class="steps">
+        <li>Switch to image mode, prompt an image, generate.</li>
+      </ol>
+      <div class="exp"><b>Expected:</b> an image appears. (If you see "Gemini's free tier doesn't include image generation" — that's the correct, friendly error; enable paid billing on the key.)</div>
+    </div>
+  </div>
+
+  <div class="t">
+    <input type="checkbox" class="chk">
+    <div>
+      <div class="id">C4 · Composer — video disabled WITHOUT an image</div>
+      <h3>Higgsfield is image-to-video — guard check</h3>
+      <ol class="steps">
+        <li>With no image generated/attached yet, look at the video action.</li>
+      </ol>
+      <div class="exp"><b>Expected:</b> video generate is <b>disabled</b> with a hint like "Generate or attach an image first — Higgsfield animates an image into video."</div>
+    </div>
+  </div>
+
+  <div class="t">
+    <input type="checkbox" class="chk">
+    <div>
+      <div class="id">C5 · Composer — video generation 🌟 <span class="keychip">Higgsfield key</span></div>
+      <h3>THE KEYSTONE — animate an image into video</h3>
+      <ol class="steps">
+        <li>Generate or attach an image (from C3).</li>
+        <li>Confirm the video panel now shows that image as the source ("Higgsfield will animate this image…").</li>
+        <li>Enter a video prompt + duration, click generate.</li>
+        <li>Wait — it polls (can take a minute+).</li>
+      </ol>
+      <div class="exp"><b>Expected:</b> a playable MP4 appears and is saved to the media library.</div>
+      <div class="fail"><b>⚠️ MOST LIKELY failure point.</b> If it fails with <code>Higgsfield submit 4xx/404</code>, the model id or request field names need a 1-line tweak. Open <code>apps/api/src/modules/ai/video/higgsfield-video.provider.ts</code>: check <code>HF_MODEL</code> (<code>higgsfield-ai/dop/standard</code>) and the body fields (<code>image_url</code>, <code>prompt</code>, <code>aspect_ratio</code>) + the result-URL path in <code>poll()</code> against <code>docs.higgsfield.ai</code>. The pipeline (auth, polling, R2 upload, media registration) is correct — only the model-specific shape may need adjusting. Paste me the exact error and I'll fix it.</div>
+    </div>
+  </div>
+
+  <div class="t">
+    <input type="checkbox" class="chk">
+    <div>
+      <div class="id">X1 · Competitors page — no Claude</div>
+      <h3>Dead Claude affordance is gone</h3>
+      <ol class="steps">
+        <li>Open a competitor detail page → the gap-analysis section.</li>
+      </ol>
+      <div class="exp"><b>Expected:</b> shows "Gemini" (no Claude/Auto provider dropdown). Clicking Analyze runs with Gemini.</div>
+    </div>
+  </div>
+
+  <div class="t">
+    <input type="checkbox" class="chk">
+    <div>
+      <div class="id">N1 · Negative — no Gemini key</div>
+      <h3>Graceful degradation</h3>
+      <ol class="steps">
+        <li>(Optional) In a fresh workspace with no Gemini key, try caption/image.</li>
+      </ol>
+      <div class="exp"><b>Expected:</b> a clear "Add a Google (Gemini) key in Settings → AI Providers" message — no crash, no opaque 500.</div>
+    </div>
+  </div>
+
+  <h2>After you test</h2>
+  <div class="panel">
+    <p style="margin:0;font-size:13.5px">If <b>C5 (video)</b> passes → the whole engine is live; tell me and we merge / open the PR. If C5 fails → paste the exact error string; it's almost certainly a one-line Higgsfield field/model-id fix in the provider, and I'll patch + re-verify. Everything else (captions, images, settings, competitors) should pass as-is.</p>
+  </div>
+
+  <footer>
+    Branch <code>feat/gemini-higgsfield-creative-engine</code> · 12 commits · plan: <code>docs/superpowers/plans/2026-06-18-gemini-higgsfield-creative-engine.md</code> · this checklist: <code>docs/inboudly-smoke-test-checklist.html</code>
+  </footer>
+
+</div>
+<script>
+  const chks = Array.from(document.querySelectorAll('.chk'));
+  document.getElementById('total').textContent = chks.length;
+  const done = document.getElementById('done');
+  const upd = () => { done.textContent = chks.filter(c => c.checked).length; };
+  chks.forEach(c => c.addEventListener('change', upd));
+  upd();
+</script>
+</body>
+</html>

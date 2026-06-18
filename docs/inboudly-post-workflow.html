@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inboudly — Post → Publish Workflow (current state)</title>
+<style>
+  :root{
+    --bg:#0b0f17;--panel:#121826;--panel2:#161d2e;--ink:#e7ecf4;--muted:#94a3b8;
+    --line:#222c3f;--ok:#16a34a;--warn:#f59e0b;--bad:#ef4444;--accent:#22d3ee;--dead:#6b7280;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:15px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif}
+  .wrap{max-width:1040px;margin:0 auto;padding:36px 22px 80px}
+  h1{font-size:27px;margin:0 0 4px}
+  h2{font-size:18px;margin:38px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+  .sub{color:var(--muted);margin:0}
+  code{background:#0c1120;color:#9fd5ff;padding:1px 6px;border-radius:5px;font:12px/1.5 ui-monospace,Consolas,monospace;word-break:break-word}
+  .flow{display:flex;flex-direction:column;gap:0;margin-top:16px}
+  .row{display:flex;align-items:stretch;gap:10px;flex-wrap:wrap}
+  .node{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:12px 14px;flex:1 1 200px;min-width:180px}
+  .node .lbl{font-weight:700;font-size:14px}
+  .node .meta{color:var(--muted);font-size:12px;margin-top:3px}
+  .node code{font-size:11px}
+  .ok{border-left:4px solid var(--ok)}
+  .warnnode{border-left:4px solid var(--warn)}
+  .deadnode{border-left:4px solid var(--dead);opacity:.75}
+  .varrow{align-self:center;color:var(--muted);font-size:20px;text-align:center;width:100%;margin:4px 0}
+  .break{background:#1c1014;border:2px dashed var(--bad);border-radius:11px;padding:14px 16px;margin:6px 0;text-align:center}
+  .break b{color:var(--bad)}
+  .legend{display:flex;flex-wrap:wrap;gap:14px;margin-top:12px}
+  .legend span{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px}
+  .dot{width:11px;height:11px;border-radius:3px;display:inline-block}
+  .gaps{display:grid;grid-template-columns:1fr;gap:10px;margin-top:14px}
+  @media(min-width:760px){.gaps{grid-template-columns:1fr 1fr}}
+  .gap{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:12px 14px;border-left-width:5px}
+  .g-crit{border-left-color:var(--bad)} .g-mod{border-left-color:var(--warn)} .g-lo{border-left-color:#3b82f6}
+  .gap h3{margin:0 0 4px;font-size:13.5px}
+  .gap p{margin:0;font-size:12.5px;color:var(--muted)}
+  .tag{display:inline-block;font-size:10px;font-weight:800;padding:1px 7px;border-radius:999px;margin-right:6px;vertical-align:middle}
+  .t-crit{background:#2c0e0e;color:#f59a9a}.t-mod{background:#2c220e;color:#f2cd86}.t-lo{background:#0e1c2c;color:#9cc6f8}
+  .life{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:14px 16px;margin-top:12px;font:12.5px/1.7 ui-monospace,Consolas,monospace;color:var(--muted);white-space:pre-wrap;overflow-x:auto}
+  footer{margin-top:40px;color:var(--muted);font-size:12px;border-top:1px solid var(--line);padding-top:14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Post → Publish Workflow — current state</h1>
+  <p class="sub">Traced from the actual code on <code>main</code>. The execution layer is solid; the <span style="color:var(--bad)">trigger layer is disconnected</span>.</p>
+
+  <div class="legend">
+    <span><i class="dot" style="background:var(--ok)"></i> works</span>
+    <span><i class="dot" style="background:var(--warn)"></i> works but fragile</span>
+    <span><i class="dot" style="background:var(--dead)"></i> built but never called (dead)</span>
+    <span><i class="dot" style="background:var(--bad)"></i> the break</span>
+  </div>
+
+  <h2>The flow</h2>
+  <div class="flow">
+    <div class="row">
+      <div class="node ok"><div class="lbl">1 · Composer</div><div class="meta">Generate caption (Gemini) · image (Gemini) · video (Higgsfield, async, manual "Attach")</div></div>
+      <div class="node ok"><div class="lbl">2 · Attach media</div><div class="meta">client-side <code>attachedImageIds</code> per platform → MediaAsset ids</div></div>
+    </div>
+    <div class="varrow">▼ &nbsp; Save draft → 1 call &nbsp;·&nbsp; Schedule → 2 calls</div>
+    <div class="row">
+      <div class="node ok"><div class="lbl">3 · POST /posts</div><div class="meta"><code>PostsService.create</code> → Post (DRAFT or SCHEDULED) + PostVariant per platform + PostMedia</div></div>
+      <div class="node ok"><div class="lbl">4 · POST /posts/:id/schedule</div><div class="meta"><code>PostsService.schedule</code> → just sets <code>status=SCHEDULED</code>, <code>scheduledFor</code></div></div>
+    </div>
+    <div class="varrow">▼</div>
+    <div class="break">
+      🔴 <b>THE BREAK</b> — nothing connects "SCHEDULED" (or any button) to "enqueue a publish job".<br>
+      <span style="font-size:12.5px;color:var(--muted)">The producer <code>SchedulerService.schedulePost()</code> exists but <b>no code calls it</b>. There is no "Post now" route. Posts never leave SCHEDULED.</span>
+    </div>
+    <div class="varrow" style="color:var(--dead)">▼ &nbsp;(everything below is built but unreachable today)</div>
+    <div class="row">
+      <div class="node deadnode"><div class="lbl">5 · publish queue (BullMQ)</div><div class="meta">delayed job <code>publish-post</code> · needs Redis · producer orphaned</div></div>
+      <div class="node deadnode"><div class="lbl">6 · PublishProcessor</div><div class="meta">refresh token → <code>connector.publish()</code> per variant → write PostPublication</div></div>
+    </div>
+    <div class="varrow" style="color:var(--dead)">▼</div>
+    <div class="row">
+      <div class="node deadnode"><div class="lbl">7 · Connectors</div><div class="meta">LinkedIn / Facebook / … <code>publish()</code> → {platformPostId, url}</div></div>
+      <div class="node deadnode"><div class="lbl">8 · PostPublication</div><div class="meta">per-platform SUCCESS/FAILED · then Post → PUBLISHED / FAILED</div></div>
+      <div class="node deadnode"><div class="lbl">9 · Analytics pull</div><div class="meta">on-demand only (no cron) · needs Redis · → PublicationMetrics</div></div>
+    </div>
+  </div>
+
+  <h2>Post status lifecycle (as coded)</h2>
+  <div class="life">DRAFT ───(schedule)──▶ SCHEDULED ──✗ stuck forever (no enqueue) ✗──▶ [PUBLISHING ▶ PUBLISHED | FAILED]
+                                                              └─ only if a publish job ran, which never happens
+CANCELLED ◀── POST /:id/cancel   (but doesn't dequeue any job)
+PENDING_APPROVAL / APPROVED ── set by approvals module, ignored by the publish path</div>
+
+  <h2>Gaps the trace found</h2>
+  <div class="gaps">
+    <div class="gap g-crit"><h3><span class="tag t-crit">CRIT</span>Scheduling disconnected</h3><p><code>schedulePost()</code> never called; <code>POST /:id/schedule</code> only sets DB status. Scheduled posts never publish.</p></div>
+    <div class="gap g-crit"><h3><span class="tag t-crit">CRIT</span>No "Post now"</h3><p>Composer has only Save draft + Schedule. No immediate-publish endpoint exists anywhere.</p></div>
+    <div class="gap g-mod"><h3><span class="tag t-mod">FRAGILE</span>Partial failure → whole post FAILED</h3><p>If 1 of 3 platforms fails, Post status = FAILED even though 2 succeeded. No "partially published" state.</p></div>
+    <div class="gap g-mod"><h3><span class="tag t-mod">FRAGILE</span>Retry re-publishes successes</h3><p>BullMQ <code>attempts:3</code> re-runs ALL variants; already-succeeded platforms could double-post.</p></div>
+    <div class="gap g-mod"><h3><span class="tag t-mod">FRAGILE</span>Bilingual bug</h3><p><code>buildCreatePostInput</code> hardcodes <code>language:'en'</code> — RedNote 中文 captions are stored as 'en'. Contradicts the bilingual edge.</p></div>
+    <div class="gap g-mod"><h3><span class="tag t-mod">FRAGILE</span>No media-readiness guard</h3><p>Nothing links a VideoGeneration job to a Post. Once scheduling works, a post could fire before its video is ready.</p></div>
+    <div class="gap g-lo"><h3><span class="tag t-lo">LOW</span>Cancel doesn't dequeue</h3><p><code>cancel</code> sets CANCELLED but wouldn't remove a Bull job (once scheduling is wired).</p></div>
+    <div class="gap g-lo"><h3><span class="tag t-lo">LOW</span>IDOR on mutations</h3><p><code>schedule</code>/<code>cancel</code>/<code>PATCH</code>/<code>GET :id</code> skip workspace-membership checks.</p></div>
+    <div class="gap g-lo"><h3><span class="tag t-lo">LOW</span>Redis-gated</h3><p>Queue + scheduling only load when <code>REDIS_URL</code> is set. Local dev (no Redis) can't publish/schedule at all.</p></div>
+  </div>
+
+  <h2>✅ TARGET design (after grill — 2026-06-18)</h2>
+  <div class="legend"><span><i class="dot" style="background:var(--ok)"></i> the fix: in-process cron, no Redis, DB-sourced, per-platform</span></div>
+  <div class="flow">
+    <div class="row">
+      <div class="node ok"><div class="lbl">1 · Composer → schedule</div><div class="meta">pick time → <code>POST /posts</code> + <code>/schedule</code> → Post <b>SCHEDULED</b> + <code>scheduledFor</code> · variant stores REAL language (en / zh-CN)</div></div>
+    </div>
+    <div class="varrow">▼</div>
+    <div class="row">
+      <div class="node ok"><div class="lbl">2 · @Cron (~every 1 min)</div><div class="meta">scan posts where <code>status=SCHEDULED AND scheduledFor&lt;=now</code> · same pattern as the video reaper · <b>no Redis</b></div></div>
+      <div class="node ok"><div class="lbl">3 · Atomic claim</div><div class="meta">flip SCHEDULED → <b>PUBLISHING</b> in one update so overlapping scans can't double-fire</div></div>
+    </div>
+    <div class="varrow">▼ &nbsp; per variant (platform)</div>
+    <div class="row">
+      <div class="node ok"><div class="lbl">4 · Publish each platform</div><div class="meta">reuse existing logic: refresh token → <code>connector.publish()</code> · <b>skip any platform already SUCCESS</b> (idempotent — no double-post)</div></div>
+      <div class="node ok"><div class="lbl">5 · Record per-platform</div><div class="meta">PostPublication SUCCESS / FAILED(+retryCount, nextRetryAt). Failed → auto-retry next cron passes, capped.</div></div>
+    </div>
+    <div class="varrow">▼</div>
+    <div class="row">
+      <div class="node ok"><div class="lbl">6 · Roll up Post status</div><div class="meta"><b>PUBLISHED</b> (all ok) · <b>PARTIALLY_PUBLISHED</b> (new — some ok) · <b>FAILED</b> (all failed, retries exhausted)</div></div>
+      <div class="node ok"><div class="lbl">7 · Cancel = just works</div><div class="meta">set CANCELLED; cron ignores it. No queue job to dequeue.</div></div>
+    </div>
+  </div>
+  <div class="gaps" style="margin-top:14px">
+    <div class="gap g-lo"><h3>Also in the fix</h3><p>Add <code>PARTIALLY_PUBLISHED</code> to PostStatus · fix <code>language</code> bug (en/zh-CN) · add <code>assertMember</code> to schedule/cancel/PATCH/GET · cheap fire-time media-exists check · retire the dead BullMQ scheduler.</p></div>
+    <div class="gap g-mod"><h3><span class="tag t-mod">UX</span>Needs a scheduled-queue / calendar view</h3><p>Scheduling-first means users must SEE, edit, and cancel upcoming posts. There's no calendar today — design candidate for ui-ux-pro-max.</p></div>
+    <div class="gap g-lo"><h3>"Post now" — thin later add</h3><p>Same publish path, fired immediately instead of by the cron. Trivial once the cron publisher exists.</p></div>
+  </div>
+
+  <footer>Traced from <code>posts.service.ts</code>, <code>scheduler.service.ts</code>, <code>publish.processor.ts</code>, <code>composer/page.tsx</code>, <code>schema.prisma</code> · this view: <code>docs/inboudly-post-workflow.html</code></footer>
+</div>
+</body>
+</html>
