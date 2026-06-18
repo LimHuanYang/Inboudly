@@ -368,7 +368,9 @@ CRITICAL:
     }
     if (!project.scenes.length) throw new BadRequestException('Project has no scenes');
 
-    const apiKey = await this.credentials.getDecryptedKey(workspaceId, 'elevenLabsKey');
+    // ElevenLabs is no longer a BYOK vendor (only Gemini + Higgsfield remain),
+    // so the voice key can never be configured — voice gen is unavailable.
+    const apiKey: string | null = null;
     if (!apiKey) {
       await this.prisma.videoProject.update({
         where: { id: projectId },
@@ -428,7 +430,9 @@ CRITICAL:
       throw new NotFoundException('Scene not found');
     }
 
-    const apiKey = await this.credentials.getDecryptedKey(workspaceId, 'elevenLabsKey');
+    // ElevenLabs is no longer a BYOK vendor (only Gemini + Higgsfield remain),
+    // so the voice key can never be configured — voice gen is unavailable.
+    const apiKey: string | null = null;
     if (!apiKey) {
       throw new BadRequestException(
         'Voice generation needs an ElevenLabs API key. Add one in Settings → AI Providers.',

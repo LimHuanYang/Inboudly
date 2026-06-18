@@ -11,14 +11,14 @@ describe('GenerateVideoSchema', () => {
     expect(out.model).toBeUndefined();
   });
 
-  it('accepts demo as a provider', () => {
-    const out = GenerateVideoSchema.parse({ workspaceId: WS, prompt: 'x', provider: 'demo' });
-    expect(out.provider).toBe('demo');
+  it('accepts higgsfield as a provider', () => {
+    const out = GenerateVideoSchema.parse({ workspaceId: WS, prompt: 'x', provider: 'higgsfield' });
+    expect(out.provider).toBe('higgsfield');
   });
 
   it('accepts an arbitrary model string', () => {
-    const out = GenerateVideoSchema.parse({ workspaceId: WS, prompt: 'x', model: 'runway-gen3' });
-    expect(out.model).toBe('runway-gen3');
+    const out = GenerateVideoSchema.parse({ workspaceId: WS, prompt: 'x', model: 'higgsfield' });
+    expect(out.model).toBe('higgsfield');
   });
 
   it('rejects an unknown provider', () => {
@@ -26,8 +26,8 @@ describe('GenerateVideoSchema', () => {
       .toThrow();
   });
 
-  it('VideoProviderSchema enumerates all five providers', () => {
-    expect(VideoProviderSchema.options).toEqual(['demo', 'pollinations', 'runway', 'kling', 'veo']);
+  it('VideoProviderSchema enumerates only higgsfield', () => {
+    expect(VideoProviderSchema.options).toEqual(['higgsfield']);
   });
 
   it('rejects durationSec outside [2, 10]', () => {

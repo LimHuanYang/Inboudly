@@ -80,7 +80,10 @@ export class KolAnalysisService {
   ): Promise<number> {
     if (!comments.length) return 0;
 
-    const apiKey = await this.credentials.getDecryptedKey(workspaceId, 'anthropicKey');
+    // Anthropic is no longer a BYOK vendor (only Gemini + Higgsfield remain),
+    // so this key can never be configured — always use the deterministic
+    // length-based fallback below.
+    const apiKey: string | null = null;
 
     if (!apiKey) {
       // Deterministic fallback: very short / emoji-only comments are
@@ -93,7 +96,7 @@ export class KolAnalysisService {
     }
 
     const client = new Anthropic({ apiKey });
-    const model = await this.credentials.getModel(workspaceId, 'anthropic');
+    const model = await this.credentials.getModel(workspaceId, 'gemini');
 
     const sample = comments
       .slice(0, 50) // cap to keep prompt small

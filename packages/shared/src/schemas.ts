@@ -98,7 +98,7 @@ export const GenerateImageSchema = z.object({
 });
 export type GenerateImageInput = z.infer<typeof GenerateImageSchema>;
 
-export const VideoProviderSchema = z.enum(['demo', 'pollinations', 'runway', 'kling', 'veo']);
+export const VideoProviderSchema = z.enum(['higgsfield']);
 export type VideoProviderName = z.infer<typeof VideoProviderSchema>;
 
 export const GenerateVideoSchema = z.object({
@@ -106,7 +106,7 @@ export const GenerateVideoSchema = z.object({
   prompt: z.string().min(1).max(2000),
   durationSec: z.number().int().min(2).max(10).default(5),
   aspectRatio: z.enum(['9:16', '16:9', '1:1']).default('9:16'),
-  // Omit to let the server resolve the workspace's preferred/default provider.
+  // Omit to let the server resolve the workspace's default provider (Higgsfield).
   provider: VideoProviderSchema.optional(),
   // Free-form so each provider's model list can grow without a schema change.
   // Omit to use the server default for the resolved provider.

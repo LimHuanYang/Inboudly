@@ -21,29 +21,9 @@ import {
 } from './ai-credentials.service';
 import { ProviderTestService } from './provider-test.service';
 
-const ALLOWED_KEY_FIELDS: AiProviderKeyName[] = [
-  'geminiKey',
-  'openaiKey',
-  'anthropicKey',
-  'runwayKey',
-  'klingKey',
-  'pollinationsKey',
-  'elevenLabsKey',
-  'sunoKey',
-  'pineconeKey',
-];
+const ALLOWED_KEY_FIELDS: AiProviderKeyName[] = ['geminiKey', 'higgsfieldKey', 'pineconeKey'];
 
-const ALLOWED_MODEL_FIELDS: AiProviderModelName[] = [
-  'geminiModel',
-  'geminiImageModel',
-  'openaiModel',
-  'anthropicModel',
-  'pollinationsModel',
-  'pollinationsVideoModel',
-  'runwayModel',
-  'klingModel',
-  'veoVideoModel',
-];
+const ALLOWED_MODEL_FIELDS: AiProviderModelName[] = ['geminiModel', 'geminiImageModel'];
 
 @ApiTags('ai-credentials')
 @ApiBearerAuth()
@@ -116,22 +96,6 @@ export class AiCredentialsController {
     return this.credentials.view(workspaceId);
   }
 
-  @Patch('preferences')
-  async setPreferences(
-    @Param('workspaceId') workspaceId: string,
-    @Body()
-    body: {
-      preferredTextProvider?: 'claude' | 'gemini' | null;
-      preferredImageProvider?: 'openai' | 'gemini' | 'pollinations' | null;
-      preferredVideoProvider?: 'demo' | 'pollinations' | 'runway' | 'kling' | 'veo' | null;
-    },
-    @CurrentUser() user: { supabaseUserId: string },
-  ) {
-    await this.workspaces.assertMember(workspaceId, user.supabaseUserId);
-    await this.credentials.setPreferences(workspaceId, body);
-    return this.credentials.view(workspaceId);
-  }
-
   /**
    * Ping the provider's API with a tiny test prompt. Returns {ok, latencyMs,
    * modelUsed, message}. Used by the Settings UI's "Test" button.
@@ -149,18 +113,6 @@ export class AiCredentialsController {
       if (!key) return { ok: false, message: 'No Gemini key saved.' };
       const model = await this.credentials.getModel(workspaceId, 'gemini');
       return this.tester.testGemini(key, model);
-    }
-    if (provider === 'anthropic') {
-      const key = await this.credentials.getDecryptedKey(workspaceId, 'anthropicKey');
-      if (!key) return { ok: false, message: 'No Anthropic key saved.' };
-      const model = await this.credentials.getModel(workspaceId, 'anthropic');
-      return this.tester.testAnthropic(key, model);
-    }
-    if (provider === 'openai') {
-      const key = await this.credentials.getDecryptedKey(workspaceId, 'openaiKey');
-      if (!key) return { ok: false, message: 'No OpenAI key saved.' };
-      const model = await this.credentials.getModel(workspaceId, 'openai');
-      return this.tester.testOpenAi(key, model);
     }
     throw new BadRequestException(`Test not supported for provider "${provider}"`);
   }

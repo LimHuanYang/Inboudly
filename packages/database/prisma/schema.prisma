@@ -118,35 +118,18 @@ model WorkspaceAiCredentials {
   workspaceId   String   @unique
   // Each *Key field stores the AES-256-GCM encrypted ciphertext.
   // Plaintext format: "<iv>:<authTag>:<ciphertext>" (all hex-encoded).
+  // BYOK is now two vendors only: Gemini (text + image + embeddings) and
+  // Higgsfield (video). Pinecone stays for the brand-voice memory moat.
   geminiKey     String?  @db.Text
-  openaiKey     String?  @db.Text
-  anthropicKey  String?  @db.Text
-  runwayKey     String?  @db.Text
-  klingKey      String?  @db.Text
-  pollinationsKey String? @db.Text
-  elevenLabsKey String?  @db.Text
-  sunoKey       String?  @db.Text
+  // Higgsfield video key — stores the literal "api_key:api_key_secret" pair
+  // (encrypted at rest like the others).
+  higgsfieldKey String?  @db.Text
   pineconeKey   String?  @db.Text
-  // Optional model overrides — when set, the service uses this model instead
-  // of the platform default (e.g. claude-haiku-4-5 for cheaper, gemini-2.5-pro
-  // for better quality). Plain text — model names aren't secrets.
-  // Task split: anthropicModel + geminiModel = TEXT (captions); openaiModel +
-  // geminiImageModel = IMAGE. Gemini does both, so it needs two model fields.
+  // Optional Gemini model overrides — when set, the service uses this model
+  // instead of the platform default. Plain text — model names aren't secrets.
+  // Gemini does both text and image, so it needs two model fields.
   geminiModel       String? // Gemini TEXT model (captions)
   geminiImageModel  String? // Gemini IMAGE model (image gen)
-  openaiModel       String? // OpenAI IMAGE model
-  anthropicModel    String? // Claude TEXT model (captions)
-  pollinationsModel String? // Pollinations IMAGE model (free, keyless)
-  // VIDEO model overrides (Plan 1+). Demo has no override (it's a fixed clip).
-  pollinationsVideoModel String? // Pollinations text-to-video model
-  runwayModel            String? // Runway video model (e.g. runway-gen3)
-  klingModel             String? // Kling video model (e.g. kling-v2)
-  veoVideoModel          String? // Google Veo video model (uses the Gemini/Google key)
-  // Hint for the controller when both Gemini and OpenAI/Anthropic are set.
-  // null = auto-select (Anthropic > Gemini for text, OpenAI > Gemini > Pollinations for image).
-  preferredTextProvider  String?  // 'claude' | 'gemini'
-  preferredImageProvider String?  // 'openai' | 'gemini' | 'pollinations'
-  preferredVideoProvider String?  // 'demo' | 'pollinations' | 'runway' | 'kling' | 'veo'
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -332,8 +315,8 @@ model VideoGeneration {
   id                String      @id @default(cuid())
   workspaceId       String
   prompt            String      @db.Text
-  provider          String      // 'demo' | 'pollinations' | 'runway' | 'kling' | 'veo'
-  model             String      // e.g. 'demo', 'runway-gen3', 'kling-v2', 'veo-3'
+  provider          String      // 'higgsfield'
+  model             String      // e.g. 'higgsfield'
   aspectRatio       String      // '9:16' | '16:9' | '1:1'
   durationSec       Int
   referenceImageUrl String?

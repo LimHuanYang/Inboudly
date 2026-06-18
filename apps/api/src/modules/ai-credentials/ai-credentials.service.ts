@@ -2,6 +2,11 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { EncryptionService } from '../../common/crypto/encryption.service';
 
+// NOTE: the BYOK surface is now two vendors only — Gemini (text + image +
+// embeddings) and Higgsfield (video). Pinecone stays for the brand-voice moat.
+// The `provider` union below keeps 'claude' as a *type* member (never returned
+// at runtime) only so legacy provider-branching call sites still type-check;
+// resolveTextProvider always resolves to 'gemini'.
 export type ResolvedTextProvider = {
   provider: 'claude' | 'gemini';
   apiKey: string;
@@ -9,81 +14,42 @@ export type ResolvedTextProvider = {
 };
 
 export type ResolvedImageProvider = {
-  provider: 'openai' | 'gemini' | 'pollinations';
-  // Empty string for keyless providers (Pollinations).
+  provider: 'gemini';
   apiKey: string;
   model: string;
 };
 
-export type VideoProviderName = 'demo' | 'pollinations' | 'runway' | 'kling' | 'veo';
+export type VideoProviderName = 'higgsfield';
 
 export type ResolvedVideoProvider = {
   provider: VideoProviderName;
-  apiKey: string; // '' for keyless / demo
+  apiKey: string; // '' when no Higgsfield key is configured yet
   model: string;
 };
 
-export type AiProviderKeyName =
-  | 'geminiKey'
-  | 'openaiKey'
-  | 'anthropicKey'
-  | 'runwayKey'
-  | 'klingKey'
-  | 'pollinationsKey'
-  | 'elevenLabsKey'
-  | 'sunoKey'
-  | 'pineconeKey';
+export type AiProviderKeyName = 'geminiKey' | 'higgsfieldKey' | 'pineconeKey';
 
-export type AiProviderModelName =
-  | 'geminiModel'
-  | 'geminiImageModel'
-  | 'openaiModel'
-  | 'anthropicModel'
-  | 'pollinationsModel'
-  | 'pollinationsVideoModel'
-  | 'runwayModel'
-  | 'klingModel'
-  | 'veoVideoModel';
+export type AiProviderModelName = 'geminiModel' | 'geminiImageModel';
 
-const KEY_FIELDS: AiProviderKeyName[] = [
-  'geminiKey',
-  'openaiKey',
-  'anthropicKey',
-  'runwayKey',
-  'klingKey',
-  'pollinationsKey',
-  'elevenLabsKey',
-  'sunoKey',
-  'pineconeKey',
-];
+const KEY_FIELDS: AiProviderKeyName[] = ['geminiKey', 'higgsfieldKey', 'pineconeKey'];
 
-/** Default TEXT models when no user override is saved. */
+/** Default Gemini TEXT model when no user override is saved. */
 export const DEFAULT_MODELS = {
   gemini: 'gemini-2.5-flash',
-  openai: 'gpt-image-1', // (openai is image-only here; kept for getModel uniformity)
-  anthropic: 'claude-sonnet-4-6',
 } as const;
 
-/** Default IMAGE models when no user override is saved. */
+/** Default Gemini IMAGE model when no user override is saved. */
 export const DEFAULT_IMAGE_MODELS = {
-  openai: 'gpt-image-1',
   gemini: 'gemini-2.5-flash-image', // "Nano Banana"
-  pollinations: 'flux', // free, keyless
 } as const;
 
 /** Default VIDEO models when no user override is saved. */
 export const DEFAULT_VIDEO_MODELS: Record<VideoProviderName, string> = {
-  demo: 'demo',
-  pollinations: 'seedance',
-  runway: 'runway-gen3',
-  kling: 'kling-v2',
-  veo: 'veo-3',
+  higgsfield: 'higgsfield',
 } as const;
 
 /** Providers with a working adapter in THIS build. */
-export const IMPLEMENTED_VIDEO_PROVIDERS: VideoProviderName[] = [
-  'demo', 'pollinations', 'runway', 'kling', 'veo',
-];
+export const IMPLEMENTED_VIDEO_PROVIDERS: VideoProviderName[] = ['higgsfield'];
 
 interface ProviderStateView {
   configured: boolean;
@@ -92,26 +58,11 @@ interface ProviderStateView {
 }
 
 export interface AiCredentialsView {
-  gemini:     ProviderStateView;
-  openai:     ProviderStateView;
-  anthropic:  ProviderStateView;
+  gemini: ProviderStateView;
   // Gemini's IMAGE model override (separate from gemini.model which is text).
   geminiImageModel: string | null;
-  // Pollinations IMAGE model override (free, keyless provider).
-  pollinationsModel: string | null;
-  pollinationsVideoModel: string | null;
-  runwayModel: string | null;
-  klingModel: string | null;
-  veoVideoModel: string | null;
-  runway:     { configured: boolean; masked: string | null };
-  kling:      { configured: boolean; masked: string | null };
-  pollinations: { configured: boolean; masked: string | null };
-  elevenLabs: { configured: boolean; masked: string | null };
-  suno:       { configured: boolean; masked: string | null };
-  pinecone:   { configured: boolean; masked: string | null };
-  preferredTextProvider:  'claude' | 'gemini' | null;
-  preferredImageProvider: 'openai' | 'gemini' | 'pollinations' | null;
-  preferredVideoProvider: 'demo' | 'pollinations' | 'runway' | 'kling' | 'veo' | null;
+  higgsfield: { configured: boolean; masked: string | null };
+  pinecone: { configured: boolean; masked: string | null };
 }
 
 @Injectable()
@@ -135,34 +86,22 @@ export class AiCredentialsService {
     }
   }
 
-  /** Get the user's chosen model for a provider, falling back to the default. */
-  async getModel(
-    workspaceId: string,
-    provider: 'gemini' | 'openai' | 'anthropic',
-  ): Promise<string> {
+  /** Get the user's chosen Gemini TEXT model, falling back to the default. */
+  async getModel(workspaceId: string, provider: 'gemini'): Promise<string> {
     const row = await this.prisma.workspaceAiCredentials.findUnique({
       where: { workspaceId },
     });
-    const field = `${provider}Model` as AiProviderModelName;
-    const custom = row?.[field];
+    const custom = row?.geminiModel;
     return custom?.trim() || DEFAULT_MODELS[provider];
   }
 
   /**
-   * Image model for a provider. Gemini's image model lives in its own field
-   * (geminiImageModel) because geminiModel is the TEXT model. OpenAI's image
-   * model is openaiModel (OpenAI is image-only here).
+   * Gemini IMAGE model. Lives in its own field (geminiImageModel) because
+   * geminiModel is the TEXT model.
    */
-  async getImageModel(
-    workspaceId: string,
-    provider: 'openai' | 'gemini' | 'pollinations',
-  ): Promise<string> {
+  async getImageModel(workspaceId: string, provider: 'gemini'): Promise<string> {
     const row = await this.getRecord(workspaceId);
-    const field: AiProviderModelName =
-      provider === 'openai' ? 'openaiModel'
-        : provider === 'gemini' ? 'geminiImageModel'
-          : 'pollinationsModel';
-    const custom = row?.[field];
+    const custom = row?.geminiImageModel;
     return custom?.trim() || DEFAULT_IMAGE_MODELS[provider];
   }
 
@@ -175,30 +114,13 @@ export class AiCredentialsService {
    * Used by AiController (Composer), CompetitorAnalysisService (gap analysis),
    * and any future feature that needs to generate text.
    *
-   * Resolution order:
-   *   1. Workspace's preferred provider if its key is configured
-   *   2. Anthropic key if available
-   *   3. Gemini key if available
-   *   4. null (caller decides: throw or return graceful error)
-   *
-   * Returns the matching model (user override OR default) so callers don't
-   * have to make a second roundtrip.
+   * BYOK is Gemini-only now, so this resolves to Gemini when its key is set,
+   * else null (caller decides: throw or return graceful error). Returns the
+   * matching model (user override OR default) so callers don't have to make a
+   * second roundtrip.
    */
   async resolveTextProvider(workspaceId: string): Promise<ResolvedTextProvider | null> {
-    const record = await this.getRecord(workspaceId);
-    const claudeKey = await this.getDecryptedKey(workspaceId, 'anthropicKey');
     const geminiKey = await this.getDecryptedKey(workspaceId, 'geminiKey');
-
-    const preferred = record?.preferredTextProvider as 'claude' | 'gemini' | null | undefined;
-    if (preferred === 'claude' && claudeKey) {
-      return { provider: 'claude', apiKey: claudeKey, model: await this.getModel(workspaceId, 'anthropic') };
-    }
-    if (preferred === 'gemini' && geminiKey) {
-      return { provider: 'gemini', apiKey: geminiKey, model: await this.getModel(workspaceId, 'gemini') };
-    }
-    if (claudeKey) {
-      return { provider: 'claude', apiKey: claudeKey, model: await this.getModel(workspaceId, 'anthropic') };
-    }
     if (geminiKey) {
       return { provider: 'gemini', apiKey: geminiKey, model: await this.getModel(workspaceId, 'gemini') };
     }
@@ -210,111 +132,61 @@ export class AiCredentialsService {
     const resolved = await this.resolveTextProvider(workspaceId);
     if (!resolved) {
       throw new BadRequestException(
-        'No text AI provider configured for this workspace. Go to Settings → AI Providers and add either an Anthropic (Claude) or Google (Gemini) API key.',
+        'No text AI provider configured for this workspace. Go to Settings → AI Providers, add a Google (Gemini) key.',
       );
     }
     return resolved;
   }
 
   /**
-   * Image-generation equivalent of resolveTextProvider. Honours
-   * preferredImageProvider, then falls back OpenAI > Gemini > Pollinations.
-   * Pollinations is free and keyless, so this ALWAYS resolves — a workspace
-   * can generate images at $0 before adding any paid provider key.
+   * Image-generation equivalent of resolveTextProvider. Gemini-only: resolves
+   * to Gemini when its key is set, else null.
    */
-  async resolveImageProvider(workspaceId: string): Promise<ResolvedImageProvider> {
-    const record = await this.getRecord(workspaceId);
-    const openaiKey = await this.getDecryptedKey(workspaceId, 'openaiKey');
+  async resolveImageProvider(workspaceId: string): Promise<ResolvedImageProvider | null> {
     const geminiKey = await this.getDecryptedKey(workspaceId, 'geminiKey');
-
-    const pick = async (
-      provider: ResolvedImageProvider['provider'],
-      apiKey: string,
-    ): Promise<ResolvedImageProvider> => ({
-      provider,
-      apiKey,
-      model: await this.getImageModel(workspaceId, provider),
-    });
-
-    const preferred = record?.preferredImageProvider as
-      | 'openai' | 'gemini' | 'pollinations' | null | undefined;
-    if (preferred === 'pollinations') return pick('pollinations', '');
-    if (preferred === 'openai' && openaiKey) return pick('openai', openaiKey);
-    if (preferred === 'gemini' && geminiKey) return pick('gemini', geminiKey);
-    if (openaiKey) return pick('openai', openaiKey);
-    if (geminiKey) return pick('gemini', geminiKey);
-    // Free, keyless fallback so image gen works without any configured key.
-    return pick('pollinations', '');
+    if (geminiKey) {
+      return { provider: 'gemini', apiKey: geminiKey, model: await this.getImageModel(workspaceId, 'gemini') };
+    }
+    return null;
   }
 
-  /**
-   * Alias of resolveImageProvider. Pollinations guarantees a provider is always
-   * available, so this never throws — kept for call-site symmetry with
-   * requireTextProvider.
-   */
+  /** Same as resolveImageProvider but throws 400 if Gemini isn't configured. */
   async requireImageProvider(workspaceId: string): Promise<ResolvedImageProvider> {
-    return this.resolveImageProvider(workspaceId);
+    const resolved = await this.resolveImageProvider(workspaceId);
+    if (!resolved) {
+      throw new BadRequestException(
+        'No image AI provider configured for this workspace. Go to Settings → AI Providers, add a Google (Gemini) key.',
+      );
+    }
+    return resolved;
   }
 
   /**
-   * Video model for a provider. Demo is a fixed clip (no override field), so it
-   * always returns the default. Veo uses the Google/Gemini key but its own model
-   * field (veoVideoModel).
+   * Video model for a provider. Higgsfield has no override field, so this
+   * always returns the default.
    */
   async getVideoModel(workspaceId: string, provider: VideoProviderName): Promise<string> {
-    const row = await this.getRecord(workspaceId);
-    const field: AiProviderModelName | null =
-      provider === 'pollinations' ? 'pollinationsVideoModel'
-        : provider === 'runway' ? 'runwayModel'
-          : provider === 'kling' ? 'klingModel'
-            : provider === 'veo' ? 'veoVideoModel'
-              : null; // demo
-    const custom = field ? (row?.[field] as string | null) : null;
-    return custom?.trim() || DEFAULT_VIDEO_MODELS[provider];
+    return DEFAULT_VIDEO_MODELS[provider];
   }
 
   /**
-   * Video equivalent of resolveImageProvider. Demo is keyless and always
-   * available, so this NEVER throws. Honours an explicit per-request override
-   * first, then the saved preferredVideoProvider — but only for providers that
-   * (a) have a working adapter in this build and (b) have their key when keyed.
-   * Everything else falls back to the always-works Demo provider.
+   * Video equivalent of resolveImageProvider. Higgsfield is the only provider;
+   * resolves to it with the workspace's higgsfieldKey (or '' if not yet set, so
+   * the runner surfaces a clear "add your Higgsfield key" error).
    */
   async resolveVideoProvider(
     workspaceId: string,
-    override?: VideoProviderName,
+    _override?: VideoProviderName,
   ): Promise<ResolvedVideoProvider> {
-    const record = await this.getRecord(workspaceId);
-    const preferred = (override ?? (record?.preferredVideoProvider as VideoProviderName | null))
-      ?? undefined;
-
-    // Each paid provider uses its own per-provider API key. Veo runs on the
-    // Gemini API key via AI Studio's Veo endpoint (not Vertex AI).
-    const keyFieldFor: Partial<Record<VideoProviderName, AiProviderKeyName>> = {
-      pollinations: 'pollinationsKey',
-      runway: 'runwayKey',
-      kling:  'klingKey',
-      veo:    'geminiKey',
-    };
-
-    const pick = async (provider: VideoProviderName, apiKey: string): Promise<ResolvedVideoProvider> => ({
-      provider,
+    const apiKey = (await this.getDecryptedKey(workspaceId, 'higgsfieldKey')) ?? '';
+    return {
+      provider: 'higgsfield',
       apiKey,
-      model: await this.getVideoModel(workspaceId, provider),
-    });
-
-    if (preferred && IMPLEMENTED_VIDEO_PROVIDERS.includes(preferred)) {
-      if (preferred === 'demo') return pick(preferred, '');
-      const keyField = keyFieldFor[preferred];
-      const key = keyField ? await this.getDecryptedKey(workspaceId, keyField) : null;
-      if (key) return pick(preferred, key);
-    }
-
-    // Always-works, zero-setup default.
-    return pick('demo', '');
+      model: await this.getVideoModel(workspaceId, 'higgsfield'),
+    };
   }
 
-  /** Alias for symmetry — Demo guarantees a provider, so this never throws. */
+  /** Alias for symmetry. */
   async requireVideoProvider(
     workspaceId: string,
     override?: VideoProviderName,
@@ -338,34 +210,11 @@ export class AiCredentialsService {
       }
     };
 
-    const safeProvider = (
-      keyField: AiProviderKeyName,
-      modelField: AiProviderModelName,
-    ): ProviderStateView => ({
-      ...safeKey(keyField),
-      model: (row?.[modelField] as string | null) ?? null,
-    });
-
     return {
-      gemini:     safeProvider('geminiKey', 'geminiModel'),
-      openai:     safeProvider('openaiKey', 'openaiModel'),
-      anthropic:  safeProvider('anthropicKey', 'anthropicModel'),
+      gemini: { ...safeKey('geminiKey'), model: (row?.geminiModel as string | null) ?? null },
       geminiImageModel: (row?.geminiImageModel as string | null) ?? null,
-      pollinationsModel: (row?.pollinationsModel as string | null) ?? null,
-      pollinationsVideoModel: (row?.pollinationsVideoModel as string | null) ?? null,
-      runwayModel: (row?.runwayModel as string | null) ?? null,
-      klingModel: (row?.klingModel as string | null) ?? null,
-      veoVideoModel: (row?.veoVideoModel as string | null) ?? null,
-      runway:     safeKey('runwayKey'),
-      kling:      safeKey('klingKey'),
-      pollinations: safeKey('pollinationsKey'),
-      elevenLabs: safeKey('elevenLabsKey'),
-      suno:       safeKey('sunoKey'),
-      pinecone:   safeKey('pineconeKey'),
-      preferredTextProvider:  (row?.preferredTextProvider as 'claude' | 'gemini' | null) ?? null,
-      preferredImageProvider: (row?.preferredImageProvider as 'openai' | 'gemini' | 'pollinations' | null) ?? null,
-      preferredVideoProvider:
-        (row?.preferredVideoProvider as 'demo' | 'pollinations' | 'runway' | 'kling' | 'veo' | null) ?? null,
+      higgsfield: safeKey('higgsfieldKey'),
+      pinecone: safeKey('pineconeKey'),
     };
   }
 
@@ -406,28 +255,10 @@ export class AiCredentialsService {
     });
   }
 
-  async setPreferences(
-    workspaceId: string,
-    prefs: {
-      preferredTextProvider?: 'claude' | 'gemini' | null;
-      preferredImageProvider?: 'openai' | 'gemini' | 'pollinations' | null;
-      preferredVideoProvider?: 'demo' | 'pollinations' | 'runway' | 'kling' | 'veo' | null;
-    },
-  ): Promise<void> {
-    await this.prisma.workspaceAiCredentials.upsert({
-      where: { workspaceId },
-      update: prefs,
-      create: { workspaceId, ...prefs },
-    });
-  }
-
   async clearAll(workspaceId: string): Promise<void> {
     const reset: Record<string, null> = Object.fromEntries(
       KEY_FIELDS.map((f) => [f, null]),
     );
-    reset.preferredTextProvider = null;
-    reset.preferredImageProvider = null;
-    reset.preferredVideoProvider = null;
     await this.prisma.workspaceAiCredentials
       .update({ where: { workspaceId }, data: reset as never })
       .catch(() => {

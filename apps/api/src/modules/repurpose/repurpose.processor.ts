@@ -63,19 +63,17 @@ export class RepurposeProcessor extends WorkerHost {
     const req = job.data;
     this.logger.log(`Repurpose job ${job.id}: ${req.source.kind} → ${req.targetPlatforms.join(', ')}`);
 
-    // BYOK: fetch this workspace's keys up front. The repurpose pipeline
-    // needs OpenAI (Whisper) AND Anthropic (clip selection) — fail fast
-    // with a clear message if either is missing.
-    const [openaiKey, anthropicKey] = await Promise.all([
-      this.credentials.getDecryptedKey(req.workspaceId, 'openaiKey'),
-      this.credentials.getDecryptedKey(req.workspaceId, 'anthropicKey'),
-    ]);
-    if (!openaiKey) {
+    // BYOK: the repurpose pipeline needs OpenAI (Whisper) AND Anthropic (clip
+    // selection), but neither is a BYOK vendor anymore (only Gemini + Higgsfield
+    // remain), so these keys can never be configured — fail fast as before.
+    const whisperKey: string | null = null;
+    const clipSelectionKey: string | null = null;
+    if (!whisperKey) {
       throw new Error(
         'Workspace has no OpenAI API key configured — Whisper transcription cannot run. Add a key in Settings → AI Providers.',
       );
     }
-    if (!anthropicKey) {
+    if (!clipSelectionKey) {
       throw new Error(
         'Workspace has no Anthropic API key configured — clip selection cannot run. Add a key in Settings → AI Providers.',
       );
@@ -101,13 +99,13 @@ export class RepurposeProcessor extends WorkerHost {
 
     // 2. Transcribe (workspace's OpenAI key)
     await job.updateProgress(20);
-    const transcript = await this.transcription.transcribe(openaiKey, resolved.localPath);
+    const transcript = await this.transcription.transcribe(whisperKey, resolved.localPath);
     this.logger.log(`Transcribed: ${transcript.durationSec}s, ${transcript.segments.length} segments`);
 
     // 3. Pick clips (workspace's Anthropic key)
     await job.updateProgress(40);
     const clipsByPlatform = await this.clipSelector.selectClips(
-      anthropicKey,
+      clipSelectionKey,
       transcript,
       req.targetPlatforms,
       req.clipCount,

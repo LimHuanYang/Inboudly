@@ -140,11 +140,13 @@ export class CompetitorAnalysisService {
     workspaceId: string,
     provider: 'claude' | 'gemini',
   ) {
-    const keyField = provider === 'claude' ? 'anthropicKey' : 'geminiKey';
-    const modelKey = provider === 'claude' ? 'anthropic' : 'gemini';
-    const apiKey = await this.credentials.getDecryptedKey(workspaceId, keyField);
+    // Anthropic is no longer a BYOK vendor (only Gemini + Higgsfield remain),
+    // so a 'claude' override can never resolve a key — caller surfaces the
+    // "selected Claude but no key configured" message.
+    if (provider !== 'gemini') return null;
+    const apiKey = await this.credentials.getDecryptedKey(workspaceId, 'geminiKey');
     if (!apiKey) return null;
-    const model = await this.credentials.getModel(workspaceId, modelKey);
+    const model = await this.credentials.getModel(workspaceId, 'gemini');
     return { provider, apiKey, model } as const;
   }
 
