@@ -199,6 +199,12 @@ export default function ComposerPage() {
       const platformOptions = selectedPlatforms.includes('YOUTUBE')
         ? { YOUTUBE: { youtube: { privacyStatus: youtubePrivacy } } }
         : undefined;
+      // Derive per-platform language from each platform's primaryLanguage
+      // (e.g. REDNOTE → 'zh-CN', all others → 'en'). Falls back to 'en' in
+      // buildCreatePostInput if a platform is not present in this map.
+      const languages = Object.fromEntries(
+        selectedPlatforms.map((p) => [p, PLATFORM_SPECS[p].primaryLanguage]),
+      ) as Partial<Record<SocialPlatform, string>>;
       const input = buildCreatePostInput({
         workspaceId: workspaceId!,
         selectedPlatforms,
@@ -206,6 +212,7 @@ export default function ComposerPage() {
         hashtags,
         attachedImageIds,
         platformOptions,
+        languages,
       });
       return api.post<{ id: string }>('/posts', input).then(async (post) => {
         let scheduleFailed = false;

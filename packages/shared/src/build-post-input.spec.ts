@@ -63,6 +63,21 @@ describe('buildCreatePostInput', () => {
     });
   });
 
+  it('carries per-platform language, defaulting to en', () => {
+    const out = buildCreatePostInput({
+      workspaceId: WS,
+      selectedPlatforms: ['REDNOTE', 'LINKEDIN'],
+      captions: { REDNOTE: '你好', LINKEDIN: 'Hello' } as any,
+      hashtags: { REDNOTE: '', LINKEDIN: '' } as any,
+      attachedImageIds: { REDNOTE: [], LINKEDIN: [] } as any,
+      languages: { REDNOTE: 'zh-CN' },
+    });
+    const rn = out.variants.find((v) => v.platform === 'REDNOTE');
+    const li = out.variants.find((v) => v.platform === 'LINKEDIN');
+    expect(rn?.language).toBe('zh-CN');
+    expect(li?.language).toBe('en'); // defaulted
+  });
+
   it('threads per-platform platformOptions onto the matching variant', () => {
     const input = buildCreatePostInput({
       workspaceId: 'ws_1',

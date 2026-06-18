@@ -19,13 +19,15 @@ export function buildCreatePostInput(args: {
   hashtags: Rec<string>;
   attachedImageIds: Rec<string[]>;
   platformOptions?: Rec<Record<string, unknown>>;
+  /** Per-platform BCP-47 language tag (e.g. 'zh-CN' for REDNOTE). Defaults to 'en'. */
+  languages?: Partial<Record<SocialPlatform, string>>;
 }): CreatePostInput {
   return {
     workspaceId: args.workspaceId,
     variants: args.selectedPlatforms.map((p) => ({
       platform: p,
       caption: (args.captions[p] ?? '').trim(),
-      language: 'en',
+      language: args.languages?.[p] ?? 'en',
       hashtags: parseHashtags(args.hashtags[p]),
       mentions: [],
       mediaAssetIds: args.attachedImageIds[p] ?? [],
