@@ -14,7 +14,7 @@ interface ProviderState {
   model: string | null;
 }
 
-// Key-only providers (voice / video) don't have a model concept yet.
+// Key-only providers don't have a model concept.
 interface KeyOnlyState {
   configured: boolean;
   masked: string | null;
@@ -22,11 +22,7 @@ interface KeyOnlyState {
 
 interface AiCredentialsView {
   gemini: ProviderState;
-  openai: ProviderState;
-  anthropic: ProviderState;
-  elevenLabs: KeyOnlyState;
-  runway: KeyOnlyState;
-  kling: KeyOnlyState;
+  higgsfield: KeyOnlyState;
 }
 
 interface TestResult {
@@ -36,51 +32,31 @@ interface TestResult {
   message?: string;
 }
 
-type ProviderId = 'gemini' | 'openai' | 'anthropic' | 'elevenLabs' | 'runway' | 'kling';
+type ProviderId = 'gemini' | 'higgsfield';
 
 interface ProviderModelOption {
   value: string;
-  label: string; // shown in the dropdown
+  label: string;
 }
 
 interface ProviderMeta {
   id: ProviderId;
-  keyField: 'geminiKey' | 'openaiKey' | 'anthropicKey' | 'elevenLabsKey' | 'runwayKey' | 'klingKey';
-  // Key-only providers (voice/video) omit modelField / defaultModel / models.
-  modelField?: 'geminiModel' | 'openaiModel' | 'anthropicModel';
+  keyField: 'geminiKey' | 'higgsfieldKey';
+  // Key-only providers omit modelField / defaultModel / models.
+  modelField?: 'geminiModel';
   name: string;
   signupUrl: string;
   signupCopy: string;
   keyPlaceholder: string;
   defaultModel?: string;
-  // Curated dropdown options. Users can also pick "Use default" (empty) to
-  // clear their override and follow whatever DEFAULT_MODELS says server-side.
-  // Omitted for key-only providers like ElevenLabs.
   models?: ProviderModelOption[];
-  // Set true to hide the Test button (no test endpoint yet for this provider).
+  // Set true to hide the Test button (no test endpoint for this provider).
   noTest?: boolean;
   // Optional one-line helper text shown under the key input.
   helpText?: string;
 }
 
 const PROVIDERS: ProviderMeta[] = [
-  {
-    id: 'anthropic',
-    keyField: 'anthropicKey',
-    modelField: 'anthropicModel',
-    name: 'Anthropic (Claude)',
-    signupUrl: 'https://console.anthropic.com/settings/keys',
-    signupCopy: 'Get a key ($5 starter credit)',
-    keyPlaceholder: 'sk-ant-...',
-    defaultModel: 'claude-sonnet-4-6',
-    models: [
-      { value: 'claude-opus-4-7',   label: 'claude-opus-4-7 — most capable, expensive' },
-      { value: 'claude-sonnet-4-7', label: 'claude-sonnet-4-7 — newest balanced' },
-      { value: 'claude-sonnet-4-6', label: 'claude-sonnet-4-6 — smart, balanced cost (default)' },
-      { value: 'claude-sonnet-4-5', label: 'claude-sonnet-4-5 — previous smart' },
-      { value: 'claude-haiku-4-5',  label: 'claude-haiku-4-5 — fastest & cheapest' },
-    ],
-  },
   {
     id: 'gemini',
     keyField: 'geminiKey',
@@ -99,57 +75,21 @@ const PROVIDERS: ProviderMeta[] = [
     ],
   },
   {
-    id: 'openai',
-    keyField: 'openaiKey',
-    modelField: 'openaiModel',
-    name: 'OpenAI',
-    signupUrl: 'https://platform.openai.com/api-keys',
-    signupCopy: 'Get a key ($5 min credit)',
-    keyPlaceholder: 'sk-proj-...',
-    defaultModel: 'gpt-image-1',
-    models: [
-      { value: 'gpt-image-1', label: 'gpt-image-1 — image gen, latest (default)' },
-      { value: 'dall-e-3',    label: 'dall-e-3 — image gen, older' },
-      { value: 'dall-e-2',    label: 'dall-e-2 — image gen, cheapest' },
-    ],
-  },
-  {
-    id: 'elevenLabs',
-    keyField: 'elevenLabsKey',
-    name: 'ElevenLabs (voice)',
-    signupUrl: 'https://elevenlabs.io/app/settings/api-keys',
-    signupCopy: 'Get a key (free tier: 10k chars/mo)',
-    keyPlaceholder: 'sk_...',
-    noTest: true, // no /test endpoint for voice providers yet
-    helpText: 'Used by Faceless Videos to generate scene voiceovers. Voice picked automatically per niche (calm/dramatic/authoritative/etc).',
-  },
-  {
-    id: 'runway',
-    keyField: 'runwayKey',
-    name: 'Runway (video)',
-    signupUrl: 'https://dev.runwayml.com/',
-    signupCopy: 'Get a key + add credit',
-    keyPlaceholder: 'key_...',
+    id: 'higgsfield',
+    keyField: 'higgsfieldKey',
+    name: 'Higgsfield (video)',
+    signupUrl: 'https://cloud.higgsfield.ai',
+    signupCopy: 'Get key + secret',
+    keyPlaceholder: 'api_key:api_key_secret',
     noTest: true,
-    helpText: 'Runway Gen-3 / Gen-4 image-to-video. Needs a reference image at generate time. Pay-per-second against your Runway credit.',
-  },
-  {
-    id: 'kling',
-    keyField: 'klingKey',
-    name: 'Kling (video)',
-    signupUrl: 'https://klingai.com',
-    signupCopy: 'Get access_key + secret_key',
-    keyPlaceholder: 'access_key:secret_key',
-    noTest: true,
-    helpText: 'Paste both keys in one input as access_key:secret_key (colon-separated). Kling signs a fresh JWT per request — Inboudly does the signing.',
+    helpText:
+      'Cinematic video. Paste your key + secret from cloud.higgsfield.ai joined as api_key:api_key_secret. Pay-as-you-go; Inboudly never bills you.',
   },
 ];
 
 /** Derive the category tag label from provider id. */
 function categoryTag(id: ProviderId): string {
-  if (id === 'anthropic' || id === 'gemini') return 'Text';
-  if (id === 'openai') return 'Image';
-  if (id === 'elevenLabs') return 'Voice';
+  if (id === 'gemini') return 'Text + Image';
   return 'Video';
 }
 
@@ -157,27 +97,15 @@ export function AiProvidersCard({ workspaceId }: { workspaceId: string }) {
   const qc = useQueryClient();
   const [keyDrafts, setKeyDrafts] = useState<Record<ProviderId, string>>({
     gemini: '',
-    openai: '',
-    anthropic: '',
-    elevenLabs: '',
-    runway: '',
-    kling: '',
+    higgsfield: '',
   });
   const [modelDrafts, setModelDrafts] = useState<Record<ProviderId, string>>({
     gemini: '',
-    openai: '',
-    anthropic: '',
-    elevenLabs: '', // unused — key-only
-    runway: '',    // unused — key-only
-    kling: '',     // unused — key-only
+    higgsfield: '', // unused — key-only
   });
   const [testResults, setTestResults] = useState<Record<ProviderId, TestResult | null>>({
     gemini: null,
-    openai: null,
-    anthropic: null,
-    elevenLabs: null,
-    runway: null,
-    kling: null,
+    higgsfield: null,
   });
 
   // Explicit toggle overrides per provider. Absent = use default-open rule.
@@ -190,16 +118,11 @@ export function AiProvidersCard({ workspaceId }: { workspaceId: string }) {
   });
 
   // Seed model drafts with the saved value (or default) whenever data loads.
-  // ElevenLabs has no model — kept empty.
   useEffect(() => {
     if (!data) return;
     setModelDrafts({
       gemini: data.gemini?.model ?? '',
-      openai: data.openai?.model ?? '',
-      anthropic: data.anthropic?.model ?? '',
-      elevenLabs: '',
-      runway: '',
-      kling: '',
+      higgsfield: '',
     });
   }, [data]);
 
@@ -261,10 +184,9 @@ export function AiProvidersCard({ workspaceId }: { workspaceId: string }) {
       <CardHeader>
         <CardTitle className="text-base">AI integrations</CardTitle>
         <CardDescription>
-          Provide your own API keys for one or more providers. Resolver order:{' '}
-          <strong>Anthropic → Gemini</strong> for text, <strong>OpenAI → Gemini</strong> for
-          image, <strong>ElevenLabs</strong> for voice. Any provider without a key is skipped.
-          Keys are encrypted at rest. You pay each AI provider directly.
+          Provide your own API keys. <strong>Gemini</strong> powers text and image generation;{' '}
+          <strong>Higgsfield</strong> powers cinematic video. Keys are encrypted at rest. You pay
+          each AI provider directly.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-2">
@@ -282,7 +204,8 @@ export function AiProvidersCard({ workspaceId }: { workspaceId: string }) {
           // key is configured and the model draft differs from the saved value.
           // Key-only providers (no p.models) never have a "model changed" state.
           const hasModels = !!p.models?.length;
-          const stateModel = hasModels && state && 'model' in state ? state.model : null;
+          const stateModel =
+            hasModels && state && 'model' in state ? (state as ProviderState).model : null;
           const modelChanged =
             hasModels && state?.configured && modelDraft.trim() !== (stateModel ?? '');
           const canSaveAll = keyDraft.trim().length >= 10;
@@ -335,7 +258,7 @@ export function AiProvidersCard({ workspaceId }: { workspaceId: string }) {
               {effectiveOpen && (
                 <div className="border-t bg-muted/20 px-4 pb-4 pt-3">
                   {/* Inputs row — 3 cols (key + model + save) for full providers,
-                      2 cols (key + save) for key-only like ElevenLabs. */}
+                      2 cols (key + save) for key-only like Higgsfield. */}
                   <div
                     className={`grid grid-cols-1 gap-3 ${
                       hasModels ? 'sm:grid-cols-[1fr_1fr_auto]' : 'sm:grid-cols-[1fr_auto]'
