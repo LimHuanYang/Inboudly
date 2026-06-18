@@ -2,11 +2,7 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { AiCredentialsService } from '../../ai-credentials/ai-credentials.service';
-import { DemoVideoProvider } from './demo-video.provider';
-import { PollinationsVideoProvider } from './pollinations-video.provider';
-import { RunwayVideoProvider } from './runway-video.provider';
-import { KlingVideoProvider } from './kling-video.provider';
-import { VeoVideoProvider } from './veo-video.provider';
+import { HiggsfieldVideoProvider } from './higgsfield-video.provider';
 import type { VideoProvider } from './video-provider.interface';
 import { VideoStatus } from '@inboudly/database';
 import type { GenerateVideoInput } from '@inboudly/shared';
@@ -18,32 +14,13 @@ export class VideoGenerationService {
   constructor(
     private prisma: PrismaService,
     private credentials: AiCredentialsService,
-    private demo: DemoVideoProvider,
-    private pollinations: PollinationsVideoProvider,
-    private runway: RunwayVideoProvider,
-    private kling: KlingVideoProvider,
-    private veo: VeoVideoProvider,
+    private higgsfield: HiggsfieldVideoProvider,
   ) {}
 
-  /** Map a resolved provider name to its adapter. Direct per-provider keys —
-   *  Runway uses runwayKey, Kling uses klingKey (access:secret), Veo runs on
-   *  the workspace's Gemini API key via the AI Studio Veo endpoint. */
-  private adapterFor(provider: string): VideoProvider {
-    switch (provider) {
-      case 'demo':
-        return this.demo;
-      case 'pollinations':
-        return this.pollinations;
-      case 'runway':
-        return this.runway;
-      case 'kling':
-        return this.kling;
-      case 'veo':
-        return this.veo;
-      default:
-        this.logger.warn(`Unknown video provider "${provider}", falling back to demo`);
-        return this.demo;
-    }
+  /** Map a resolved provider name to its adapter. Only Higgsfield today;
+   *  the seam stays so a second provider is a new case, not a rewrite. */
+  private adapterFor(_provider: string): VideoProvider {
+    return this.higgsfield;
   }
 
   /**
@@ -145,24 +122,7 @@ export class VideoGenerationService {
     if (res.count > 0) this.logger.warn(`Reaped ${res.count} stale video job(s)`);
   }
 
-  /** User-facing failure text. Implemented providers surface the real cause
-   *  (e.g. a 402 no-credit) plus a recovery hint; demo stays generic. */
-  private failureMessage(provider: string, rawMsg: string): string {
-    if (provider === 'pollinations') {
-      return `${rawMsg}. Check your Pollinations key and that your account has pollen credit, then try again.`;
-    }
-    if (provider === 'runway') {
-      return `${rawMsg}. Check your Runway API key in Settings → AI Providers and that your account has credit.`;
-    }
-    if (provider === 'kling') {
-      return `${rawMsg}. Check your Kling credentials in Settings → AI Providers (format: "access_key:secret_key") and that your account has credit.`;
-    }
-    if (provider === 'veo') {
-      return `${rawMsg}. Veo runs on your Gemini API key. If Google hasn't enabled Veo on your account yet, request access at aistudio.google.com.`;
-    }
-    if (provider === 'demo') {
-      return 'The demo video generator hit an unexpected error. Please try again.';
-    }
-    return `${provider} video generation isn't available yet in this build. Switch to the Demo provider in Settings → AI defaults.`;
+  private failureMessage(_provider: string, rawMsg: string): string {
+    return `${rawMsg}. Check your Higgsfield key in Settings → AI Providers (format api_key:api_key_secret) and that your account has credit.`;
   }
 }

@@ -3,11 +3,7 @@ import { AiController } from './ai.controller';
 import { GeminiTextService } from './gemini-text.service';
 import { GeminiImageService } from './gemini-image.service';
 import { EmbeddingsService } from './embeddings.service';
-import { DemoVideoProvider } from './video/demo-video.provider';
-import { PollinationsVideoProvider } from './video/pollinations-video.provider';
-import { RunwayVideoProvider } from './video/runway-video.provider';
-import { KlingVideoProvider } from './video/kling-video.provider';
-import { VeoVideoProvider } from './video/veo-video.provider';
+import { HiggsfieldVideoProvider } from './video/higgsfield-video.provider';
 import { VideoGenerationService } from './video/video-generation.service';
 import { VideoGenerationController } from './video/video-generation.controller';
 import { MediaModule } from '../media/media.module';
@@ -22,11 +18,7 @@ import { AiCredentialsModule } from '../ai-credentials/ai-credentials.module';
     GeminiTextService,
     GeminiImageService,
     EmbeddingsService,
-    DemoVideoProvider,
-    PollinationsVideoProvider,
-    RunwayVideoProvider,
-    KlingVideoProvider,
-    VeoVideoProvider,
+    HiggsfieldVideoProvider,
     VideoGenerationService,
     WorkspacesService,
   ],
