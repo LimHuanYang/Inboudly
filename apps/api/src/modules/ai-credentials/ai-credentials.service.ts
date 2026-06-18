@@ -80,8 +80,10 @@ export const DEFAULT_VIDEO_MODELS: Record<VideoProviderName, string> = {
   veo: 'veo-3',
 } as const;
 
-/** Providers with a working adapter in THIS build. Plans 2/3 extend this list. */
-export const IMPLEMENTED_VIDEO_PROVIDERS: VideoProviderName[] = ['demo', 'pollinations'];
+/** Providers with a working adapter in THIS build. */
+export const IMPLEMENTED_VIDEO_PROVIDERS: VideoProviderName[] = [
+  'demo', 'pollinations', 'runway', 'kling', 'veo',
+];
 
 interface ProviderStateView {
   configured: boolean;
@@ -286,11 +288,13 @@ export class AiCredentialsService {
     const preferred = (override ?? (record?.preferredVideoProvider as VideoProviderName | null))
       ?? undefined;
 
+    // Each paid provider uses its own per-provider API key. Veo runs on the
+    // Gemini API key via AI Studio's Veo endpoint (not Vertex AI).
     const keyFieldFor: Partial<Record<VideoProviderName, AiProviderKeyName>> = {
       pollinations: 'pollinationsKey',
       runway: 'runwayKey',
-      kling: 'klingKey',
-      veo: 'geminiKey', // Google Veo authenticates with the Gemini/Google key
+      kling:  'klingKey',
+      veo:    'geminiKey',
     };
 
     const pick = async (provider: VideoProviderName, apiKey: string): Promise<ResolvedVideoProvider> => ({

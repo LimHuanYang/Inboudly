@@ -4,6 +4,9 @@ import { PrismaService } from '../../../common/prisma/prisma.service';
 import { AiCredentialsService } from '../../ai-credentials/ai-credentials.service';
 import { DemoVideoProvider } from './demo-video.provider';
 import { PollinationsVideoProvider } from './pollinations-video.provider';
+import { RunwayVideoProvider } from './runway-video.provider';
+import { KlingVideoProvider } from './kling-video.provider';
+import { VeoVideoProvider } from './veo-video.provider';
 import type { VideoProvider } from './video-provider.interface';
 import { VideoStatus } from '@inboudly/database';
 import type { GenerateVideoInput } from '@inboudly/shared';
@@ -17,18 +20,27 @@ export class VideoGenerationService {
     private credentials: AiCredentialsService,
     private demo: DemoVideoProvider,
     private pollinations: PollinationsVideoProvider,
+    private runway: RunwayVideoProvider,
+    private kling: KlingVideoProvider,
+    private veo: VeoVideoProvider,
   ) {}
 
-  /** Map a resolved provider name to its adapter. Plans 2/3 add more cases. */
+  /** Map a resolved provider name to its adapter. Direct per-provider keys —
+   *  Runway uses runwayKey, Kling uses klingKey (access:secret), Veo runs on
+   *  the workspace's Gemini API key via the AI Studio Veo endpoint. */
   private adapterFor(provider: string): VideoProvider {
     switch (provider) {
       case 'demo':
         return this.demo;
       case 'pollinations':
         return this.pollinations;
+      case 'runway':
+        return this.runway;
+      case 'kling':
+        return this.kling;
+      case 'veo':
+        return this.veo;
       default:
-        // resolveVideoProvider only returns implemented providers today, so this
-        // is defensive — fall back to the always-works Demo provider.
         this.logger.warn(`Unknown video provider "${provider}", falling back to demo`);
         return this.demo;
     }
@@ -138,6 +150,15 @@ export class VideoGenerationService {
   private failureMessage(provider: string, rawMsg: string): string {
     if (provider === 'pollinations') {
       return `${rawMsg}. Check your Pollinations key and that your account has pollen credit, then try again.`;
+    }
+    if (provider === 'runway') {
+      return `${rawMsg}. Check your Runway API key in Settings → AI Providers and that your account has credit.`;
+    }
+    if (provider === 'kling') {
+      return `${rawMsg}. Check your Kling credentials in Settings → AI Providers (format: "access_key:secret_key") and that your account has credit.`;
+    }
+    if (provider === 'veo') {
+      return `${rawMsg}. Veo runs on your Gemini API key. If Google hasn't enabled Veo on your account yet, request access at aistudio.google.com.`;
     }
     if (provider === 'demo') {
       return 'The demo video generator hit an unexpected error. Please try again.';

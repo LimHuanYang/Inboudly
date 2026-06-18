@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inboudly — Gemini + Higgsfield Plan</title>
+<style>
+  :root{
+    --bg:#0b0f17;--panel:#121826;--panel2:#161d2e;--ink:#e7ecf4;--muted:#94a3b8;
+    --line:#222c3f;--del:#ef4444;--new:#3b82f6;--mod:#f59e0b;--keep:#16a34a;--accent:#22d3ee;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:15px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif}
+  .wrap{max-width:1080px;margin:0 auto;padding:40px 24px 80px}
+  h1{font-size:29px;margin:0 0 6px;letter-spacing:-.4px}
+  h2{font-size:19px;margin:44px 0 14px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+  .sub{color:var(--muted);margin:0}
+  code{background:#0c1120;color:#9fd5ff;padding:1px 6px;border-radius:5px;
+    font:12px/1.5 ui-monospace,"SF Mono",Consolas,monospace;word-break:break-word}
+  .meta{background:linear-gradient(135deg,#0e2230,#12182a);border:1px solid var(--line);
+    border-radius:14px;padding:20px 22px;margin-top:20px}
+  .meta b{color:var(--accent)}
+  .meta p{margin:6px 0}
+  .legend{display:flex;flex-wrap:wrap;gap:14px;margin:16px 0 0}
+  .legend span{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px}
+  .dot{width:11px;height:11px;border-radius:3px;display:inline-block}
+  .grid{display:grid;grid-template-columns:1fr;gap:14px;margin-top:16px}
+  @media(min-width:820px){.grid{grid-template-columns:1fr 1fr}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px;border-left-width:5px}
+  .card h3{margin:0 0 10px;font-size:15px}
+  .del{border-left-color:var(--del)}.new{border-left-color:var(--new)}
+  .mod{border-left-color:var(--mod)}.keep{border-left-color:var(--keep)}
+  ul.files{list-style:none;margin:0;padding:0}
+  ul.files li{padding:5px 0;border-top:1px solid var(--line);font-size:12.5px}
+  ul.files li:first-child{border-top:0}
+  .phase{background:var(--panel);border:1px solid var(--line);border-radius:14px;margin-top:14px;overflow:hidden}
+  .phase>.head{display:flex;align-items:center;gap:12px;padding:14px 18px;background:var(--panel2)}
+  .phase>.head .pn{width:30px;height:30px;border-radius:8px;background:#0e1c2c;color:var(--accent);
+    display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;flex-shrink:0}
+  .phase>.head h3{margin:0;font-size:16px}
+  .phase>.head .goal{color:var(--muted);font-size:12.5px}
+  .task{padding:12px 18px;border-top:1px solid var(--line)}
+  .task .t{font-weight:600;font-size:13.5px}
+  .task .d{color:var(--muted);font-size:12.5px;margin-top:2px}
+  .badge{display:inline-block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;
+    padding:1px 7px;border-radius:999px;margin-left:6px;vertical-align:middle}
+  .b-del{background:#2c0e0e;color:#f59a9a}.b-new{background:#0e1c2c;color:#9cc6f8}
+  .b-mod{background:#2c220e;color:#f2cd86}.b-test{background:#0e2c1c;color:#5ee29a}
+  .flag{background:#1c1410;border:1px solid #5b3d23;border-radius:12px;padding:14px 18px;margin-top:12px}
+  .flag b{color:#f0b072}
+  .call{background:#0c1f2b;border:1px solid #0e3a52;border-radius:12px;padding:14px 18px;margin-top:12px}
+  .pill{display:inline-block;background:#0c1120;border:1px solid var(--line);border-radius:999px;padding:2px 10px;font-size:12px;color:var(--muted);margin:2px 4px 2px 0}
+  footer{margin-top:46px;color:var(--muted);font-size:12px;border-top:1px solid var(--line);padding-top:16px}
+  .two{display:grid;grid-template-columns:1fr;gap:12px;margin-top:12px}
+  @media(min-width:820px){.two{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Gemini + Higgsfield — Creative-Engine Plan</h1>
+  <p class="sub">Implementation plan · 15 tasks · 5 phases · <code>docs/superpowers/plans/2026-06-18-gemini-higgsfield-creative-engine.md</code></p>
+
+  <div class="meta">
+    <p><b>Goal:</b> Collapse the AI stack to two vendors — <b>Gemini</b> (captions + images + embeddings) and <b>Higgsfield's own API</b> (<code>platform.higgsfield.ai</code>, cinematic video) — behind a swappable abstraction. Delete Claude, OpenAI, Pollinations, ElevenLabs, and the direct Runway/Kling/Veo providers.</p>
+    <p><b>Architecture:</b> Keep the existing seams (<code>VideoProvider</code> interface, <code>VideoGenerationService</code> pipeline, BYOK resolver). Swap the implementations behind them. No vendor is a single point of failure — a second provider later is a new class, not a rewrite.</p>
+    <p><b>Stack:</b> <span class="pill">NestJS</span><span class="pill">Next.js</span><span class="pill">Prisma + Supabase</span><span class="pill">Zod</span><span class="pill">@google/generative-ai</span><span class="pill">Higgsfield REST</span><span class="pill">Cloudflare R2</span><span class="pill">Jest</span></p>
+  </div>
+
+  <h2>Scope</h2>
+  <div class="two">
+    <div class="card keep"><h3>✅ In this plan</h3><p style="margin:0;font-size:13px;color:var(--muted)">The AI creative engine: Gemini brain + Higgsfield-direct video, behind the provider abstraction. Ships working software on its own.</p></div>
+    <div class="card mod"><h3>↗ Separate plans (NOT here)</h3><p style="margin:0;font-size:13px;color:var(--muted)">Connector restructure (cut Pinterest, defer IG/TikTok/YT, RedNote→content-prep) · avatar + voice + Mandarin TTS (v1.1) · generation-first home + compounding-memory UX.</p></div>
+  </div>
+
+  <h2>File map</h2>
+  <div class="legend">
+    <span><i class="dot" style="background:var(--del)"></i> Delete</span>
+    <span><i class="dot" style="background:var(--new)"></i> Create</span>
+    <span><i class="dot" style="background:var(--mod)"></i> Modify</span>
+    <span><i class="dot" style="background:var(--keep)"></i> Keep (untouched)</span>
+  </div>
+  <div class="grid">
+    <div class="card del">
+      <h3>🗑️ Delete (8 files)</h3>
+      <ul class="files">
+        <li><code>ai/claude-text.service.ts</code></li>
+        <li><code>ai/openai-image.service.ts</code></li>
+        <li><code>ai/pollinations-image.service.ts</code></li>
+        <li><code>ai/video/demo-video.provider.ts</code> (+spec)</li>
+        <li><code>ai/video/pollinations-video.provider.ts</code> (+spec)</li>
+        <li><code>ai/video/runway-video.provider.ts</code></li>
+        <li><code>ai/video/kling-video.provider.ts</code></li>
+        <li><code>ai/video/veo-video.provider.ts</code></li>
+      </ul>
+    </div>
+    <div class="card new">
+      <h3>➕ Create</h3>
+      <ul class="files">
+        <li><code>ai/video/higgsfield-video.provider.ts</code></li>
+        <li><code>ai/video/higgsfield-video.provider.spec.ts</code></li>
+        <li><code>ai/embeddings.service.spec.ts</code></li>
+      </ul>
+    </div>
+    <div class="card mod">
+      <h3>✏️ Modify</h3>
+      <ul class="files">
+        <li><code>ai/embeddings.service.ts</code> — OpenAI→Gemini</li>
+        <li><code>ai/ai.controller.ts</code> — Gemini-only</li>
+        <li><code>ai/ai.module.ts</code> — prune + register Higgsfield</li>
+        <li><code>ai/video/video-generation.service.ts</code></li>
+        <li><code>ai-credentials.service.ts</code> + <code>.controller.ts</code></li>
+        <li><code>videos/faceless-video.service.ts</code> — Anthropic→Gemini</li>
+        <li><code>shared/src/schemas.ts</code></li>
+        <li><code>database/prisma/schema.prisma</code></li>
+        <li><code>web/.../ai-providers-card.tsx</code> + <code>ai-defaults-card.tsx</code></li>
+      </ul>
+    </div>
+    <div class="card keep">
+      <h3>🛡️ Keep (the seam + the moat)</h3>
+      <ul class="files">
+        <li><code>ai/video/video-provider.interface.ts</code></li>
+        <li><code>ai/video/video-generation.controller.ts</code></li>
+        <li><code>ai/gemini-text.service.ts</code> · <code>gemini-image.service.ts</code></li>
+        <li><code>brand/**</code> (voice-training moat)</li>
+        <li><code>common/pinecone/**</code></li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>The 5 phases</h2>
+
+  <div class="phase">
+    <div class="head"><div class="pn">A</div><div><h3>Gemini-only brain</h3><div class="goal">Captions + images + embeddings on Gemini; delete Claude/OpenAI/Pollinations</div></div></div>
+    <div class="task"><div class="t">A1 · Migrate embeddings OpenAI → Gemini <span class="badge b-mod">mod</span><span class="badge b-test">tdd</span></div><div class="d">Keeps the brand-memory moat alive. <code>gemini-embedding-001</code>, 3072 dims (matches Pinecone index). Done first — unblocks the OpenAI cut.</div></div>
+    <div class="task"><div class="t">A2 · ai.controller text + image → Gemini-only <span class="badge b-mod">mod</span></div><div class="d">One vendor for captions + images; friendly error if no Gemini key.</div></div>
+    <div class="task"><div class="t">A4 · faceless-video script-gen → Gemini <span class="badge b-mod">mod</span></div><div class="d">Removes the Anthropic dependency so the file compiles after the cut.</div></div>
+    <div class="task"><div class="t">A5 · Delete the 3 services + prune ai.module <span class="badge b-del">del</span></div><div class="d">Claude / OpenAI / Pollinations services removed.</div></div>
+  </div>
+
+  <div class="phase">
+    <div class="head"><div class="pn">B</div><div><h3>Video via Higgsfield (direct API)</h3><div class="goal">One provider behind the existing seam; delete the 5 legacy providers</div></div></div>
+    <div class="task"><div class="t">B1 · HiggsfieldVideoProvider <span class="badge b-new">new</span><span class="badge b-test">tdd</span></div><div class="d">Calls Higgsfield's async submit→poll (webhook optional in prod). Key-guard + reference-image guard tested without network. Manual EN + 中文 smoke.</div></div>
+    <div class="task"><div class="t">B2 · Single adapter + delete legacy providers <span class="badge b-mod">mod</span><span class="badge b-del">del</span></div><div class="d">demo/pollinations/runway/kling/veo gone; reaper-spec constructor arity fixed.</div></div>
+    <div class="task"><div class="t">B3 · Shared <code>VideoProviderSchema=['higgsfield']</code> <span class="badge b-mod">mod</span></div><div class="d">Narrow the Zod enum; update its spec.</div></div>
+    <div class="task"><div class="t">B4 · Finalize ai.module <span class="badge b-mod">mod</span></div><div class="d">Gemini services + Higgsfield + VideoGenerationService only.</div></div>
+  </div>
+
+  <div class="phase">
+    <div class="head"><div class="pn">C</div><div><h3>Credentials + schema prune</h3><div class="goal">Down to geminiKey + higgsfieldKey + pineconeKey</div></div></div>
+    <div class="task"><div class="t">C1 · Prisma — drop unused columns, add <code>higgsfieldKey</code> <span class="badge b-mod">mod</span></div><div class="d">Remove anthropic/openai/runway/kling/pollinations/elevenLabs/suno keys + their model fields + preferred-provider columns. <code>db push --accept-data-loss</code>.</div></div>
+    <div class="task"><div class="t">C2 · Service + controller → Gemini + Higgsfield resolvers <span class="badge b-mod">mod</span></div><div class="d">requireText/Image → Gemini; resolveVideo → Higgsfield. Allow-lists pruned.</div></div>
+  </div>
+
+  <div class="phase">
+    <div class="head"><div class="pn">D</div><div><h3>Frontend prune</h3><div class="goal">Settings shows only Gemini + Higgsfield</div></div></div>
+    <div class="task"><div class="t">D1 · AI Providers card = Gemini + Higgsfield <span class="badge b-mod">mod</span></div><div class="d">Two rows: Gemini (text+image, free-tier link) · Higgsfield (video; key as api_key:api_key_secret).</div></div>
+    <div class="task"><div class="t">D2 · AI defaults = Gemini fixed, video = Higgsfield <span class="badge b-mod">mod</span></div><div class="d">No provider pickers; video enabled when Higgsfield key set.</div></div>
+  </div>
+
+  <div class="phase">
+    <div class="head"><div class="pn">E</div><div><h3>Validation</h3><div class="goal">Prove it's smooth + bulletproof</div></div></div>
+    <div class="task"><div class="t">E1 · Type-check · tests · ghost-grep · boot · bilingual smoke <span class="badge b-test">gate</span></div><div class="d"><code>pnpm type-check</code> (4 pkgs) · api tests · grep for dead vendor refs · <code>pnpm dev</code> clean boot · paste keys, generate caption+image+video, test EN & 中文.</div></div>
+  </div>
+
+  <h2>Three judgment calls baked in</h2>
+  <div class="call">
+    <p style="margin:0 0 8px">🧠 <b>Embeddings → Gemini, not deleted.</b> Cutting OpenAI would've silently broken the brand-memory moat's embedder. Migrated to <code>gemini-embedding-001</code> @ 3072d to match the existing Pinecone index.</p>
+    <p style="margin:0 0 8px">🎬 <b>Video pipeline kept.</b> The job/runner/reaper/R2/polling is provider-agnostic and solid — only the 5 provider <em>implementations</em> die. Less destructive = smoother.</p>
+    <p style="margin:0">🎙️ <b>Faceless-videos rewired, not deleted.</b> It needs voice (v1.1), so it's kept compiling on Gemini; recommended hidden from nav in the separate UX plan.</p>
+  </div>
+
+  <h2>Two things the implementer must confirm live</h2>
+  <div class="flag">
+    <p style="margin:0 0 6px">🔌 <b>Higgsfield model id + request fields</b> — auth (<code>Key key:secret</code>) + async pattern (<code>request_id</code> → <code>/requests/{id}/status</code>) are confirmed from the docs; confirm the model id (<code>higgsfield-ai/dop/standard</code>) + body field names on the live model page. The real call is written — a one-page check, not blank work.</p>
+    <p style="margin:0">🔢 <b>Gemini <code>outputDimensionality</code></b> — confirm the installed <code>@google/generative-ai</code> accepts it; the runtime call is written either way.</p>
+  </div>
+
+  <h2>Standing risks (honored, not hidden)</h2>
+  <div class="flag">
+    <p style="margin:0 0 6px">⚠️ <b>Higgsfield ToS</b> for SaaS wrapping is unverified — fine to build, must be legally cleared <em>before charging money</em>.</p>
+    <p style="margin:0 0 6px">⚠️ <b>Mandarin quality</b> is untested — every provider task includes a manual EN + 中文 smoke check.</p>
+    <p style="margin:0">⚠️ <b>Higgsfield key (<code>api_key:api_key_secret</code>) is BYOK</b> — user-supplied; never committed.</p>
+  </div>
+
+  <footer>
+    Plan: <code>docs/superpowers/plans/2026-06-18-gemini-higgsfield-creative-engine.md</code> · This view: <code>docs/inboudly-plan-creative-engine.html</code><br>
+    Next: choose execution — Subagent-Driven (fresh agent + review per task) or Inline (batched checkpoints). A branch is created first; current branch is <code>main</code>.
+  </footer>
+
+</div>
+</body>
+</html>

@@ -25,7 +25,8 @@ interface AiCredentialsView {
   openai: ProviderState;
   anthropic: ProviderState;
   elevenLabs: KeyOnlyState;
-  pollinations: KeyOnlyState;
+  runway: KeyOnlyState;
+  kling: KeyOnlyState;
 }
 
 interface TestResult {
@@ -35,7 +36,7 @@ interface TestResult {
   message?: string;
 }
 
-type ProviderId = 'gemini' | 'openai' | 'anthropic' | 'elevenLabs' | 'pollinations';
+type ProviderId = 'gemini' | 'openai' | 'anthropic' | 'elevenLabs' | 'runway' | 'kling';
 
 interface ProviderModelOption {
   value: string;
@@ -44,7 +45,7 @@ interface ProviderModelOption {
 
 interface ProviderMeta {
   id: ProviderId;
-  keyField: 'geminiKey' | 'openaiKey' | 'anthropicKey' | 'elevenLabsKey' | 'pollinationsKey';
+  keyField: 'geminiKey' | 'openaiKey' | 'anthropicKey' | 'elevenLabsKey' | 'runwayKey' | 'klingKey';
   // Key-only providers (voice/video) omit modelField / defaultModel / models.
   modelField?: 'geminiModel' | 'openaiModel' | 'anthropicModel';
   name: string;
@@ -123,14 +124,24 @@ const PROVIDERS: ProviderMeta[] = [
     helpText: 'Used by Faceless Videos to generate scene voiceovers. Voice picked automatically per niche (calm/dramatic/authoritative/etc).',
   },
   {
-    id: 'pollinations',
-    keyField: 'pollinationsKey',
-    name: 'Pollinations (video)',
-    signupUrl: 'https://pollinations.ai',
+    id: 'runway',
+    keyField: 'runwayKey',
+    name: 'Runway (video)',
+    signupUrl: 'https://dev.runwayml.com/',
     signupCopy: 'Get a key + add credit',
-    keyPlaceholder: 'sk_...',
+    keyPlaceholder: 'key_...',
     noTest: true,
-    helpText: 'Real prompt-driven video (Seedance / Veo / Wan). Billed from your Pollinations pollen balance — each clip costs credits.',
+    helpText: 'Runway Gen-3 / Gen-4 image-to-video. Needs a reference image at generate time. Pay-per-second against your Runway credit.',
+  },
+  {
+    id: 'kling',
+    keyField: 'klingKey',
+    name: 'Kling (video)',
+    signupUrl: 'https://klingai.com',
+    signupCopy: 'Get access_key + secret_key',
+    keyPlaceholder: 'access_key:secret_key',
+    noTest: true,
+    helpText: 'Paste both keys in one input as access_key:secret_key (colon-separated). Kling signs a fresh JWT per request — Inboudly does the signing.',
   },
 ];
 
@@ -149,21 +160,24 @@ export function AiProvidersCard({ workspaceId }: { workspaceId: string }) {
     openai: '',
     anthropic: '',
     elevenLabs: '',
-    pollinations: '',
+    runway: '',
+    kling: '',
   });
   const [modelDrafts, setModelDrafts] = useState<Record<ProviderId, string>>({
     gemini: '',
     openai: '',
     anthropic: '',
-    elevenLabs: '', // unused — ElevenLabs is key-only — kept for type uniformity
-    pollinations: '', // unused — Pollinations is key-only — kept for type uniformity
+    elevenLabs: '', // unused — key-only
+    runway: '',    // unused — key-only
+    kling: '',     // unused — key-only
   });
   const [testResults, setTestResults] = useState<Record<ProviderId, TestResult | null>>({
     gemini: null,
     openai: null,
     anthropic: null,
     elevenLabs: null,
-    pollinations: null,
+    runway: null,
+    kling: null,
   });
 
   // Explicit toggle overrides per provider. Absent = use default-open rule.
@@ -184,7 +198,8 @@ export function AiProvidersCard({ workspaceId }: { workspaceId: string }) {
       openai: data.openai?.model ?? '',
       anthropic: data.anthropic?.model ?? '',
       elevenLabs: '',
-      pollinations: '',
+      runway: '',
+      kling: '',
     });
   }, [data]);
 

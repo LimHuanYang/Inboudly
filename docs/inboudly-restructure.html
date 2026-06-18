@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inboudly — Restructure Plan</title>
+<style>
+  :root{
+    --bg:#0b0f17; --panel:#121826; --panel2:#161d2e; --ink:#e7ecf4; --muted:#94a3b8;
+    --line:#222c3f; --keep:#16a34a; --cut:#ef4444; --defer:#f59e0b; --recon:#a855f7;
+    --new:#3b82f6; --accent:#22d3ee;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:15px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif}
+  .wrap{max-width:1080px;margin:0 auto;padding:40px 24px 80px}
+  h1{font-size:30px;margin:0 0 6px;letter-spacing:-.4px}
+  h2{font-size:20px;margin:48px 0 14px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+  .sub{color:var(--muted);margin:0 0 4px}
+  .thesis{background:linear-gradient(135deg,#0e2230,#12182a);border:1px solid var(--line);
+    border-radius:14px;padding:22px 24px;margin-top:22px}
+  .thesis b{color:var(--accent)}
+  .tag{display:inline-block;font-size:11px;font-weight:700;text-transform:uppercase;
+    letter-spacing:.5px;padding:2px 8px;border-radius:999px;vertical-align:middle}
+  .legend{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0 0}
+  .legend span{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px}
+  .dot{width:11px;height:11px;border-radius:3px;display:inline-block}
+  .grid{display:grid;grid-template-columns:1fr;gap:16px}
+  @media(min-width:760px){.grid{grid-template-columns:1fr 1fr}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;
+    padding:18px 20px;border-left-width:5px}
+  .card h3{margin:0 0 4px;font-size:16px;display:flex;align-items:center;gap:8px}
+  .card .why{color:var(--muted);font-size:13px;margin:0 0 12px}
+  .k{border-left-color:var(--keep)} .c{border-left-color:var(--cut)}
+  .d{border-left-color:var(--defer)} .r{border-left-color:var(--recon)}
+  .n{border-left-color:var(--new)}
+  ul.items{list-style:none;margin:0;padding:0}
+  ul.items li{padding:7px 0;border-top:1px solid var(--line);font-size:13.5px}
+  ul.items li:first-child{border-top:0}
+  code{background:#0c1120;color:#9fd5ff;padding:1px 6px;border-radius:5px;
+    font:12px/1.5 ui-monospace,"SF Mono",Consolas,monospace;word-break:break-word}
+  .note{font-size:12px;color:var(--muted);margin-top:4px}
+  /* flow */
+  .flow{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px;margin-top:14px}
+  .flow h4{margin:0 0 14px;font-size:14px;letter-spacing:.3px;text-transform:uppercase;color:var(--muted)}
+  .steps{display:flex;flex-wrap:wrap;gap:8px;align-items:stretch}
+  .step{flex:1 1 130px;min-width:120px;background:var(--panel2);border:1px solid var(--line);
+    border-radius:10px;padding:10px 12px;font-size:12.5px;position:relative}
+  .step .n{font-size:11px;color:var(--muted);font-weight:700}
+  .step.bad{border-color:#5b2330;background:#1c1014}
+  .step.good{border-color:#1c5238;background:#0e1c16}
+  .step.loop{border-color:#0e3a52;background:#0c1f2b}
+  .arrow{align-self:center;color:var(--muted);font-size:18px;padding:0 2px}
+  .x{color:var(--cut);font-weight:700} .ok{color:var(--keep);font-weight:700}
+  .pill{display:inline-block;background:#0c1120;border:1px solid var(--line);border-radius:999px;
+    padding:2px 10px;font-size:12px;color:var(--muted);margin:2px 4px 2px 0}
+  .moat{background:linear-gradient(135deg,#0c1f2b,#101a2e);border:1px solid #0e3a52;
+    border-radius:14px;padding:22px;margin-top:14px}
+  .moat .loopline{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px}
+  .moat .node{background:#0a141f;border:1px solid #14405a;border-radius:10px;padding:8px 12px;font-size:13px}
+  .warn{background:#1c1410;border:1px solid #5b3d23;border-radius:14px;padding:18px 20px;margin-top:14px}
+  .warn b{color:#f0b072}
+  footer{margin-top:50px;color:var(--muted);font-size:12px;border-top:1px solid var(--line);padding-top:16px}
+  .two{display:grid;grid-template-columns:1fr;gap:14px}
+  @media(min-width:760px){.two{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Inboudly — Restructure Plan</h1>
+  <p class="sub">From feature-sprawl → a focused, defensible product. Derived from the strategy interview + the verified deep-research report (2026-06-16).</p>
+
+  <div class="thesis">
+    <b>The one-line thesis:</b> A <b>generation-first</b>, <b>bilingual (EN&nbsp;+&nbsp;中文)</b> content studio for <b>SE-Asia SME owners &amp; solo creators</b> — that <b>auto-posts to LinkedIn&nbsp;+&nbsp;Facebook</b>, <b>preps RedNote-native content</b> for one-tap manual posting, and gets <b>more &ldquo;you&rdquo; with every post</b> (compounding brand memory — the thing no incumbent does).
+  </div>
+
+  <h2>1 · Keep / Cut / Defer — mapped to your real code</h2>
+  <div class="legend">
+    <span><i class="dot" style="background:var(--keep)"></i> Keep &amp; double-down</span>
+    <span><i class="dot" style="background:var(--cut)"></i> Cut (delete)</span>
+    <span><i class="dot" style="background:var(--defer)"></i> Defer (keep, hide)</span>
+    <span><i class="dot" style="background:var(--recon)"></i> Reconfigure</span>
+    <span><i class="dot" style="background:var(--new)"></i> Build new</span>
+  </div>
+
+  <div class="grid" style="margin-top:16px">
+
+    <div class="card k">
+      <h3><span class="tag" style="background:#0e2c1c;color:#5ee29a">KEEP</span> The moat + the core pipeline</h3>
+      <p class="why">Everything that serves "beat the blank page" and the brand-memory edge.</p>
+      <ul class="items">
+        <li>🧠 <code>modules/brand/voice-training.service.ts</code> + <code>common/pinecone</code> + <code>ai/embeddings.service.ts</code> — <b>this becomes the moat engine</b></li>
+        <li>✍️ <code>ai/claude-text.service.ts</code> + <code>ai/gemini-text.service.ts</code> — captions</li>
+        <li>🖼️ <code>ai/gemini-image.service.ts</code> — images (one free key)</li>
+        <li>🔗 <code>connectors/linkedin</code> + <code>connectors/facebook</code> — auto-post</li>
+        <li>📅 <code>modules/posts</code> + <code>publish.processor</code> (BullMQ) — schedule/publish</li>
+        <li>🗂️ <code>modules/media</code> + R2 storage</li>
+      </ul>
+    </div>
+
+    <div class="card c">
+      <h3><span class="tag" style="background:#2c0e0e;color:#f59a9a">CUT</span> The video sprawl + dead weight</h3>
+      <p class="why">Not the blank-page core. Highest friction, most cost, ate the whole last session.</p>
+      <ul class="items">
+        <li>🎬 entire <code>ai/video/</code> — demo, pollinations, runway, kling, veo providers + service + controller + reaper</li>
+        <li>🗃️ <code>VideoGeneration</code> model in <code>schema.prisma</code> + video model/key fields</li>
+        <li>🎞️ MP4 export — <code>FfmpegService.stitchClips</code>, <code>VideoExportProcessor</code>, export button</li>
+        <li>🧰 video toggle in <code>composer/page.tsx</code>; video block in <code>ai-defaults-card.tsx</code>; Generations tray</li>
+        <li>📌 <code>connectors/pinterest</code> (dormant)</li>
+        <li>🖼️ <code>ai/openai-image.service.ts</code>, <code>ai/pollinations-image.service.ts</code> (consolidate on Gemini)</li>
+        <li>🔑 Runway/Kling key rows in <code>ai-providers-card.tsx</code></li>
+      </ul>
+    </div>
+
+    <div class="card r">
+      <h3><span class="tag" style="background:#220e2c;color:#d6a9f5">RECONFIG</span> RedNote + keys + composer</h3>
+      <p class="why">Keep the code, change what it does.</p>
+      <ul class="items">
+        <li>🇨🇳 <code>connectors/rednote</code> — <b>strip auto-publish</b> (no API), add content-prep: generate 笔记 + one-tap copy/download</li>
+        <li>🔑 <code>ai-credentials</code> — collapse to a <b>single free Gemini key</b>; drop runway/kling/openai key fields from the core path</li>
+        <li>🪄 <code>composer/page.tsx</code> — rebuild as <b>generation-first</b> (drafts waiting, not a blank box)</li>
+      </ul>
+    </div>
+
+    <div class="card d">
+      <h3><span class="tag" style="background:#2c220e;color:#f2cd86">DEFER</span> Off-core, but built — hide it</h3>
+      <p class="why">Works today; just not the focus. Keep in repo, move out of the main flow.</p>
+      <ul class="items">
+        <li>📷 <code>connectors/instagram</code>, <code>connectors/tiktok</code>, <code>connectors/youtube</code> &nbsp;<span class="note">⚠ flag: Instagram is huge for SEA SMBs — worth revisiting vs LinkedIn</span></li>
+        <li>📊 <code>modules/analytics</code> + recharts dashboards — keep light, don't invest yet</li>
+      </ul>
+    </div>
+
+    <div class="card n">
+      <h3><span class="tag" style="background:#0e1c2c;color:#9cc6f8">NEW</span> What you must build to win</h3>
+      <p class="why">The product the research says is actually defensible.</p>
+      <ul class="items">
+        <li>🏠 <b>Generation-first home</b> — open app → 3 drafts already waiting</li>
+        <li>🧠 <b>Compounding brand-memory engine</b> — seed at onboarding, then learn from each published post + its engagement (no incumbent does this)</li>
+        <li>🌏 <b>Bilingual EN/中文 dual generation</b> — native, not translated</li>
+        <li>📋 <b>RedNote content-prep export</b> — copy/download, no publish</li>
+        <li>⚡ <b>One-free-Gemini-key onboarding wizard</b> (30 sec, screenshots)</li>
+      </ul>
+    </div>
+
+  </div>
+
+  <h2>2 · The flow change — calendar-first → generation-first</h2>
+
+  <div class="flow">
+    <h4>❌ Before — what felt "messed up"</h4>
+    <div class="steps">
+      <div class="step bad"><div class="n">1</div>Sign up</div>
+      <div class="arrow">→</div>
+      <div class="step bad"><div class="n">2</div>Paste <span class="x">5 API keys</span> (OpenAI, Gemini, Runway, Kling…)</div>
+      <div class="arrow">→</div>
+      <div class="step bad"><div class="n">3</div>Connect <span class="x">7 platforms</span></div>
+      <div class="arrow">→</div>
+      <div class="step bad"><div class="n">4</div>Open Composer → <span class="x">blank box</span></div>
+      <div class="arrow">→</div>
+      <div class="step bad"><div class="n">5</div>Pick platform + image/video + type prompt</div>
+      <div class="arrow">→</div>
+      <div class="step bad"><div class="n">6</div>Generate → schedule → publish</div>
+    </div>
+    <p class="note">The blank page never went away — it just got a grid. And the non-marketer can't even get past step 2.</p>
+  </div>
+
+  <div class="flow">
+    <h4>✅ After — generation-first + the memory loop</h4>
+    <div class="steps">
+      <div class="step good"><div class="n">1</div>Sign up</div>
+      <div class="arrow">→</div>
+      <div class="step good"><div class="n">2</div>Paste <span class="ok">1 free Gemini key</span> (30s wizard)</div>
+      <div class="arrow">→</div>
+      <div class="step good"><div class="n">3</div><span class="ok">Seed brand memory</span> — 3 questions / import posts</div>
+      <div class="arrow">→</div>
+      <div class="step good"><div class="n">4</div>Connect <span class="ok">LinkedIn + Facebook</span> (verify RedNote acct)</div>
+      <div class="arrow">→</div>
+      <div class="step good"><div class="n">5</div>Open app → <span class="ok">3 bilingual drafts already waiting</span>, in your voice</div>
+      <div class="arrow">→</div>
+      <div class="step good"><div class="n">6</div>Approve / tweak → auto-post LI+FB · 1-tap copy for RedNote</div>
+      <div class="arrow">→</div>
+      <div class="step loop"><div class="n">7 🔁</div>Every post + its engagement <b>teaches the memory</b> → next drafts more "you"</div>
+    </div>
+    <p class="note">Cold-start solved at step 3, so the very first drafts (step 5) already sound right.</p>
+  </div>
+
+  <h2>3 · The moat — why it compounds (what Buffer/Jasper can't copy)</h2>
+  <div class="moat">
+    <p style="margin:0 0 4px">Incumbents store brand voice as a <b>static</b> file you edit by hand. Inboudly closes the loop:</p>
+    <div class="loopline">
+      <span class="node">📝 You publish a post</span>
+      <span class="arrow">→</span>
+      <span class="node">📈 Inboudly reads its engagement</span>
+      <span class="arrow">→</span>
+      <span class="node">🧠 Voice profile updates (Pinecone)</span>
+      <span class="arrow">→</span>
+      <span class="node">✨ Next drafts sound more like you &amp; lean to what worked</span>
+      <span class="arrow">↺</span>
+    </div>
+    <p class="note" style="margin-top:12px">The longer they use it, the better it gets <b>and</b> the more locked-in they are. That's the defensible edge the research validated as empty white space.</p>
+  </div>
+
+  <h2>4 · The reality you must design around</h2>
+  <div class="warn">
+    <p style="margin:0 0 6px">🚨 <b>RedNote has no compliant auto-post path</b> for a Malaysia/Singapore company (verified against RedNote's own developer docs).</p>
+    <p style="margin:0 0 6px">→ RedNote is <b>content-prep, not auto-post.</b> You generate native bilingual 笔记; the user posts it manually (one tap to copy). Still a real gap — Western tools ignore RedNote entirely.</p>
+    <p style="margin:0">→ Full automation stays on <b>LinkedIn + Facebook</b>, which have real APIs you've already built.</p>
+  </div>
+
+  <div class="two" style="margin-top:14px">
+    <div class="card" style="border-left-color:var(--accent)">
+      <h3>Still open</h3>
+      <ul class="items">
+        <li>💵 <b>Pricing</b> — likely per-account ~$29–99/mo (SMB norm). Not yet decided.</li>
+        <li>🔍 <b>SEA bilingual gap is inferred</b>, not measured — validate with real users.</li>
+        <li>🇨🇳 Could a <b>mainland service-provider partnership</b> unlock legit RedNote API? Unmapped.</li>
+      </ul>
+    </div>
+    <div class="card" style="border-left-color:var(--keep)">
+      <h3>Suggested build order</h3>
+      <ul class="items">
+        <li>1️⃣ Cut video + dead weight (fast, clears the deck)</li>
+        <li>2️⃣ One-Gemini-key onboarding + brand-memory seed</li>
+        <li>3️⃣ Generation-first home (drafts waiting)</li>
+        <li>4️⃣ Bilingual EN/中文 generation</li>
+        <li>5️⃣ The compounding loop (learn from engagement)</li>
+        <li>6️⃣ RedNote content-prep export</li>
+      </ul>
+    </div>
+  </div>
+
+  <footer>
+    Inboudly restructure plan · generated from the strategy interview + verified deep-research report.
+    Saved to memory: <code>inboudly-positioning</code>, <code>rednote-no-publish-api</code>. This file: <code>docs/inboudly-restructure.html</code>.
+  </footer>
+
+</div>
+</body>
+</html>
