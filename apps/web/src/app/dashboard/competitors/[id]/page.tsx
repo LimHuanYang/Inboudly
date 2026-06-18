@@ -1,6 +1,6 @@
 'use client';
 
-import { use, useMemo, useState } from 'react';
+import { use, useMemo } from 'react';
 import Link from 'next/link';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
@@ -47,11 +47,7 @@ interface GapAnalysisResult {
 
 interface AiCredentialsView {
   gemini: { configured: boolean };
-  anthropic: { configured: boolean };
-  preferredTextProvider: 'claude' | 'gemini' | null;
 }
-
-type ProviderChoice = 'auto' | 'claude' | 'gemini';
 
 const PLATFORM_LABEL: Record<Platform, string> = {
   INSTAGRAM: 'Instagram',
@@ -125,8 +121,6 @@ export default function CompetitorDetailPage({
     enabled: !!workspaceId,
   });
 
-  const [provider, setProvider] = useState<ProviderChoice>('auto');
-
   const detail = useQuery({
     queryKey: ['competitor', id, workspaceId],
     queryFn: () => api.get<CompetitorDetail>(`/competitors/${id}?workspaceId=${workspaceId}`),
@@ -137,9 +131,6 @@ export default function CompetitorDetailPage({
     mutationFn: () =>
       api.post<GapAnalysisResult>(`/competitors/${id}/analyze-gap`, {
         workspaceId,
-        // Only send `provider` if user picked one explicitly; otherwise
-        // let the backend's resolver decide (workspace preferred → first available).
-        ...(provider !== 'auto' && { provider }),
       }),
     onSuccess: (r) => {
       if (r.ok)
@@ -151,9 +142,8 @@ export default function CompetitorDetailPage({
     onError: (err: any) => toast.error(err.message),
   });
 
-  const claudeOk = !!creds.data?.anthropic?.configured;
   const geminiOk = !!creds.data?.gemini?.configured;
-  const noProvider = !claudeOk && !geminiOk;
+  const noProvider = !geminiOk;
 
   // Snapshots ordered oldest-first for charting
   const snapsAsc = useMemo(() => {
@@ -268,29 +258,14 @@ export default function CompetitorDetailPage({
                 <Sparkles className="h-4 w-4" /> Content gap analysis
               </CardTitle>
               <CardDescription>
-                Your configured AI provider (Claude or Gemini) compares their top posts to your
-                recent posts, finds topics they win on but you don't cover, and suggests on-brand
-                angles you could take.
+                Gemini compares their top posts to your recent posts, finds topics they win on but
+                you don't cover, and suggests on-brand angles you could take.
               </CardDescription>
             </div>
             <div className="flex items-center gap-2">
-              <select
-                value={provider}
-                onChange={(e) => setProvider(e.target.value as ProviderChoice)}
-                disabled={analyze.isPending || noProvider}
-                className="rounded-md border bg-background px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                title="Pick which AI to use, or Auto for the workspace default"
-              >
-                <option value="auto">
-                  Auto{creds.data?.preferredTextProvider ? ` (${creds.data.preferredTextProvider === 'claude' ? 'Claude' : 'Gemini'})` : ''}
-                </option>
-                <option value="claude" disabled={!claudeOk}>
-                  Claude{!claudeOk ? ' — no key' : ''}
-                </option>
-                <option value="gemini" disabled={!geminiOk}>
-                  Gemini{!geminiOk ? ' — no key' : ''}
-                </option>
-              </select>
+              <span className="rounded-md border bg-background px-2 py-2 text-sm text-muted-foreground">
+                Gemini
+              </span>
               <Button
                 onClick={() => analyze.mutate()}
                 disabled={analyze.isPending || noProvider}
@@ -312,15 +287,14 @@ export default function CompetitorDetailPage({
             <p className="rounded bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-300">
               No AI provider configured for this workspace.{' '}
               <Link href="/dashboard/settings" className="font-medium underline">
-                Add an Anthropic or Google API key in Settings
+                Add a Google API key in Settings
               </Link>
               .
             </p>
           )}
           {!noProvider && !analyze.data && !analyze.isPending && (
             <p className="text-sm text-muted-foreground">
-              Pick a provider (or leave on Auto), then click <strong>Analyze gap</strong>.
-              Available: {claudeOk && 'Claude'}{claudeOk && geminiOk && ', '}{geminiOk && 'Gemini'}.
+              Click <strong>Analyze gap</strong> to run the analysis with Gemini.
             </p>
           )}
           {analyze.data && !analyze.data.ok && (
