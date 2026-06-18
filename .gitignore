@@ -40,3 +40,7 @@ coverage/
 *.tsbuildinfo
 .cache/
 .tmp/
+
+# Scratch build-output dumps (from `pnpm dev | tee tc-out.txt` etc.)
+tc-out.txt
+**/tc-out.txt
