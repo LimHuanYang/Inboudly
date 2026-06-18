@@ -8,7 +8,6 @@ import {
 } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
-import Anthropic from '@anthropic-ai/sdk';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { AiCredentialsService } from '../ai-credentials/ai-credentials.service';
@@ -138,18 +137,20 @@ export class FacelessVideoService {
       return;
     }
 
-    const resolved = await this.credentials.resolveTextProvider(workspaceId);
-    if (!resolved) {
+    const geminiKey = await this.credentials.getDecryptedKey(workspaceId, 'geminiKey');
+    if (!geminiKey) {
       await this.prisma.videoProject.update({
         where: { id: projectId },
         data: {
           scriptStatus: 'FAILED',
           errorMessage:
-            'No text AI provider configured. Add an Anthropic or Google key in Settings → AI Providers.',
+            'Add a Google (Gemini) API key in Settings → AI Providers to generate faceless scripts.',
         },
       });
       return;
     }
+
+    const geminiModel = await this.credentials.getModel(workspaceId, 'gemini');
 
     await this.prisma.videoProject.update({
       where: { id: projectId },
@@ -161,40 +162,27 @@ export class FacelessVideoService {
     let raw: string;
     let modelUsed: string;
     try {
-      if (resolved.provider === 'claude') {
-        const client = new Anthropic({ apiKey: resolved.apiKey });
-        const res = await client.messages.create({
-          model: resolved.model,
-          max_tokens: 2048,
+      const client = new GoogleGenerativeAI(geminiKey);
+      const model = client.getGenerativeModel({
+        model: geminiModel,
+        generationConfig: {
+          responseMimeType: 'application/json',
           temperature: 0.8,
-          messages: [{ role: 'user', content: prompt }],
-        });
-        const block = res.content.find((c) => c.type === 'text');
-        raw = block?.type === 'text' ? block.text : '';
-        modelUsed = res.model;
-      } else {
-        const client = new GoogleGenerativeAI(resolved.apiKey);
-        const model = client.getGenerativeModel({
-          model: resolved.model,
-          generationConfig: {
-            responseMimeType: 'application/json',
-            temperature: 0.8,
-            maxOutputTokens: 2048,
-          },
-        });
-        const res = await model.generateContent(prompt);
-        raw = res.response.text();
-        modelUsed = resolved.model;
-      }
+          maxOutputTokens: 2048,
+        },
+      });
+      const res = await model.generateContent(prompt);
+      raw = res.response.text();
+      modelUsed = geminiModel;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      this.logger.error(`Script generation failed (${resolved.provider}): ${msg}`);
+      this.logger.error(`Script generation failed (gemini): ${msg}`);
       await this.prisma.videoProject.update({
         where: { id: projectId },
         data: {
           scriptStatus: 'FAILED',
-          errorMessage: `${resolved.provider === 'claude' ? 'Claude' : 'Gemini'} request failed: ${msg}`,
-          modelUsed: resolved.model,
+          errorMessage: `Gemini request failed: ${msg}`,
+          modelUsed: geminiModel,
         },
       });
       return;
@@ -206,7 +194,7 @@ export class FacelessVideoService {
         where: { id: projectId },
         data: {
           scriptStatus: 'FAILED',
-          errorMessage: 'AI returned an unparseable response. Try again or switch provider.',
+          errorMessage: 'Gemini returned an unparseable response. Try again.',
           modelUsed,
         },
       });
