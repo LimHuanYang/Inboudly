@@ -100,4 +100,15 @@ export class PostsService {
     if (!post) throw new NotFoundException();
     return post.workspaceId;
   }
+
+  /** Atomically flip a publishable post to PUBLISHING. Returns true if THIS call
+   *  won the claim (so the caller should publish); false if it was already being
+   *  published/published (prevents a publish-now vs cron double-fire). */
+  async claimForPublish(id: string): Promise<boolean> {
+    const res = await this.prisma.post.updateMany({
+      where: { id, status: { in: [PostStatus.DRAFT, PostStatus.SCHEDULED, PostStatus.PARTIALLY_PUBLISHED, PostStatus.FAILED] } },
+      data: { status: PostStatus.PUBLISHING },
+    });
+    return res.count === 1;
+  }
 }

@@ -77,7 +77,8 @@ export class PostsController {
     @CurrentUser() user: { supabaseUserId: string },
   ) {
     await this.assertPostMember(id, user.supabaseUserId);
-    await this.publisher.publishPost(id);
+    const claim = await this.posts.claimForPublish(id);
+    if (claim) await this.publisher.publishPost(id);
     return this.posts.getById(id);
   }
 

@@ -34,6 +34,22 @@ export class PostScheduleCron {
     }
   }
 
+  private static readonly STALE_PUBLISHING_MS = 15 * 60 * 1000;
+
+  /** Safety net: a crash/restart between claim and rollup can strand a post in
+   *  PUBLISHING (nothing else re-selects that state). Fail anything stuck past
+   *  the cutoff so it surfaces to the user (and becomes retry-eligible if it has
+   *  live failed publications). Mirrors VideoGenerationService.reapStaleJobs. */
+  @Cron(CronExpression.EVERY_5_MINUTES)
+  async reapStuckPublishing(): Promise<void> {
+    const cutoff = new Date(Date.now() - PostScheduleCron.STALE_PUBLISHING_MS);
+    const res = await this.prisma.post.updateMany({
+      where: { status: PostStatus.PUBLISHING, updatedAt: { lt: cutoff } },
+      data: { status: PostStatus.FAILED },
+    });
+    if (res.count > 0) this.logger.warn(`Reaped ${res.count} stuck PUBLISHING post(s)`);
+  }
+
   @Cron(CronExpression.EVERY_5_MINUTES)
   async retryFailed(): Promise<void> {
     const now = new Date();
