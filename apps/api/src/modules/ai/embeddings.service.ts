@@ -1,5 +1,6 @@
-﻿import { Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import type { EmbedContentRequest, BatchEmbedContentsRequest } from '@google/generative-ai';
 
 /**
  * BYOK embeddings via Gemini gemini-embedding-001 (3072 dim, matches the
@@ -15,11 +16,17 @@ export class EmbeddingsService {
     const model = new GoogleGenerativeAI(apiKey).getGenerativeModel({
       model: EmbeddingsService.MODEL,
     });
+    // outputDimensionality is a valid REST param but missing from the v0.21.0
+    // SDK types, so we widen only that field rather than casting the whole request.
     const res = await model.embedContent({
       content: { role: 'user', parts: [{ text: text.slice(0, 8000) }] },
       outputDimensionality: EmbeddingsService.DIMENSION,
-    } as never);
-    return res.embedding.values;
+    } as EmbedContentRequest & { outputDimensionality?: number });
+    const values = res.embedding.values;
+    if (values.length !== EmbeddingsService.DIMENSION) {
+      throw new Error(`Unexpected embedding dimension: got ${values.length}, expected ${EmbeddingsService.DIMENSION}`);
+    }
+    return values;
   }
 
   async embedMany(apiKey: string, texts: string[]): Promise<number[][]> {
@@ -30,13 +37,20 @@ export class EmbeddingsService {
     const all: number[][] = [];
     for (let i = 0; i < texts.length; i += 100) {
       const batch = texts.slice(i, i + 100);
+      // outputDimensionality is a valid REST param but missing from the v0.21.0
+      // SDK types, so we widen only that field rather than casting the whole request.
       const res = await model.batchEmbedContents({
         requests: batch.map((t) => ({
           content: { role: 'user', parts: [{ text: t.slice(0, 8000) }] },
           outputDimensionality: EmbeddingsService.DIMENSION,
         })),
-      } as never);
-      for (const e of res.embeddings) all.push(e.values);
+      } as BatchEmbedContentsRequest);
+      for (const e of res.embeddings) {
+        if (e.values.length !== EmbeddingsService.DIMENSION) {
+          throw new Error(`Unexpected embedding dimension: got ${e.values.length}, expected ${EmbeddingsService.DIMENSION}`);
+        }
+        all.push(e.values);
+      }
     }
     return all;
   }
