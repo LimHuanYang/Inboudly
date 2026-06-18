@@ -35,22 +35,39 @@ export class PostsController {
   }
 
   @Get(':id')
-  get(@Param('id') id: string) {
+  async get(@Param('id') id: string, @CurrentUser() user: { supabaseUserId: string }) {
+    await this.assertPostMember(id, user.supabaseUserId);
     return this.posts.getById(id);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() body: Record<string, unknown>) {
+  async update(
+    @Param('id') id: string,
+    @Body() body: Record<string, unknown>,
+    @CurrentUser() user: { supabaseUserId: string },
+  ) {
+    await this.assertPostMember(id, user.supabaseUserId);
     return this.posts.update(id, body);
   }
 
   @Post(':id/schedule')
-  schedule(@Param('id') id: string, @Body() body: { scheduledFor: string }) {
+  async schedule(
+    @Param('id') id: string,
+    @Body() body: { scheduledFor: string },
+    @CurrentUser() user: { supabaseUserId: string },
+  ) {
+    await this.assertPostMember(id, user.supabaseUserId);
     return this.posts.schedule(id, new Date(body.scheduledFor));
   }
 
   @Post(':id/cancel')
-  cancel(@Param('id') id: string) {
+  async cancel(@Param('id') id: string, @CurrentUser() user: { supabaseUserId: string }) {
+    await this.assertPostMember(id, user.supabaseUserId);
     return this.posts.cancel(id);
+  }
+
+  private async assertPostMember(postId: string, supabaseUserId: string): Promise<void> {
+    const workspaceId = await this.posts.getWorkspaceId(postId);
+    await this.workspaces.assertMember(workspaceId, supabaseUserId);
   }
 }

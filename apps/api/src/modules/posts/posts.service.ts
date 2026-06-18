@@ -94,4 +94,10 @@ export class PostsService {
   async cancel(id: string) {
     return this.prisma.post.update({ where: { id }, data: { status: PostStatus.CANCELLED } });
   }
+
+  async getWorkspaceId(id: string): Promise<string> {
+    const post = await this.prisma.post.findUnique({ where: { id }, select: { workspaceId: true } });
+    if (!post) throw new NotFoundException();
+    return post.workspaceId;
+  }
 }
