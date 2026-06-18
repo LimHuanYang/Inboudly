@@ -2,6 +2,7 @@ import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@ne
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { PostsService } from './posts.service';
 import { WorkspacesService } from '../workspaces/workspaces.service';
+import { PostPublisherService } from './post-publisher.service';
 import { SupabaseAuthGuard } from '../../common/auth/auth.guard';
 import { CurrentUser } from '../../common/auth/current-user.decorator';
 import { CreatePostSchema, type CreatePostInput } from '@inboudly/shared';
@@ -13,7 +14,11 @@ import { PostStatus } from '@inboudly/database';
 @UseGuards(SupabaseAuthGuard)
 @Controller('posts')
 export class PostsController {
-  constructor(private posts: PostsService, private workspaces: WorkspacesService) {}
+  constructor(
+    private posts: PostsService,
+    private workspaces: WorkspacesService,
+    private publisher: PostPublisherService,
+  ) {}
 
   @Post()
   async create(
@@ -64,6 +69,16 @@ export class PostsController {
   async cancel(@Param('id') id: string, @CurrentUser() user: { supabaseUserId: string }) {
     await this.assertPostMember(id, user.supabaseUserId);
     return this.posts.cancel(id);
+  }
+
+  @Post(':id/publish-now')
+  async publishNow(
+    @Param('id') id: string,
+    @CurrentUser() user: { supabaseUserId: string },
+  ) {
+    await this.assertPostMember(id, user.supabaseUserId);
+    await this.publisher.publishPost(id);
+    return this.posts.getById(id);
   }
 
   private async assertPostMember(postId: string, supabaseUserId: string): Promise<void> {
