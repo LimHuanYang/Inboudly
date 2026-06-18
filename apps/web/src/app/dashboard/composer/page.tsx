@@ -12,6 +12,16 @@ interface VideoJobResponse {
   mediaAsset?: { id: string; url: string };
   errorMessage?: string;
 }
+
+// Shape of GET /workspaces/:id/ai-credentials after the stack was collapsed to
+// Gemini (text+image) + Higgsfield (image-to-video) + Pinecone. Typed locally so
+// future drift (e.g. a removed provider) is caught at compile time.
+interface CredsView {
+  gemini: { configured: boolean; masked: string | null; model: string | null };
+  geminiImageModel: string | null;
+  higgsfield: { configured: boolean; masked: string | null } | null;
+  pinecone: { configured: boolean; masked: string | null } | null;
+}
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Clapperboard, Calendar as CalendarIcon, Film, ImageIcon, Info, Loader2, Sparkles, Upload, Wand2, X, Youtube } from 'lucide-react';
@@ -72,8 +82,7 @@ export default function ComposerPage() {
   const [videoAspect, setVideoAspect] = useState<'9:16' | '16:9' | '1:1'>('9:16');
   const [videoDuration, setVideoDuration] = useState(5);
   const [videoJobId, setVideoJobId] = useState<string | null>(null);
-  const [videoProvider, setVideoProvider] = useState<'demo' | 'pollinations'>('demo');
-  const [videoModel, setVideoModel] = useState('seedance');
+  // Video is always Higgsfield (image-to-video): no provider/model picker.
 
   // ----- Upload state -----
   const [uploadPct, setUploadPct] = useState<number | null>(null);
@@ -149,14 +158,16 @@ export default function ComposerPage() {
   });
 
   const generateVideo = useMutation({
-    mutationFn: () =>
+    // Higgsfield is image-to-video: it animates an existing image, so a
+    // referenceImageUrl is REQUIRED. We omit `provider` entirely — the backend
+    // resolves Higgsfield automatically (the schema allows it absent).
+    mutationFn: (referenceImageUrl: string) =>
       api.post<{ id: string }>('/ai/video', {
         workspaceId,
         prompt: videoPrompt,
         aspectRatio: videoAspect,
         durationSec: videoDuration,
-        provider: videoProvider,
-        model: videoProvider === 'pollinations' ? videoModel : undefined,
+        referenceImageUrl,
       }),
     onSuccess: (job) => {
       setVideoJobId(job.id);
@@ -338,6 +349,13 @@ export default function ComposerPage() {
     .map((id) => ({ id, ...attachedAssets[id] }))
     .filter((a): a is { id: string; url: string; type: 'image' | 'video' } => Boolean(a.url));
 
+  // Higgsfield animates an existing image into a video, so it needs a source
+  // image URL. Prefer the image the user already attached to this platform's
+  // post (their explicit choice); otherwise fall back to the most recently
+  // generated image. `undefined` means there's no usable image yet.
+  const referenceImageUrl =
+    attachedForActive.find((a) => a.type === 'image')?.url ?? generatedImages[0]?.url;
+
   const generateText = useMutation({
     mutationFn: (input: { platform: SocialPlatform; prompt: string }) =>
       api.post<any>('/ai/text', {
@@ -401,31 +419,17 @@ export default function ComposerPage() {
 
   const activeScore = score.data?.perPlatform.find((p) => p.platform === activePlatform);
 
-  // BYOK: warn the user if no AI keys are configured for this workspace
-  const aiCredentials = useQuery({
+  // BYOK: warn the user if no AI keys are configured for this workspace.
+  // The view returns only the collapsed stack: Gemini (text+image) + Higgsfield
+  // (image-to-video) + Pinecone. Typed so future provider drift is caught.
+  const aiCredentials = useQuery<CredsView>({
     queryKey: ['ai-credentials', workspaceId],
-    queryFn: () => api.get<any>(`/workspaces/${workspaceId}/ai-credentials`),
+    queryFn: () => api.get<CredsView>(`/workspaces/${workspaceId}/ai-credentials`),
     enabled: !!workspaceId,
   });
-  const hasAnyTextKey =
-    aiCredentials.data?.anthropic?.configured || aiCredentials.data?.gemini?.configured;
-  const hasAnyImageKey =
-    aiCredentials.data?.openai?.configured || aiCredentials.data?.gemini?.configured;
-  const pollinationsReady = !!aiCredentials.data?.pollinations?.configured;
-
-  // Default video provider/model from workspace AI credentials once loaded
-  useEffect(() => {
-    if (!aiCredentials.data) return;
-    if (pollinationsReady) {
-      setVideoProvider(
-        aiCredentials.data.preferredVideoProvider === 'pollinations' ? 'pollinations' : 'demo',
-      );
-      setVideoModel(aiCredentials.data.pollinationsVideoModel ?? 'seedance');
-    } else {
-      setVideoProvider('demo');
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aiCredentials.data]);
+  // Gemini powers both text (captions) and image generation.
+  const hasAnyTextKey = !!aiCredentials.data?.gemini?.configured;
+  const hasAnyImageKey = !!aiCredentials.data?.gemini?.configured;
 
   const canPost =
     !!workspaceId &&
@@ -874,64 +878,50 @@ export default function ComposerPage() {
               </div>
             </div>
 
-            {/* Engine picker — provider + model */}
-            <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div>
-                <label htmlFor="video-provider-inline" className="text-xs font-medium">Provider</label>
-                <select
-                  id="video-provider-inline"
-                  value={videoProvider}
-                  disabled={generateVideo.isPending || videoStatus.data?.status === 'GENERATING'}
-                  onChange={(e) => setVideoProvider(e.target.value as 'demo' | 'pollinations')}
-                  className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-60"
-                >
-                  <option value="demo">Demo — free sample</option>
-                  <option value="pollinations" disabled={!pollinationsReady}>
-                    Pollinations{!pollinationsReady ? ' — add key in Settings' : ' — real'}
-                  </option>
-                </select>
+            {/* Higgsfield is image-to-video: it animates a source image. Show
+                which image will be used, and require one before generating. */}
+            {referenceImageUrl ? (
+              <div className="mt-3 flex items-center gap-3 rounded-md border bg-secondary/30 p-2">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={referenceImageUrl}
+                  alt="Source image for video"
+                  className="h-12 w-12 shrink-0 rounded-md border object-cover"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Higgsfield will animate this image into a video using your prompt.
+                  {' '}Attach a different image above to change the source.
+                </p>
               </div>
-              <div>
-                <label htmlFor="video-model-inline" className="text-xs font-medium">Model</label>
-                <select
-                  id="video-model-inline"
-                  value={videoModel}
-                  disabled={videoProvider !== 'pollinations' || generateVideo.isPending || videoStatus.data?.status === 'GENERATING'}
-                  onChange={(e) => setVideoModel(e.target.value)}
-                  className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-60"
-                >
-                  <option value="seedance">seedance — 2–10s</option>
-                  <option value="veo">veo — 4 / 6 / 8s</option>
-                  <option value="wan-fast">wan-fast — 2–15s</option>
-                </select>
-              </div>
-            </div>
-            {videoProvider === 'pollinations' ? (
-              <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
-                Uses your Pollinations credits (~1 clip). Falls back to Demo with a clear message if you&apos;re out of Pollen.
-              </p>
             ) : (
-              <p className="mt-2 text-xs text-emerald-600 dark:text-emerald-400">
-                Free, instant — returns a fixed sample clip.{' '}
-                {!pollinationsReady && (
-                  <a href="/dashboard/settings" className="underline">Add a Pollinations key in Settings</a>
-                )}{' '}
-                to generate real prompt-driven clips.
+              <p className="mt-3 flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-xs text-amber-800 dark:text-amber-300">
+                <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                Generate or attach an image first — Higgsfield animates an image into video.
+              </p>
+            )}
+            {!aiCredentials.data?.higgsfield?.configured && !aiCredentials.isLoading && (
+              <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
+                Add a Higgsfield key in{' '}
+                <a href="/dashboard/settings" className="underline">Settings → AI Providers</a> to generate video.
               </p>
             )}
 
             <button
               type="button"
-              disabled={!videoPrompt.trim() || generateVideo.isPending || videoStatus.data?.status === 'GENERATING'}
-              onClick={() => generateVideo.mutate()}
+              disabled={
+                !videoPrompt.trim() ||
+                !referenceImageUrl ||
+                !aiCredentials.data?.higgsfield?.configured ||
+                generateVideo.isPending ||
+                videoStatus.data?.status === 'GENERATING'
+              }
+              onClick={() => referenceImageUrl && generateVideo.mutate(referenceImageUrl)}
               className="mt-3 inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
             >
               {generateVideo.isPending || videoStatus.data?.status === 'GENERATING' ? (
                 <><Loader2 className="h-4 w-4 animate-spin" /> Generating…</>
-              ) : videoProvider === 'pollinations' ? (
-                <>Generate with Pollinations</>
               ) : (
-                <>Generate (Demo)</>
+                <>Generate video</>
               )}
             </button>
 
@@ -973,9 +963,7 @@ export default function ComposerPage() {
                         className="w-full max-w-sm rounded-lg border"
                       />
                       <p className="mt-1 text-xs text-muted-foreground">
-                        {videoProvider === 'pollinations'
-                          ? `Generated via Pollinations (${videoModel}).`
-                          : 'Sample clip · Demo provider (not generated from your prompt).'}
+                        Generated with Higgsfield from your source image.
                       </p>
                       <button
                         type="button"
