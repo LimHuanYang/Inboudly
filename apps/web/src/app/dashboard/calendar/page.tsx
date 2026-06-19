@@ -18,8 +18,8 @@ import {
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { api } from '@/lib/api-client';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import { PostStatusBadge, PostStatusDot, getStatusMeta } from '@/components/post-status-badge';
 
 interface PostListItem {
   id: string;
@@ -30,17 +30,18 @@ interface PostListItem {
   variants: Array<{ id: string; platform: string }>;
 }
 
-const STATUS_VARIANT: Record<string, 'default' | 'success' | 'warning' | 'danger' | 'secondary' | 'info'> =
-  {
-    DRAFT: 'secondary',
-    PENDING_APPROVAL: 'warning',
-    APPROVED: 'info',
-    SCHEDULED: 'info',
-    PUBLISHING: 'info',
-    PUBLISHED: 'success',
-    FAILED: 'danger',
-    CANCELLED: 'secondary',
-  };
+/** True when a post is mid-publish or due within 2 min — worth live-polling for. */
+function hasActivePost(data: PostListItem[] | undefined): boolean {
+  if (!data) return false;
+  const soon = Date.now() + 2 * 60_000;
+  return data.some(
+    (p) =>
+      p.status === 'PUBLISHING' ||
+      (p.status === 'SCHEDULED' &&
+        p.scheduledFor != null &&
+        new Date(p.scheduledFor).getTime() <= soon),
+  );
+}
 
 export default function CalendarPage() {
   const [cursor, setCursor] = useState(new Date());
@@ -52,6 +53,9 @@ export default function CalendarPage() {
     queryKey: ['posts', workspaceId],
     queryFn: () => api.get<PostListItem[]>(`/posts?workspaceId=${workspaceId}`),
     enabled: !!workspaceId,
+    // Live-refresh while anything is publishing or about to: the minute-cron drives
+    // SCHEDULED → PUBLISHING → PUBLISHED server-side. Idle otherwise — no needless polling.
+    refetchInterval: (query) => (hasActivePost(query.state.data) ? 15_000 : false),
   });
 
   // Group posts by yyyy-MM-dd of scheduledFor (or publishedAt as fallback)
@@ -85,14 +89,23 @@ export default function CalendarPage() {
 
   const totalScheduled = (posts.data ?? []).filter((p) => p.status === 'SCHEDULED').length;
   const totalPublished = (posts.data ?? []).filter((p) => p.status === 'PUBLISHED').length;
+  const isLive = hasActivePost(posts.data);
 
   return (
     <div className="container py-8">
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Calendar</h1>
-          <p className="text-sm text-muted-foreground">
-            {totalScheduled} scheduled · {totalPublished} published
+          <p className="flex items-center gap-2 text-sm text-muted-foreground">
+            <span>
+              {totalScheduled} scheduled · {totalPublished} published
+            </span>
+            {isLive && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-2 py-0.5 text-[11px] font-medium text-blue-700 dark:text-blue-400">
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-blue-500" />
+                Live
+              </span>
+            )}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -160,25 +173,23 @@ export default function CalendarPage() {
                     )}
                   </div>
                   <div className="space-y-1">
-                    {dayPosts.slice(0, 3).map((p) => (
-                      <Link
-                        key={p.id}
-                        href={`/dashboard/composer?postId=${p.id}`}
-                        className="block truncate rounded border-l-2 border-primary bg-primary/5 px-1.5 py-1 text-[11px] hover:bg-primary/10"
-                      >
-                        <div className="flex items-center gap-1">
-                          <Badge
-                            variant={STATUS_VARIANT[p.status] ?? 'default'}
-                            className="px-1 py-0 text-[9px]"
-                          >
-                            {p.status[0]}
-                          </Badge>
-                          <span className="truncate">
-                            {p.title ?? p.variants[0]?.platform ?? 'Untitled'}
-                          </span>
-                        </div>
-                      </Link>
-                    ))}
+                    {dayPosts.slice(0, 3).map((p) => {
+                      const meta = getStatusMeta(p.status);
+                      const label = p.title ?? p.variants[0]?.platform ?? 'Untitled';
+                      return (
+                        <Link
+                          key={p.id}
+                          href={`/dashboard/composer?postId=${p.id}`}
+                          title={`${meta.label} — ${label}`}
+                          className={`block rounded border-l-2 px-1.5 py-1 text-[11px] hover:opacity-90 ${meta.borderClass} ${meta.tintClass}`}
+                        >
+                          <div className="flex items-center gap-1.5">
+                            <PostStatusDot status={p.status} />
+                            <span className="truncate">{label}</span>
+                          </div>
+                        </Link>
+                      );
+                    })}
                     {dayPosts.length > 3 && (
                       <div className="text-[10px] text-muted-foreground">
                         +{dayPosts.length - 3} more
@@ -210,7 +221,7 @@ export default function CalendarPage() {
                     <span>{p.variants.map((v) => v.platform).join(', ')}</span>
                   </div>
                 </div>
-                <Badge variant={STATUS_VARIANT[p.status] ?? 'default'}>{p.status}</Badge>
+                <PostStatusBadge status={p.status} />
               </div>
             ))}
           {(posts.data ?? []).filter((p) => p.scheduledFor && new Date(p.scheduledFor) > new Date()).length ===
