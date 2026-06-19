@@ -24,7 +24,7 @@ interface CredsView {
 }
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Clapperboard, Calendar as CalendarIcon, Film, ImageIcon, Info, Loader2, Sparkles, Upload, Wand2, X, Youtube } from 'lucide-react';
+import { Clapperboard, Calendar as CalendarIcon, Film, ImageIcon, Info, Loader2, Send, Sparkles, Upload, Wand2, X, Youtube } from 'lucide-react';
 import { PLATFORM_SPECS, type SocialPlatform } from '@inboudly/shared/platforms';
 import { type ViralityScoreResponse } from '@inboudly/shared/schemas';
 import { buildCreatePostInput } from '@inboudly/shared';
@@ -94,6 +94,7 @@ export default function ComposerPage() {
   // ----- Publishing state -----
   const [showSchedule, setShowSchedule] = useState(false);
   const [scheduleAt, setScheduleAt] = useState('');
+  const [showPublishConfirm, setShowPublishConfirm] = useState(false);
   const [postError, setPostError] = useState<string | null>(null);
 
   const qc = useQueryClient();
@@ -194,26 +195,32 @@ export default function ComposerPage() {
     refetchIntervalInBackground: true,
   });
 
+  // Shared post payload builder — Save draft / Schedule (createPost) and
+  // Publish now all go through this so the three paths can't drift.
+  const buildInput = () => {
+    const platformOptions = selectedPlatforms.includes('YOUTUBE')
+      ? { YOUTUBE: { youtube: { privacyStatus: youtubePrivacy } } }
+      : undefined;
+    // Derive per-platform language from each platform's primaryLanguage
+    // (e.g. REDNOTE → 'zh-CN', all others → 'en'). buildCreatePostInput falls
+    // back to 'en' for any platform absent from this map.
+    const languages = Object.fromEntries(
+      selectedPlatforms.map((p) => [p, PLATFORM_SPECS[p].primaryLanguage]),
+    ) as Partial<Record<SocialPlatform, string>>;
+    return buildCreatePostInput({
+      workspaceId: workspaceId!,
+      selectedPlatforms,
+      captions,
+      hashtags,
+      attachedImageIds,
+      platformOptions,
+      languages,
+    });
+  };
+
   const createPost = useMutation({
     mutationFn: (scheduledFor?: string) => {
-      const platformOptions = selectedPlatforms.includes('YOUTUBE')
-        ? { YOUTUBE: { youtube: { privacyStatus: youtubePrivacy } } }
-        : undefined;
-      // Derive per-platform language from each platform's primaryLanguage
-      // (e.g. REDNOTE → 'zh-CN', all others → 'en'). Falls back to 'en' in
-      // buildCreatePostInput if a platform is not present in this map.
-      const languages = Object.fromEntries(
-        selectedPlatforms.map((p) => [p, PLATFORM_SPECS[p].primaryLanguage]),
-      ) as Partial<Record<SocialPlatform, string>>;
-      const input = buildCreatePostInput({
-        workspaceId: workspaceId!,
-        selectedPlatforms,
-        captions,
-        hashtags,
-        attachedImageIds,
-        platformOptions,
-        languages,
-      });
+      const input = buildInput();
       return api.post<{ id: string }>('/posts', input).then(async (post) => {
         let scheduleFailed = false;
         if (scheduledFor) {
@@ -262,6 +269,31 @@ export default function ComposerPage() {
   // The picker only shows platforms with an ACTIVE connected account.
   const availablePlatforms = PLATFORM_ORDER.filter((p) => connectedPlatforms.has(p));
   const unconnected = selectedPlatforms.filter((p) => !connectedPlatforms.has(p));
+  // Publish now only reaches platforms with an ACTIVE account; the rest are skipped.
+  const publishablePlatforms = selectedPlatforms.filter((p) => connectedPlatforms.has(p));
+
+  // Publish now: create the post, then trigger immediate publish. publish-now
+  // claims the post atomically server-side, so this can never double-fire.
+  const publishNow = useMutation({
+    mutationFn: async () => {
+      const post = await api.post<{ id: string }>('/posts', buildInput());
+      await api.post(`/posts/${post.id}/publish-now`, {});
+      return { id: post.id };
+    },
+    onSuccess: () => {
+      setShowPublishConfirm(false);
+      qc.invalidateQueries({ queryKey: ['posts', workspaceId] });
+      toast.success('Publishing now', {
+        description: 'Sending to your connected platforms — track progress on the Calendar.',
+        duration: 7000,
+      });
+    },
+    onError: (err: any) =>
+      toast.error("Couldn't publish", {
+        description: err?.message ?? 'Please try again.',
+        duration: 8000,
+      }),
+  });
 
   // Once accounts load, ensure selectedPlatforms + activePlatform are platforms
   // the user actually has connected. Defaults to the first connected platform.
@@ -453,6 +485,20 @@ export default function ComposerPage() {
     }
     setPostError(null);
     createPost.mutate(scheduledFor);
+  };
+
+  const validateThenPublish = () => {
+    if (selectedPlatforms.length === 0) return setPostError('Pick at least one platform.');
+    if (!selectedPlatforms.some((p) => (captions[p] ?? '').trim())) {
+      return setPostError('Add a caption for at least one selected platform.');
+    }
+    if (publishablePlatforms.length === 0) {
+      return setPostError(
+        'No connected account for the selected platform(s) — connect one in Settings to publish now. You can still Save draft or Schedule.',
+      );
+    }
+    setPostError(null);
+    setShowPublishConfirm(true);
   };
 
   return (
@@ -1056,11 +1102,24 @@ export default function ComposerPage() {
                     `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`,
                   );
                   setPostError(null);
+                  setShowPublishConfirm(false);
                   setShowSchedule((s) => !s);
                 }}
-                className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
+                className="inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium hover:bg-secondary disabled:opacity-50"
               >
                 <CalendarIcon className="h-4 w-4" aria-hidden="true" /> Schedule…
+              </button>
+              <div className="flex-1" />
+              <button
+                type="button"
+                disabled={!canPost || publishNow.isPending}
+                onClick={() => {
+                  setShowSchedule(false);
+                  validateThenPublish();
+                }}
+                className="inline-flex items-center gap-2 rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+              >
+                <Send className="h-4 w-4" aria-hidden="true" /> Publish now
               </button>
             </div>
 
@@ -1097,6 +1156,53 @@ export default function ComposerPage() {
                   >
                     {createPost.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                     Schedule
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {showPublishConfirm && (
+              <div className="mt-3 rounded-md border border-emerald-500/40 bg-emerald-500/10 p-3">
+                <p className="text-sm font-medium">
+                  Publish to {publishablePlatforms.length} platform
+                  {publishablePlatforms.length === 1 ? '' : 's'} now?
+                </p>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {publishablePlatforms.map((p) => (
+                    <span key={p} className="rounded-full bg-background px-2 py-0.5 text-xs">
+                      {p}
+                    </span>
+                  ))}
+                </div>
+                {unconnected.length > 0 && (
+                  <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
+                    {unconnected.join(', ')} {unconnected.length === 1 ? 'is' : 'are'} not connected
+                    and will be skipped.
+                  </p>
+                )}
+                <p className="mt-2 text-xs text-muted-foreground">
+                  This posts immediately and can&apos;t be undone from Inboudly.
+                </p>
+                <div className="mt-3 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowPublishConfirm(false)}
+                    className="rounded-md border px-3 py-1.5 text-sm hover:bg-secondary"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    disabled={publishNow.isPending}
+                    onClick={() => publishNow.mutate()}
+                    className="inline-flex items-center gap-2 rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+                  >
+                    {publishNow.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Send className="h-4 w-4" />
+                    )}
+                    {publishNow.isPending ? 'Publishing…' : 'Publish now'}
                   </button>
                 </div>
               </div>
