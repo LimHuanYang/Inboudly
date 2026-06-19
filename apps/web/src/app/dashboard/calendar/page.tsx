@@ -179,7 +179,7 @@ export default function CalendarPage() {
                       return (
                         <Link
                           key={p.id}
-                          href={`/dashboard/composer?postId=${p.id}`}
+                          href={`/dashboard/posts/${p.id}`}
                           title={`${meta.label} — ${label}`}
                           className={`block rounded border-l-2 px-1.5 py-1 text-[11px] hover:opacity-90 ${meta.borderClass} ${meta.tintClass}`}
                         >
@@ -212,7 +212,11 @@ export default function CalendarPage() {
             .sort((a, b) => +new Date(a.scheduledFor!) - +new Date(b.scheduledFor!))
             .slice(0, 10)
             .map((p) => (
-              <div key={p.id} className="flex items-center justify-between border-b py-3 last:border-b-0">
+              <Link
+                key={p.id}
+                href={`/dashboard/posts/${p.id}`}
+                className="-mx-2 flex items-center justify-between rounded-md border-b px-2 py-3 last:border-b-0 hover:bg-secondary/40"
+              >
                 <div>
                   <div className="font-medium">{p.title ?? 'Untitled'}</div>
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -222,7 +226,7 @@ export default function CalendarPage() {
                   </div>
                 </div>
                 <PostStatusBadge status={p.status} />
-              </div>
+              </Link>
             ))}
           {(posts.data ?? []).filter((p) => p.scheduledFor && new Date(p.scheduledFor) > new Date()).length ===
             0 && (
