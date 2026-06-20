@@ -43,6 +43,27 @@ function hasActivePost(data: PostListItem[] | undefined): boolean {
   );
 }
 
+/**
+ * Polling cadence for the posts query. Returns a positive interval whenever a
+ * publish is in-flight or a scheduled post is still pending, so the callback
+ * keeps re-running and re-evaluates the time window each tick — TanStack Query
+ * won't re-run it just because wall-clock crossed the 2-min threshold. Tightens
+ * to 10s once a post is imminent/publishing; idle (false) when nothing is pending.
+ */
+function refetchDelay(data: PostListItem[] | undefined): number | false {
+  if (!data) return false;
+  if (data.some((p) => p.status === 'PUBLISHING')) return 10_000;
+  const now = Date.now();
+  const hasPending = data.some(
+    (p) =>
+      p.status === 'SCHEDULED' &&
+      p.scheduledFor != null &&
+      new Date(p.scheduledFor).getTime() > now - 5 * 60_000,
+  );
+  if (!hasPending) return false;
+  return hasActivePost(data) ? 10_000 : 45_000;
+}
+
 export default function CalendarPage() {
   const [cursor, setCursor] = useState(new Date());
 
@@ -55,7 +76,7 @@ export default function CalendarPage() {
     enabled: !!workspaceId,
     // Live-refresh while anything is publishing or about to: the minute-cron drives
     // SCHEDULED → PUBLISHING → PUBLISHED server-side. Idle otherwise — no needless polling.
-    refetchInterval: (query) => (hasActivePost(query.state.data) ? 15_000 : false),
+    refetchInterval: (query) => refetchDelay(query.state.data),
   });
 
   // Group posts by yyyy-MM-dd of scheduledFor (or publishedAt as fallback)
@@ -90,6 +111,11 @@ export default function CalendarPage() {
   const totalScheduled = (posts.data ?? []).filter((p) => p.status === 'SCHEDULED').length;
   const totalPublished = (posts.data ?? []).filter((p) => p.status === 'PUBLISHED').length;
   const isLive = hasActivePost(posts.data);
+  // Posts that failed or only partly published carry no scheduledFor/publishedAt,
+  // so they'd vanish from the grid + Upcoming. Surface them in their own section.
+  const needsAttention = (posts.data ?? []).filter(
+    (p) => p.status === 'PARTIALLY_PUBLISHED' || p.status === 'FAILED',
+  );
 
   return (
     <div className="container py-8">
@@ -102,7 +128,7 @@ export default function CalendarPage() {
             </span>
             {isLive && (
               <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-2 py-0.5 text-[11px] font-medium text-blue-700 dark:text-blue-400">
-                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-blue-500" />
+                <span className="h-1.5 w-1.5 rounded-full bg-blue-500 motion-safe:animate-pulse" />
                 Live
               </span>
             )}
@@ -202,6 +228,30 @@ export default function CalendarPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Needs attention — failed / partially-published posts (no date, else hidden) */}
+      {needsAttention.length > 0 && (
+        <Card className="mt-6 border-amber-500/40">
+          <CardContent className="pt-6">
+            <h2 className="mb-4 text-lg font-semibold">Needs attention</h2>
+            {needsAttention.map((p) => (
+              <Link
+                key={p.id}
+                href={`/dashboard/posts/${p.id}`}
+                className="-mx-2 flex items-center justify-between rounded-md border-b px-2 py-3 last:border-b-0 hover:bg-secondary/40"
+              >
+                <div>
+                  <div className="font-medium">{p.title ?? 'Untitled'}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {p.variants.map((v) => v.platform).join(', ')}
+                  </div>
+                </div>
+                <PostStatusBadge status={p.status} />
+              </Link>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Upcoming list (next 14 days) */}
       <Card className="mt-6">

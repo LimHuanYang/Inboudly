@@ -85,7 +85,7 @@ export function PostStatusDot({ status, className }: { status: string; className
       className={cn(
         'inline-block h-2 w-2 shrink-0 rounded-full',
         meta.dotClass,
-        status === 'PUBLISHING' && 'animate-pulse',
+        status === 'PUBLISHING' && 'motion-safe:animate-pulse',
         className,
       )}
     />

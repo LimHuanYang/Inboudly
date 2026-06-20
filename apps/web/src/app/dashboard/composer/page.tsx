@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { api } from '@/lib/api-client';
@@ -98,6 +98,7 @@ export default function ComposerPage() {
   const [postError, setPostError] = useState<string | null>(null);
 
   const qc = useQueryClient();
+  const router = useRouter();
 
   const me = useQuery({
     queryKey: ['me'],
@@ -277,16 +278,29 @@ export default function ComposerPage() {
   const publishNow = useMutation({
     mutationFn: async () => {
       const post = await api.post<{ id: string }>('/posts', buildInput());
-      await api.post(`/posts/${post.id}/publish-now`, {});
-      return { id: post.id };
+      // publish-now is synchronous: it returns the post in its FINAL state
+      // (PUBLISHED / PARTIALLY_PUBLISHED / FAILED), so we can report honestly.
+      return api.post<{ id: string; status: string }>(`/posts/${post.id}/publish-now`, {});
     },
-    onSuccess: () => {
+    onSuccess: (updated) => {
       setShowPublishConfirm(false);
       qc.invalidateQueries({ queryKey: ['posts', workspaceId] });
-      toast.success('Publishing now', {
-        description: 'Sending to your connected platforms — track progress on the Calendar.',
-        duration: 7000,
-      });
+      if (updated.status === 'PUBLISHED') {
+        toast.success('Published', { description: 'Live on your connected platforms.', duration: 7000 });
+      } else if (updated.status === 'PARTIALLY_PUBLISHED') {
+        toast.warning('Published to some platforms', {
+          description: "Others didn't go out — open the post to see which and retry.",
+          duration: 9000,
+        });
+      } else {
+        toast.error('Publishing failed', {
+          description: 'No platform accepted the post — open it to see why and retry.',
+          duration: 9000,
+        });
+      }
+      // Land on the post detail (per-platform result + retry). A FAILED publish-now
+      // post has no scheduledFor/publishedAt, so it wouldn't appear on the Calendar.
+      router.push(`/dashboard/posts/${updated.id}`);
     },
     onError: (err: any) =>
       toast.error("Couldn't publish", {
@@ -1117,7 +1131,7 @@ export default function ComposerPage() {
                   setShowSchedule(false);
                   validateThenPublish();
                 }}
-                className="inline-flex items-center gap-2 rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+                className="inline-flex items-center gap-2 rounded-md bg-emerald-700 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-800 disabled:opacity-50"
               >
                 <Send className="h-4 w-4" aria-hidden="true" /> Publish now
               </button>
@@ -1195,7 +1209,7 @@ export default function ComposerPage() {
                     type="button"
                     disabled={publishNow.isPending}
                     onClick={() => publishNow.mutate()}
-                    className="inline-flex items-center gap-2 rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+                    className="inline-flex items-center gap-2 rounded-md bg-emerald-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-800 disabled:opacity-50"
                   >
                     {publishNow.isPending ? (
                       <Loader2 className="h-4 w-4 animate-spin" />

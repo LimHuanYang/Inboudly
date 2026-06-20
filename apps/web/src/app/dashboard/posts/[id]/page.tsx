@@ -10,6 +10,7 @@ import { api } from '@/lib/api-client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { PostStatusBadge } from '@/components/post-status-badge';
+import { PLATFORM_SPECS, type SocialPlatform } from '@inboudly/shared/platforms';
 
 interface Publication {
   id: string;
@@ -34,14 +35,8 @@ interface PostDetail {
   variants: Variant[];
 }
 
-const PLATFORM_LABEL: Record<string, string> = {
-  INSTAGRAM: 'Instagram',
-  TIKTOK: 'TikTok',
-  REDNOTE: 'RedNote 小红书',
-  YOUTUBE: 'YouTube',
-  FACEBOOK: 'Facebook',
-  LINKEDIN: 'LinkedIn',
-};
+// Platform brand colours — PLATFORM_SPECS carries no colour data, so this map is
+// legitimately local. Display names come from the shared spec (single source).
 const PLATFORM_BG: Record<string, string> = {
   INSTAGRAM: 'bg-pink-600',
   TIKTOK: 'bg-neutral-900',
@@ -55,19 +50,44 @@ const PLATFORM_BG: Record<string, string> = {
 // pairs a label + dot, and failures carry the error text.
 const PUB_META: Record<string, { label: string; text: string; dot: string }> = {
   PENDING: { label: 'Queued', text: 'text-slate-600 dark:text-slate-400', dot: 'bg-slate-400' },
-  PUBLISHING: { label: 'Publishing…', text: 'text-blue-700 dark:text-blue-400', dot: 'bg-blue-500 animate-pulse' },
+  PUBLISHING: { label: 'Publishing…', text: 'text-blue-700 dark:text-blue-400', dot: 'bg-blue-500 motion-safe:animate-pulse' },
   SUCCESS: { label: 'Published', text: 'text-emerald-700 dark:text-emerald-400', dot: 'bg-emerald-500' },
   FAILED: { label: 'Failed', text: 'text-red-700 dark:text-red-400', dot: 'bg-red-500' },
   RETRY_SCHEDULED: { label: 'Retrying', text: 'text-amber-700 dark:text-amber-400', dot: 'bg-amber-500' },
 };
 
+function platformLabel(platform: string): string {
+  return PLATFORM_SPECS[platform as SocialPlatform]?.displayName ?? platform;
+}
+
 function platformInitial(platform: string): string {
   if (platform === 'REDNOTE') return '小';
-  return (PLATFORM_LABEL[platform] ?? platform).charAt(0);
+  return platformLabel(platform).charAt(0);
 }
 
 function pubMeta(status: string) {
   return PUB_META[status] ?? { label: status, text: 'text-muted-foreground', dot: 'bg-slate-400' };
+}
+
+/** Poll while the post is actively publishing, imminently scheduled, or has a
+ *  publication still in flight / about to retry — so cron transitions surface. */
+function isDetailLive(p: PostDetail | undefined): boolean {
+  if (!p) return false;
+  if (p.status === 'PUBLISHING') return true;
+  const soon = Date.now() + 2 * 60_000;
+  if (p.status === 'SCHEDULED' && p.scheduledFor != null && new Date(p.scheduledFor).getTime() <= soon) {
+    return true;
+  }
+  return p.variants.some((v) =>
+    v.publications.some(
+      (pub) =>
+        pub.status === 'PENDING' ||
+        pub.status === 'PUBLISHING' ||
+        (pub.status === 'RETRY_SCHEDULED' &&
+          pub.nextRetryAt != null &&
+          new Date(pub.nextRetryAt).getTime() <= soon),
+    ),
+  );
 }
 
 export default function PostDetailPage() {
@@ -178,7 +198,7 @@ export default function PostDetailPage() {
                       {platformInitial(v.platform)}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="text-sm font-medium">{PLATFORM_LABEL[v.platform] ?? v.platform}</div>
+                      <div className="text-sm font-medium">{platformLabel(v.platform)}</div>
                       <div className="mt-0.5 truncate text-xs text-muted-foreground">
                         {!pub && 'Not published yet'}
                         {pub?.status === 'SUCCESS' &&
