@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, Get, Param, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { PostsService } from './posts.service';
 import { WorkspacesService } from '../workspaces/workspaces.service';
@@ -53,6 +53,20 @@ export class PostsController {
   ) {
     await this.assertPostMember(id, user.supabaseUserId);
     return this.posts.update(id, body);
+  }
+
+  @Put(':id')
+  async replace(
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(CreatePostSchema)) input: CreatePostInput,
+    @CurrentUser() user: { supabaseUserId: string },
+  ) {
+    const postWorkspaceId = await this.posts.getWorkspaceId(id);
+    await this.workspaces.assertMember(postWorkspaceId, user.supabaseUserId);
+    if (input.workspaceId !== postWorkspaceId) {
+      throw new ForbiddenException('Post belongs to a different workspace.');
+    }
+    return this.posts.updateContent(id, input);
   }
 
   @Post(':id/schedule')

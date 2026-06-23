@@ -96,6 +96,10 @@ export default function ComposerPage() {
   const [scheduleAt, setScheduleAt] = useState('');
   const [showPublishConfirm, setShowPublishConfirm] = useState(false);
   const [postError, setPostError] = useState<string | null>(null);
+  // Edit mode: title isn't surfaced as a field, so we preserve it across a save;
+  // hydratedRef guards the one-time hydration from the loaded post.
+  const editTitle = useRef<string | null>(null);
+  const hydratedRef = useRef<string | null>(null);
 
   const qc = useQueryClient();
   const router = useRouter();
@@ -112,6 +116,8 @@ export default function ComposerPage() {
   // Guarded with a ref so React's strict-mode double-render doesn't double-apply.
   const searchParams = useSearchParams();
   const trendId = searchParams.get('trendId');
+  const postId = searchParams.get('postId');
+  const isEditing = !!postId;
   const appliedTrendRef = useRef<string | null>(null);
   useEffect(() => {
     if (!trendId || !workspaceId || appliedTrendRef.current === trendId) return;
@@ -134,6 +140,66 @@ export default function ComposerPage() {
       })
       .catch((err) => toast.error(`Couldn't load trend: ${err.message}`));
   }, [trendId, workspaceId]);
+
+  // Edit mode: load the existing post and hydrate composer state once.
+  const editingPost = useQuery({
+    queryKey: ['post', postId],
+    queryFn: () => api.get<any>(`/posts/${postId}`),
+    enabled: isEditing,
+  });
+  useEffect(() => {
+    const p = editingPost.data;
+    if (!p || hydratedRef.current === p.id) return;
+    const EDITABLE = ['DRAFT', 'SCHEDULED', 'FAILED', 'CANCELLED'];
+    if (!EDITABLE.includes(p.status)) {
+      // Already (partly) live — editing isn't allowed; show the read-only detail.
+      router.replace(`/dashboard/posts/${p.id}`);
+      return;
+    }
+    hydratedRef.current = p.id;
+    const variants: any[] = p.variants ?? [];
+    const platforms = variants.map((v) => v.platform as SocialPlatform);
+    if (platforms.length) {
+      setSelectedPlatforms(platforms);
+      setActivePlatform(platforms[0]!);
+    }
+    setCaptions((prev) => ({
+      ...prev,
+      ...Object.fromEntries(variants.map((v) => [v.platform, v.caption ?? ''])),
+    }));
+    setHashtags((prev) => ({
+      ...prev,
+      ...Object.fromEntries(
+        variants.map((v) => [v.platform, ((v.hashtags ?? []) as string[]).map((h) => `#${h}`).join(' ')]),
+      ),
+    }));
+    const ids: Record<string, string[]> = {};
+    const assets: Record<string, { url: string; type: 'image' | 'video' }> = {};
+    for (const v of variants) {
+      const media = [...((v.media ?? []) as any[])].sort((a, b) => a.order - b.order);
+      ids[v.platform] = media.map((m) => m.mediaAsset.id);
+      for (const m of media) {
+        assets[m.mediaAsset.id] = {
+          url: m.mediaAsset.url,
+          type: m.mediaAsset.type === 'VIDEO' ? 'video' : 'image',
+        };
+      }
+    }
+    setAttachedImageIds((prev) => ({ ...prev, ...ids }));
+    setAttachedAssets((prev) => ({ ...prev, ...assets }));
+    const yt = variants.find((v) => v.platform === 'YOUTUBE');
+    const priv = yt?.platformOptions?.youtube?.privacyStatus;
+    if (priv === 'public' || priv === 'unlisted' || priv === 'private') setYoutubePrivacy(priv);
+    editTitle.current = p.title ?? null;
+    if (p.scheduledFor) {
+      const d = new Date(p.scheduledFor);
+      const pad = (n: number) => String(n).padStart(2, '0');
+      setScheduleAt(
+        `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`,
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingPost.data, router]);
 
   const generateImage = useMutation({
     mutationFn: (input: { prompt: string; aspectRatio: string; count: number }) =>
@@ -220,7 +286,15 @@ export default function ComposerPage() {
   };
 
   const createPost = useMutation({
-    mutationFn: (scheduledFor?: string) => {
+    mutationFn: async (scheduledFor?: string) => {
+      if (isEditing) {
+        // Edit mode: one atomic PUT replaces content + (re)sets schedule/status.
+        const body: Record<string, unknown> = { ...buildInput() };
+        if (editTitle.current != null) body.title = editTitle.current;
+        if (scheduledFor) body.scheduledFor = scheduledFor;
+        await api.put(`/posts/${postId}`, body);
+        return { id: postId!, scheduledFor, scheduleFailed: false, edited: true };
+      }
       const input = buildInput();
       return api.post<{ id: string }>('/posts', input).then(async (post) => {
         let scheduleFailed = false;
@@ -231,17 +305,26 @@ export default function ComposerPage() {
             scheduleFailed = true; // the draft was created; only scheduling failed
           }
         }
-        return { id: post.id, scheduledFor, scheduleFailed };
+        return { id: post.id, scheduledFor, scheduleFailed, edited: false };
       });
     },
-    onSuccess: ({ scheduledFor, scheduleFailed }) => {
+    onSuccess: ({ id, scheduledFor, scheduleFailed, edited }) => {
       setShowSchedule(false);
       qc.invalidateQueries({ queryKey: ['posts', workspaceId] });
+      qc.invalidateQueries({ queryKey: ['post', id] });
       if (scheduleFailed) {
         toast.warning('Draft saved, but scheduling failed', {
           description: 'The post was saved as a draft — you can reschedule it from the Calendar.',
           duration: 8000,
         });
+        return;
+      }
+      if (edited) {
+        toast.success(scheduledFor ? 'Changes saved · rescheduled' : 'Changes saved', {
+          description: 'Opening the post…',
+          duration: 6000,
+        });
+        router.push(`/dashboard/posts/${id}`);
         return;
       }
       toast.success(scheduledFor ? 'Post scheduled' : 'Draft saved', {
@@ -252,7 +335,10 @@ export default function ComposerPage() {
       });
     },
     onError: (err: any) =>
-      toast.error("Couldn't save the post", { description: err?.message ?? 'Please try again.', duration: 8000 }),
+      toast.error(isEditing ? "Couldn't save changes" : "Couldn't save the post", {
+        description: err?.message ?? 'Please try again.',
+        duration: 8000,
+      }),
   });
 
   // Advisory only: which selected platforms have a connected account.
@@ -277,14 +363,24 @@ export default function ComposerPage() {
   // claims the post atomically server-side, so this can never double-fire.
   const publishNow = useMutation({
     mutationFn: async () => {
-      const post = await api.post<{ id: string }>('/posts', buildInput());
+      let id = postId ?? undefined;
+      if (isEditing) {
+        // Save edits first (PUT → DRAFT), then publish-now claims & fires it.
+        const body: Record<string, unknown> = { ...buildInput() };
+        if (editTitle.current != null) body.title = editTitle.current;
+        await api.put(`/posts/${postId}`, body);
+      } else {
+        const post = await api.post<{ id: string }>('/posts', buildInput());
+        id = post.id;
+      }
       // publish-now is synchronous: it returns the post in its FINAL state
       // (PUBLISHED / PARTIALLY_PUBLISHED / FAILED), so we can report honestly.
-      return api.post<{ id: string; status: string }>(`/posts/${post.id}/publish-now`, {});
+      return api.post<{ id: string; status: string }>(`/posts/${id}/publish-now`, {});
     },
     onSuccess: (updated) => {
       setShowPublishConfirm(false);
       qc.invalidateQueries({ queryKey: ['posts', workspaceId] });
+      qc.invalidateQueries({ queryKey: ['post', updated.id] });
       if (updated.status === 'PUBLISHED') {
         toast.success('Published', { description: 'Live on your connected platforms.', duration: 7000 });
       } else if (updated.status === 'PARTIALLY_PUBLISHED') {
@@ -313,6 +409,7 @@ export default function ComposerPage() {
   // the user actually has connected. Defaults to the first connected platform.
   // Runs only when accounts.data changes (not on every render).
   useEffect(() => {
+    if (isEditing) return; // edit mode hydrates platforms from the post — don't reconcile
     if (!accounts.data) return;
     const connected = new Set(
       accounts.data.filter((a) => a.status === 'ACTIVE').map((a) => a.platform),
@@ -326,7 +423,7 @@ export default function ComposerPage() {
       connected.has(prev) ? prev : (ordered[0] ?? prev),
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accounts.data]);
+  }, [accounts.data, isEditing]);
 
   // YouTube is video-only — force the media mode so the image generation UI
   // is never shown when the user switches to the YouTube variant.
@@ -517,9 +614,11 @@ export default function ComposerPage() {
 
   return (
     <div className="container py-8">
-      <h1 className="mb-2 text-3xl font-bold">Composer</h1>
+      <h1 className="mb-2 text-3xl font-bold">{isEditing ? 'Edit post' : 'Composer'}</h1>
       <p className="mb-4 text-muted-foreground">
-        Write once, optimize for every platform with AI.
+        {isEditing
+          ? 'Update this post, then save, reschedule, or publish now.'
+          : 'Write once, optimize for every platform with AI.'}
       </p>
 
       {/* BYOK banner — only shown if no AI provider key configured */}
@@ -1104,7 +1203,11 @@ export default function ComposerPage() {
                 onClick={() => validateThenRun()}
                 className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-secondary disabled:opacity-50"
               >
-                {createPost.isPending && !showSchedule ? 'Saving…' : 'Save draft'}
+                {createPost.isPending && !showSchedule
+                  ? 'Saving…'
+                  : isEditing
+                    ? 'Save changes'
+                    : 'Save draft'}
               </button>
               <button
                 type="button"

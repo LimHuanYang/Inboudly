@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { format, formatDistanceToNowStrict } from 'date-fns';
 import { toast } from 'sonner';
-import { ArrowLeft, ExternalLink, Loader2, RotateCw } from 'lucide-react';
+import { ArrowLeft, ExternalLink, Loader2, Pencil, RotateCw } from 'lucide-react';
 import { api } from '@/lib/api-client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -121,6 +121,7 @@ export default function PostDetailPage() {
 
   const p = post.data;
   const canRetry = !!p && (p.status === 'PARTIALLY_PUBLISHED' || p.status === 'FAILED');
+  const canEdit = !!p && ['DRAFT', 'SCHEDULED', 'FAILED', 'CANCELLED'].includes(p.status);
 
   return (
     <div className="container max-w-3xl py-8">
@@ -164,16 +165,25 @@ export default function PostDetailPage() {
                 )}
               </div>
             </div>
-            {canRetry && (
-              <Button onClick={() => retry.mutate()} disabled={retry.isPending}>
-                {retry.isPending ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <RotateCw className="mr-2 h-4 w-4" />
-                )}
-                {retry.isPending ? 'Re-publishing…' : 'Retry failed now'}
-              </Button>
-            )}
+            <div className="flex items-center gap-2">
+              {canEdit && (
+                <Button variant="outline" asChild>
+                  <Link href={`/dashboard/composer?postId=${p.id}`}>
+                    <Pencil className="mr-2 h-4 w-4" /> Edit
+                  </Link>
+                </Button>
+              )}
+              {canRetry && (
+                <Button onClick={() => retry.mutate()} disabled={retry.isPending}>
+                  {retry.isPending ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <RotateCw className="mr-2 h-4 w-4" />
+                  )}
+                  {retry.isPending ? 'Re-publishing…' : 'Retry failed now'}
+                </Button>
+              )}
+            </div>
           </div>
 
           <Card>
