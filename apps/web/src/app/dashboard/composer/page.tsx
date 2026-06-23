@@ -291,9 +291,13 @@ export default function ComposerPage() {
         // Edit mode: one atomic PUT replaces content + (re)sets schedule/status.
         const body: Record<string, unknown> = { ...buildInput() };
         if (editTitle.current != null) body.title = editTitle.current;
-        if (scheduledFor) body.scheduledFor = scheduledFor;
+        // Preserve the post's existing schedule on a plain save — the hydrated time
+        // lives in scheduleAt. Without this, omitting scheduledFor makes the backend
+        // null it out and silently drop the post to DRAFT (off the Calendar).
+        const eff = scheduledFor ?? (scheduleAt ? new Date(scheduleAt).toISOString() : undefined);
+        if (eff) body.scheduledFor = eff;
         await api.put(`/posts/${postId}`, body);
-        return { id: postId!, scheduledFor, scheduleFailed: false, edited: true };
+        return { id: postId!, scheduledFor: eff, scheduleFailed: false, edited: true };
       }
       const input = buildInput();
       return api.post<{ id: string }>('/posts', input).then(async (post) => {
@@ -320,7 +324,7 @@ export default function ComposerPage() {
         return;
       }
       if (edited) {
-        toast.success(scheduledFor ? 'Changes saved · rescheduled' : 'Changes saved', {
+        toast.success(scheduledFor ? 'Changes saved · still scheduled' : 'Changes saved', {
           description: 'Opening the post…',
           duration: 6000,
         });

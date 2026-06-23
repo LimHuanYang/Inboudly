@@ -83,9 +83,12 @@ export class PostsService {
       throw new ConflictException(`A ${existing.status} post can't be edited.`);
     }
     return this.prisma.$transaction(async (tx) => {
-      await tx.postVariant.deleteMany({ where: { postId: id } });
-      await tx.post.update({
-        where: { id },
+      // Atomic guard: claim the row ONLY while it is still editable, in the same
+      // statement that writes the scalar fields. This serializes against the publish
+      // cron / publish-now (which flip SCHEDULED → PUBLISHING), so an edit can never
+      // delete the variants of a post that has already started publishing.
+      const claimed = await tx.post.updateMany({
+        where: { id, status: { in: EDITABLE_STATUSES } },
         data: {
           title: input.title,
           brandVoiceId: input.brandVoiceId,
@@ -96,6 +99,10 @@ export class PostsService {
           status: input.scheduledFor ? PostStatus.SCHEDULED : PostStatus.DRAFT,
         },
       });
+      if (claimed.count !== 1) {
+        throw new ConflictException('This post started publishing and can no longer be edited.');
+      }
+      await tx.postVariant.deleteMany({ where: { postId: id } });
       await this.writeVariants(tx, id, input.variants);
       return tx.post.findUniqueOrThrow({
         where: { id },
