@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>HyperFrames × Inboudly — Track B Design</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg:#0a0b10; --surface:#13151e; --surface2:#191c27; --surface3:#1f2330;
+    --border:#262a38; --border2:#343a4d;
+    --text:#f4f6fb; --dim:#a3aabf; --faint:#6f7689;
+    --violet:#8b5cff; --violet2:#a78bfa; --cyan:#22d3ee; --amber:#ff8a4c; --green:#34d399; --pink:#ff3d8b;
+    --grad:linear-gradient(135deg,#8b5cff,#22d3ee);
+    --r:16px;
+    --mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+    --disp:'Space Grotesk',system-ui,sans-serif;
+    --body:'Inter',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:var(--body);line-height:1.62;-webkit-font-smoothing:antialiased;
+    background-image:radial-gradient(58rem 40rem at 80% -8%,rgba(139,92,255,.15),transparent 60%),radial-gradient(46rem 34rem at 4% 5%,rgba(34,211,238,.09),transparent 55%);background-attachment:fixed;}
+  .wrap{max-width:1060px;margin:0 auto;padding:0 24px}
+  h1,h2,h3{font-family:var(--disp);font-weight:700;letter-spacing:-.02em;line-height:1.12;margin:0}
+  .grad-text{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .mono{font-family:var(--mono)}
+  nav{position:sticky;top:0;z-index:50;backdrop-filter:blur(14px);background:rgba(10,11,16,.74);border-bottom:1px solid var(--border)}
+  nav .wrap{display:flex;align-items:center;justify-content:space-between;height:60px}
+  .brand{display:flex;align-items:center;gap:11px;font-family:var(--disp);font-weight:700;font-size:16px}
+  .lg{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;background:var(--grad)}
+  .navnote{font-size:12px;color:var(--faint);font-family:var(--mono)}
+  section{padding:54px 0;border-bottom:1px solid rgba(38,42,56,.6)}
+  .kicker{display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--cyan);padding:6px 12px;border:1px solid var(--border2);border-radius:999px;background:var(--surface)}
+  .h2{font-size:clamp(23px,3.4vw,34px);margin:16px 0 10px}
+  .lead{color:var(--dim);font-size:16px;max-width:66ch;margin:0}
+  .hero{padding:52px 0 46px;border-bottom:1px solid var(--border)}
+  .pill{display:inline-flex;align-items:center;gap:9px;font-size:13px;font-weight:600;color:var(--dim);border:1px solid var(--border2);border-radius:999px;padding:7px 15px;background:rgba(19,21,30,.7);margin-bottom:20px}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 0 3px rgba(52,211,153,.18)}
+  .hero h1{font-size:clamp(30px,5vw,50px);letter-spacing:-.03em}
+  .hero .sub{margin:18px 0 0;color:var(--dim);font-size:clamp(15px,2.1vw,18px);max-width:62ch}
+  .hero .sub b{color:var(--text);font-weight:600}
+  .insight{display:flex;gap:13px;margin-top:26px;padding:16px 20px;border-radius:13px;background:rgba(52,211,153,.07);border:1px solid rgba(52,211,153,.25);max-width:760px}
+  .insight svg{flex:0 0 auto;margin-top:1px}
+  .insight b{color:var(--green)}
+
+  /* decisions */
+  .decisions{display:grid;grid-template-columns:1fr;gap:14px;margin-top:38px}
+  .dcard{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:20px 22px}
+  .dhead{display:flex;align-items:center;gap:11px;margin-bottom:6px;flex-wrap:wrap}
+  .dtag{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--violet2);border:1px solid rgba(139,92,255,.34);background:rgba(139,92,255,.12);border-radius:7px;padding:2px 8px}
+  .dcard h3{font-family:var(--disp);font-size:17px;font-weight:600}
+  .opts{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+  @media(max-width:720px){.opts{grid-template-columns:1fr}}
+  .opt{border:1px solid var(--border);border-radius:11px;padding:14px 15px;background:var(--surface2)}
+  .opt.win{border-color:rgba(52,211,153,.45);background:linear-gradient(160deg,rgba(52,211,153,.08),rgba(34,211,238,.03))}
+  .opt .ot{display:flex;align-items:center;gap:8px;font-weight:600;font-size:14px;margin-bottom:5px}
+  .opt .pick{font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.05em;padding:2px 7px;border-radius:999px;background:rgba(52,211,153,.16);color:var(--green);border:1px solid rgba(52,211,153,.3);margin-left:auto}
+  .opt p{margin:0;font-size:12.5px;color:var(--dim)}
+  .opt.alt .ot{color:var(--dim)}
+
+  /* flow */
+  .flow{display:flex;flex-direction:column;gap:0;margin-top:36px}
+  .fstage{display:flex;gap:14px;align-items:flex-start;background:var(--surface);border:1px solid var(--border);border-radius:13px;padding:15px 18px;position:relative}
+  .fstage.keep{border-left:3px solid var(--green)} .fstage.new{border-left:3px solid var(--violet)}
+  .fstage .fn{flex:0 0 auto;width:28px;height:28px;border-radius:8px;display:grid;place-items:center;font-family:var(--mono);font-size:12px;font-weight:700;background:var(--surface3);border:1px solid var(--border2);color:var(--dim)}
+  .fstage h4{font-family:var(--disp);font-size:15px;margin:0 0 3px;font-weight:600;display:flex;gap:9px;align-items:center;flex-wrap:wrap}
+  .fstage p{margin:0;font-size:13px;color:var(--dim)}
+  .ftag{font-family:var(--mono);font-size:9.5px;font-weight:700;letter-spacing:.04em;padding:2px 7px;border-radius:999px}
+  .ftag.new{background:rgba(139,92,255,.16);color:var(--violet2);border:1px solid rgba(139,92,255,.32)}
+  .ftag.keep{background:rgba(52,211,153,.13);color:var(--green);border:1px solid rgba(52,211,153,.28)}
+  .fconn{width:2px;height:16px;background:var(--border2);margin-left:33px}
+  .fstage .file{font-family:var(--mono);font-size:11px;color:var(--faint);display:block;margin-top:5px;word-break:break-all}
+
+  /* extension points table */
+  table{width:100%;border-collapse:collapse;background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;font-size:13px;margin-top:20px}
+  th{text-align:left;background:var(--surface2);color:var(--faint);font-size:11px;letter-spacing:.06em;text-transform:uppercase;padding:9px 14px;border-bottom:1px solid var(--border);font-weight:600}
+  td{padding:9px 14px;border-bottom:1px solid rgba(38,42,56,.5);vertical-align:top}
+  tr:last-child td{border-bottom:0}
+  td.f{font-family:var(--mono);font-size:11.5px;color:var(--cyan);white-space:nowrap}
+  td.d{color:var(--dim)}
+
+  /* feature chips */
+  .feats{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:13px;margin-top:34px}
+  .feat{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 17px}
+  .feat h4{font-family:var(--disp);font-size:14px;font-weight:600;margin:0 0 5px;display:flex;align-items:center;gap:8px}
+  .feat h4 .d{width:8px;height:8px;border-radius:2px;background:var(--violet)}
+  .feat p{margin:0;font-size:12.5px;color:var(--dim)}
+  .feat code{font-family:var(--mono);font-size:11.5px;background:var(--surface3);padding:1px 5px;border-radius:5px;color:var(--cyan)}
+
+  /* phases */
+  .phases{display:flex;flex-direction:column;gap:11px;margin-top:34px}
+  .ph{display:flex;gap:15px;background:var(--surface);border:1px solid var(--border);border-radius:13px;padding:16px 19px;align-items:flex-start}
+  .ph.v1{border-color:rgba(139,92,255,.34)}
+  .ph .pn{flex:0 0 auto;width:50px;height:50px;border-radius:11px;display:grid;place-items:center;font-family:var(--disp);font-weight:700;font-size:15px;background:rgba(139,92,255,.12);border:1px solid rgba(139,92,255,.3);color:var(--violet2)}
+  .ph.defer .pn{background:var(--surface3);border-color:var(--border2);color:var(--faint)}
+  .ph h4{font-family:var(--disp);font-size:15.5px;margin:0 0 3px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .ph p{margin:0;font-size:13px;color:var(--dim)}
+  .badge{font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.04em;padding:2px 8px;border-radius:999px}
+  .badge.v1{background:rgba(139,92,255,.16);color:var(--violet2);border:1px solid rgba(139,92,255,.34)}
+  .badge.later{background:var(--surface3);color:var(--faint);border:1px solid var(--border2)}
+
+  .approve{display:flex;gap:13px;margin-top:18px;padding:18px 20px;border-radius:13px;background:rgba(139,92,255,.08);border:1px solid rgba(139,92,255,.3)}
+  .approve b{color:var(--violet2)}
+  .approve .mono{color:var(--cyan)}
+  footer{padding:40px 0 54px;text-align:center;color:var(--faint);font-size:12.5px}
+  .footnote{max-width:64ch;margin:12px auto 0;font-size:12px;line-height:1.6}
+</style>
+</head>
+<body>
+<nav><div class="wrap">
+  <div class="brand"><span class="lg"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><polygon points="6 4 20 12 6 20 6 4"/></svg></span> HyperFrames × Inboudly</div>
+  <span class="navnote">Track B · design for approval</span>
+</div></nav>
+
+<header class="hero"><div class="wrap">
+  <span class="pill"><span class="dot"></span> Brainstorm → design → (your approval) → spec → plan → build</span>
+  <h1>Track B — <span class="grad-text">branded video</span>, as a second engine.</h1>
+  <p class="sub">HyperFrames renders deterministic, on-brand MP4s from HTML templates + your BrandKit. It plugs into Inboudly as <b>one more video provider</b> — everything downstream stays the same.</p>
+  <div class="insight">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+    <span>The map confirmed it: the runner, cron reaper, status lifecycle, polling, R2, <span class="mono">MediaAsset</span>, and the whole publish chain are <b>provider-agnostic</b>. HyperFrames = a new provider + a render method. <b>Nothing downstream changes.</b></span>
+  </div>
+</div></header>
+
+<section><div class="wrap">
+  <span class="kicker">Three decisions</span>
+  <h2 class="h2">What I need your nod on</h2>
+  <p class="lead">Recommendations marked. Override any of them.</p>
+  <div class="decisions">
+
+    <div class="dcard">
+      <div class="dhead"><span class="dtag">D1</span><h3>How to render</h3></div>
+      <div class="opts">
+        <div class="opt win">
+          <div class="ot">Shell out to the CLI <span class="pick">recommend</span></div>
+          <p><code style="font-family:var(--mono);color:var(--cyan)">npx hyperframes render --variables '{…}' --output tmp.mp4</code> per render. Matches the install (the skills <em>are</em> the CLI), process isolation, deterministic, no heavy in-process dep.</p>
+        </div>
+        <div class="opt alt">
+          <div class="ot">@hyperframes/producer in-process</div>
+          <p>Tighter integration, but bundles Chrome control into the API process + a big dependency. Defer.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="dcard">
+      <div class="dhead"><span class="dtag">D2</span><h3>Data model</h3></div>
+      <div class="opts">
+        <div class="opt win">
+          <div class="ot">Reuse <span class="mono" style="font-size:13px">VideoGeneration</span> <span class="pick">recommend</span></div>
+          <p>+ two additive fields (<span class="mono">templateId</span>, <span class="mono">variables Json</span>). Reuses the <em>entire</em> runner / cron / <span class="mono">GET /ai/video/:id</span> polling / tray. One tiny migration. <span class="mono">provider='hyperframes'</span>, no BYOK key (it's free/local).</p>
+        </div>
+        <div class="opt alt">
+          <div class="ot">New <span class="mono" style="font-size:13px">TemplateVideoJob</span> table</div>
+          <p>Cleaner separation, but duplicates the runner + cron + tray + polling. Over-built for v1.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="dcard">
+      <div class="dhead"><span class="dtag">D3</span><h3>Templates</h3></div>
+      <p style="margin:6px 0 0;font-size:13.5px;color:var(--dim)">Not really a fork — the HyperFrames-native way. Bundle 2 composition projects in the API; each declares <span class="mono" style="font-size:12px">data-composition-variables</span> and is rendered by injecting <span class="mono" style="font-size:12px">--variables</span>:</p>
+      <div style="margin-top:11px;font-family:var(--mono);font-size:12px;color:var(--dim);background:#070810;border:1px solid var(--border);border-radius:10px;padding:13px 15px;line-height:1.8">
+        <span style="color:var(--violet2)">brand_primary</span> · <span style="color:var(--violet2)">brand_accent</span> · <span style="color:var(--violet2)">brand_font</span> · <span style="color:var(--violet2)">logo_url</span><br>
+        <span style="color:var(--cyan)">caption_en</span> · <span style="color:var(--cyan)">caption_zh</span> · <span style="color:var(--cyan)">title</span> · <span style="color:var(--cyan)">cta</span> · <span style="color:var(--cyan)">background_url</span> · <span style="color:var(--amber)">width</span> · <span style="color:var(--amber)">height</span>
+      </div>
+    </div>
+
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <span class="kicker">Architecture</span>
+  <h2 class="h2">It mirrors the Higgsfield runner exactly</h2>
+  <p class="lead">Two new pieces (violet). Everything below the render is reused untouched (green).</p>
+  <div class="flow">
+    <div class="fstage new"><span class="fn">1</span><div><h4>POST /ai/template-video <span class="ftag new">new</span></h4><p>Create a job: workspace + templateId + platform + the caption/title text. Builds <span class="mono">variables</span> = brand tokens + text + size, server-side.</p><span class="file">ai/video/video-generation.controller.ts · template-video endpoint</span></div></div>
+    <div class="fconn"></div>
+    <div class="fstage keep"><span class="fn">2</span><div><h4>VideoGenerationService.create <span class="ftag keep">reused</span></h4><p>Row → status <span class="mono">GENERATING</span>, then <span class="mono">void run(jobId)</span> detached. Returns immediately; the frontend polls.</p></div></div>
+    <div class="fconn"></div>
+    <div class="fstage new"><span class="fn">3</span><div><h4>HyperframesVideoProvider.generate() <span class="ftag new">new</span></h4><p>copy template → tmp dir · <span class="mono">npx hyperframes render --variables … --output tmp.mp4</span> · read buffer. No reference image, no API key.</p><span class="file">ai/video/hyperframes-video.provider.ts · template-video/templates/{bilingual-caption,launch}/</span></div></div>
+    <div class="fconn"></div>
+    <div class="fstage keep"><span class="fn">4</span><div><h4>R2 + MediaAsset <span class="ftag keep">reused</span></h4><p><span class="mono">r2.putObject('videos/hyperframes/&lt;uuid&gt;.mp4')</span> → <span class="mono">media.register({VIDEO, AI_GENERATED, width, height, durationSec})</span>. Job → <span class="mono">READY</span> + mediaAssetId.</p></div></div>
+    <div class="fconn"></div>
+    <div class="fstage keep"><span class="fn">5</span><div><h4>Composer → PostMedia → cron → connectors <span class="ftag keep">untouched</span></h4><p>The MP4 is just another <span class="mono">MediaAsset</span> on the variant. The existing publisher pushes it to every platform by R2 URL.</p></div></div>
+  </div>
+
+  <h3 style="font-family:var(--disp);font-size:15px;margin:34px 0 0;color:var(--cyan);text-transform:uppercase;letter-spacing:.06em;font-family:var(--mono);font-weight:600">Extension points (from the live map)</h3>
+  <table>
+    <thead><tr><th>File</th><th>Change</th></tr></thead>
+    <tbody>
+      <tr><td class="f">ai-credentials.service.ts</td><td class="d">add <span class="mono">'hyperframes'</span> to <span class="mono">VideoProviderName</span> + <span class="mono">IMPLEMENTED_VIDEO_PROVIDERS</span></td></tr>
+      <tr><td class="f">shared/schemas.ts</td><td class="d"><span class="mono">VideoProviderSchema</span> enum += <span class="mono">'hyperframes'</span></td></tr>
+      <tr><td class="f">video-provider.interface.ts</td><td class="d"><span class="mono">VideoGenerateParams</span> += optional <span class="mono">templateId</span>, <span class="mono">variables</span></td></tr>
+      <tr><td class="f">video-generation.service.ts</td><td class="d"><span class="mono">adapterFor()</span> case <span class="mono">'hyperframes'</span> + constructor inject</td></tr>
+      <tr><td class="f">ai.module.ts</td><td class="d">register <span class="mono">HyperframesVideoProvider</span></td></tr>
+      <tr><td class="f">schema.prisma</td><td class="d"><span class="mono">VideoGeneration</span> += <span class="mono">templateId String?</span>, <span class="mono">variables Json?</span> (one migration)</td></tr>
+    </tbody>
+  </table>
+
+  <div class="feats">
+    <div class="feat"><h4><span class="d"></span>Multi-format</h4><p>aspectRatio → standard dims (<code>9:16→1080×1920</code>, <code>1:1→1080×1080</code>, <code>16:9→1920×1080</code>) passed as <code>width</code>/<code>height</code>.</p></div>
+    <div class="feat"><h4><span class="d"></span>Determinism cache</h4><p><code>hash(templateId+variables)</code> → reuse a prior READY render's <code>mediaAssetId</code> instead of re-rendering. Safe because identical input → identical MP4.</p></div>
+    <div class="feat"><h4><span class="d"></span>Composer card</h4><p>A "Branded clip" card reusing the existing video-job polling + <code>GenerationsTray</code>; prefills <code>caption_en/zh</code> from the variant.</p></div>
+    <div class="feat"><h4><span class="d"></span>Render env</h4><p>Node 22+ (you have 24 ✓), FFmpeg ✓, Chromium via <code>npx hyperframes browser</code>. Adds a <code>doctor</code> check + deploy-image note.</p></div>
+  </div>
+</div></section>
+
+<section style="border-bottom:none"><div class="wrap">
+  <span class="kicker" style="color:var(--violet2);border-color:rgba(139,92,255,.34)">v1 scope</span>
+  <h2 class="h2">Phased — each ships on its own</h2>
+  <div class="phases">
+    <div class="ph v1"><div class="pn">B0</div><div><h4>Spike <span class="badge v1">v1</span></h4><p>Render the bilingual-caption template with a real BrandKit's colors → MP4 via the CLI in the API env. Proves <span class="mono">npx hyperframes render</span> runs here (Chromium + FFmpeg).</p></div></div>
+    <div class="ph v1"><div class="pn">B1</div><div><h4>Engine <span class="badge v1">v1</span> <span style="font-family:var(--mono);font-size:11px;color:var(--green)">· TDD</span></h4><p><span class="mono">HyperframesVideoProvider</span> (CLI shell-out) + 2 templates + <span class="mono">brandToVariables</span> + <span class="mono">POST /ai/template-video</span> + DB fields + cache. Tests on the mapping + variables builder.</p></div></div>
+    <div class="ph v1"><div class="pn">B2</div><div><h4>Composer <span class="badge v1">v1</span></h4><p>"Branded clip" card + per-platform sizing + polling/tray reuse. A user makes an on-brand video without leaving the composer.</p></div></div>
+    <div class="ph defer"><div class="pn">B3</div><div><h4>Chain on Higgsfield <span class="badge later">deferred</span></h4><p>Higgsfield footage as the background inside a HyperFrames overlay (webm transparency). The "both" half — needs B1/B2 first, so it ships after.</p></div></div>
+  </div>
+
+  <div class="approve">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--violet2)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 auto;margin-top:1px"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+    <div><b>Approve to proceed.</b> If you're good with <span class="mono">D1 = CLI</span>, <span class="mono">D2 = reuse VideoGeneration</span>, <span class="mono">D3 = bundled templates</span>, and B0→B2 as v1 (B3 deferred), I'll write the spec doc → you review it → then the implementation plan. Change anything — render approach, data model, or the two templates — and I'll revise first.</div>
+  </div>
+</div></section>
+
+<footer><div class="wrap">
+  Track B design · grounded in a live map of the video pipeline (5-agent exploration) · 2026-06-24
+  <p class="footnote">File paths + method names reflect the current <span class="mono">main</span> as explored. HyperFrames = HeyGen, Apache-2.0. Confirm against source at implementation time.</p>
+</div></footer>
+</body>
+</html>
