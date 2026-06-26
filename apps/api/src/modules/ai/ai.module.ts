@@ -4,6 +4,7 @@ import { GeminiTextService } from './gemini-text.service';
 import { GeminiImageService } from './gemini-image.service';
 import { EmbeddingsService } from './embeddings.service';
 import { HiggsfieldVideoProvider } from './video/higgsfield-video.provider';
+import { HyperframesVideoProvider } from './video/hyperframes-video.provider';
 import { VideoGenerationService } from './video/video-generation.service';
 import { VideoGenerationController } from './video/video-generation.controller';
 import { MediaModule } from '../media/media.module';
@@ -19,6 +20,7 @@ import { AiCredentialsModule } from '../ai-credentials/ai-credentials.module';
     GeminiImageService,
     EmbeddingsService,
     HiggsfieldVideoProvider,
+    HyperframesVideoProvider,
     VideoGenerationService,
     WorkspacesService,
   ],

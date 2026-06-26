@@ -2,7 +2,7 @@ import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/co
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { SupabaseAuthGuard } from '../../../common/auth/auth.guard';
 import { CurrentUser } from '../../../common/auth/current-user.decorator';
-import { GenerateVideoSchema, type GenerateVideoInput } from '@inboudly/shared';
+import { GenerateVideoSchema, CreateTemplateVideoSchema, type GenerateVideoInput, type CreateTemplateVideoInput } from '@inboudly/shared';
 import { ZodValidationPipe } from '../../../common/pipes/zod-validation.pipe';
 import { VideoGenerationService } from './video-generation.service';
 import { WorkspacesService } from '../../workspaces/workspaces.service';
@@ -25,6 +25,16 @@ export class VideoGenerationController {
   ) {
     await this.workspaces.assertMember(input.workspaceId, user.supabaseUserId);
     return this.videos.create(input);
+  }
+
+  /** Start a HyperFrames branded-clip job. Polls the same way as /ai/video/:id. */
+  @Post('template-video')
+  async templateVideo(
+    @Body(new ZodValidationPipe(CreateTemplateVideoSchema)) input: CreateTemplateVideoInput,
+    @CurrentUser() user: { supabaseUserId: string },
+  ) {
+    await this.workspaces.assertMember(input.workspaceId, user.supabaseUserId);
+    return this.videos.createTemplateJob(input);
   }
 
   /** Poll a single job. */
