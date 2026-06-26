@@ -5,6 +5,10 @@ export type VideoGenerateParams = {
   aspectRatio: string;
   model: string;
   referenceImageUrl?: string;
+  /** HyperFrames: logical template id (e.g. "bilingual-caption"). */
+  templateId?: string;
+  /** HyperFrames: content variables injected into the composition. */
+  variables?: Record<string, unknown>;
 };
 
 export type VideoGenerateResult = {
