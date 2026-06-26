@@ -893,11 +893,11 @@ export default function ComposerPage() {
               YouTube supports video only.
             </p>
           ) : (
-            <div className="mb-3 inline-flex rounded-lg border p-1">
+            <div role="group" aria-label="Media type" className="mb-3 inline-flex rounded-lg border p-1">
               <button
                 type="button"
                 aria-pressed={mediaMode === 'image'}
-                onClick={() => setMediaMode('image')}
+                onClick={() => { if (mediaMode !== 'image') { setMediaMode('image'); setVideoJobId(null); } }}
                 className={`rounded-md px-3 py-1.5 text-sm ${mediaMode === 'image' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}
               >
                 Image
@@ -905,7 +905,7 @@ export default function ComposerPage() {
               <button
                 type="button"
                 aria-pressed={mediaMode === 'video'}
-                onClick={() => setMediaMode('video')}
+                onClick={() => { if (mediaMode !== 'video') { setMediaMode('video'); setVideoJobId(null); } }}
                 className={`rounded-md px-3 py-1.5 text-sm ${mediaMode === 'video' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}
               >
                 Video
@@ -913,7 +913,7 @@ export default function ComposerPage() {
               <button
                 type="button"
                 aria-pressed={mediaMode === 'branded'}
-                onClick={() => setMediaMode('branded')}
+                onClick={() => { if (mediaMode !== 'branded') { setMediaMode('branded'); setVideoJobId(null); } }}
                 className={`rounded-md px-3 py-1.5 text-sm ${mediaMode === 'branded' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}
               >
                 Branded clip
@@ -1143,7 +1143,8 @@ export default function ComposerPage() {
                 !referenceImageUrl ||
                 !aiCredentials.data?.higgsfield?.configured ||
                 generateVideo.isPending ||
-                videoStatus.data?.status === 'GENERATING'
+                videoStatus.data?.status === 'GENERATING' ||
+                videoStatus.data?.status === 'PENDING'
               }
               onClick={() => referenceImageUrl && generateVideo.mutate(referenceImageUrl)}
               className="mt-3 inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
