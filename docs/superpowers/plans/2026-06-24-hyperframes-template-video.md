@@ -394,6 +394,8 @@ git commit -m "feat(api): brand-to-variables helper"
 
 > Compositions are authored with the `hyperframes` skills, NOT hand-written here — that toolchain enforces the determinism rules and is validated by `lint`/`validate`/`inspect`. The plan fixes the **contract** each must satisfy.
 
+> **B0-confirmed mechanism (use exactly this):** declare variables on `<html>` as `data-composition-variables='[{"id":"caption_en","type":"string","label":"…","default":"…"}]'` (types seen: `color`, `string`, `number`). Bind in a **synchronous** `<script>`: `const v = window.__hyperframes ? window.__hyperframes.getVariables() : {}` → then set CSS custom properties (`document.documentElement.style.setProperty('--brand-primary', v.brand_primary)`) and `el.textContent`. **Output size is set by `data-width`/`data-height` on the sized root — there is NO `--width`/`--height` CLI flag** — so the init script must set the root's `data-width`/`data-height` + inline `width`/`height` from the `width`/`height` variables. Render dimension overrides via `--variables-file` (NOT inline `--variables`, which the Windows shell mangles). The B0 spike's full working `index.html` is the reference pattern (in the spike report).
+
 - [ ] **Step 1: Author `bilingual-caption`**
 
 Scaffold (`npx hyperframes init` inside the dir) and author a standalone composition that declares these variables (use the binding syntax confirmed in B0): `brand_primary`, `brand_accent`, `brand_font`, `logo_url`, `caption_en`, `caption_zh`, `background_url`, `width`, `height`, `duration`. Visual intent: `caption_en` (top) + `caption_zh` (below) as bold lower-thirds over `background_url` (or a `brand_primary` card when empty); small `logo_url` mark; subtle fade/slide in. Sized root must use `width`×`height`. Default duration 6s.
@@ -401,7 +403,8 @@ Scaffold (`npx hyperframes init` inside the dir) and author a standalone composi
 - [ ] **Step 2: Validate `bilingual-caption`**
 
 Run (in the template dir): `npx hyperframes lint && npx hyperframes validate && npx hyperframes inspect`
-Expected: 0 errors each. Then `npx hyperframes render --variables '{"brand_primary":"#ff3d8b","caption_en":"Fresh today","caption_zh":"今日新鲜","width":1080,"height":1920,"duration":6}' --quality draft --output /tmp/bc.mp4` → exit 0, plays correctly.
+Expected: 0 errors each. Then render via a vars file (inline `--variables` is mangled by the Windows shell): write `vars.json` = `{"brand_primary":"#ff3d8b","caption_en":"Fresh today","caption_zh":"今日新鲜","width":1080,"height":1920,"duration":6}` and run `npx hyperframes render --variables-file vars.json --quality draft --output bc.mp4` → exit 0, plays correctly.
+**Dimension gate (critical):** render a second time with `"width":1080,"height":1080` and `ffprobe` both outputs — confirm the pixel dimensions actually differ (1080×1920 vs 1080×1080). If variable-driven sizing does NOT take effect (the renderer reads `data-width`/`height` before the init script), fall back to per-aspect template copies (`bilingual-caption-9x16`, `-1x1`, `-16x9`) and update the registry + the `createTemplateJob` consumer accordingly; note the change.
 
 - [ ] **Step 3: Author + validate `launch`**
 
@@ -515,7 +518,7 @@ import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
-import { cp, mkdtemp, readFile, rm } from 'fs/promises';
+import { cp, mkdtemp, readFile, rm, writeFile } from 'fs/promises';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { MediaService } from '../../media/media.service';
@@ -571,18 +574,21 @@ export class HyperframesVideoProvider implements VideoProvider {
     return { asset: { id: asset.id, url: asset.url }, model: 'hyperframes' };
   }
 
-  /** Copy the template to a temp dir and render it with injected variables. */
+  /** Copy the template to a temp dir and render it with injected variables.
+   *  B0 spike: inline `--variables` JSON breaks under Windows shell quoting, so write
+   *  a vars.json and use `--variables-file`. shell:true because `npx` is `npx.cmd` on
+   *  Windows; relative filenames (cwd=work) keep the command free of spaces. */
   protected async renderToBuffer(templateDir: string, variables: Record<string, unknown>): Promise<Buffer> {
     const work = await mkdtemp(join(tmpdir(), 'hf-'));
-    const out = join(work, 'out.mp4');
     try {
       await cp(templateDir, work, { recursive: true });
+      await writeFile(join(work, 'vars.json'), JSON.stringify(variables), 'utf8');
       await execFileAsync(
         'npx',
-        ['hyperframes', 'render', '--variables', JSON.stringify(variables), '--quality', 'standard', '--format', 'mp4', '--output', out],
-        { cwd: work, timeout: RENDER_TIMEOUT_MS, maxBuffer: 16 * 1024 * 1024 },
+        ['hyperframes', 'render', '--variables-file', 'vars.json', '--quality', 'standard', '--format', 'mp4', '--output', 'out.mp4'],
+        { cwd: work, timeout: RENDER_TIMEOUT_MS, maxBuffer: 16 * 1024 * 1024, shell: true },
       );
-      return await readFile(out);
+      return await readFile(join(work, 'out.mp4'));
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       throw new Error(`HyperFrames render failed: ${msg.slice(0, 300)}`);
