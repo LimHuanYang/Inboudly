@@ -1,0 +1,256 @@
+<!doctype html>
+<html
+  lang="en"
+  data-composition-variables='[
+    {"id":"brand_primary","type":"color","label":"Brand Primary","default":"#111827"},
+    {"id":"brand_accent","type":"color","label":"Brand Accent","default":"#6366f1"},
+    {"id":"brand_font","type":"string","label":"Brand Font","default":"Inter, system-ui, sans-serif"},
+    {"id":"logo_url","type":"string","label":"Logo URL","default":""},
+    {"id":"title","type":"string","label":"Title","default":"New Drop"},
+    {"id":"cta","type":"string","label":"Call to Action","default":"Shop Now"},
+    {"id":"background_url","type":"string","label":"Background Image URL","default":""},
+    {"id":"width","type":"number","label":"Width","default":1080},
+    {"id":"height","type":"number","label":"Height","default":1920},
+    {"id":"duration","type":"number","label":"Duration (seconds)","default":6}
+  ]'
+>
+  <head>
+    <meta charset="UTF-8" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      /* Default web-safe font stack — overridden at runtime via injected @font-face.
+         Declared here so the hyperframes linter sees a concrete @font-face for BrandFont. */
+      @font-face {
+        font-family: 'BrandFont';
+        src: local('Inter'), local('system-ui'), local('sans-serif');
+        font-weight: 100 900;
+        font-style: normal;
+      }
+
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { margin: 0; overflow: hidden; background: #000; }
+
+      #root {
+        position: relative;
+        overflow: hidden;
+        background: var(--brand-primary, #111827);
+      }
+
+      /* Full-frame background image */
+      #bg-image {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: center;
+        display: none;
+      }
+      #bg-image.visible { display: block; }
+
+      /* Dark overlay when background image is present */
+      #bg-overlay {
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.45);
+        z-index: 1;
+        display: none;
+      }
+      #bg-overlay.visible { display: block; }
+
+      /* Logo — top-left corner */
+      #logo-mark {
+        position: absolute;
+        top: 80px;
+        left: 80px;
+        width: 80px;
+        height: 80px;
+        object-fit: contain;
+        display: none;
+        z-index: 3;
+        border-radius: 12px;
+      }
+      #logo-mark.visible { display: block; }
+
+      /* Content centred in the frame */
+      #content-zone {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        justify-content: center;
+        padding: 80px;
+        z-index: 2;
+      }
+
+      /* "NEW DROP" eyebrow label */
+      #eyebrow {
+        font-family: BrandFont, Inter, system-ui, sans-serif;
+        font-weight: 600;
+        font-size: 28px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--brand-accent, #6366f1);
+        margin-bottom: 24px;
+      }
+
+      /* Main title */
+      #title {
+        font-family: BrandFont, Inter, system-ui, sans-serif;
+        font-weight: 800;
+        font-size: 96px;
+        line-height: 1.05;
+        color: #ffffff;
+        text-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
+        max-width: 920px;
+        margin-bottom: 48px;
+      }
+
+      /* CTA pill */
+      #cta-pill {
+        display: inline-block;
+        background: var(--brand-accent, #6366f1);
+        color: #0d0d0d;
+        font-family: BrandFont, Inter, system-ui, sans-serif;
+        font-weight: 700;
+        font-size: 36px;
+        padding: 22px 56px;
+        border-radius: 100px;
+        letter-spacing: 0.02em;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      }
+
+      /* Decorative accent line above title */
+      #accent-line {
+        display: block;
+        width: 80px;
+        height: 6px;
+        background: var(--brand-accent, #6366f1);
+        border-radius: 3px;
+        margin-bottom: 32px;
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="launch"
+      data-start="0"
+      data-duration="6"
+      data-width="1080"
+      data-height="1920"
+    >
+      <!-- Background image (hidden until JS shows it) -->
+      <img id="bg-image" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt="" />
+
+      <!-- Dark overlay for legibility over bg image -->
+      <div id="bg-overlay"></div>
+
+      <!-- Main content clip -->
+      <section
+        class="clip"
+        id="content-zone"
+        data-start="0"
+        data-duration="6"
+        data-track-index="1"
+      >
+        <span id="accent-line"></span>
+        <p id="eyebrow">New Drop</p>
+        <h1 id="title">New Drop</h1>
+        <span id="cta-pill">Shop Now</span>
+      </section>
+
+      <!-- Logo mark — visibility controlled by JS class toggle -->
+      <img id="logo-mark" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="Logo" />
+    </div>
+
+    <script>
+      // ── 1. Resolve variables ──────────────────────────────────────────────
+      var vars = window.__hyperframes ? window.__hyperframes.getVariables() : {};
+
+      var brandPrimary  = vars.brand_primary  || '#111827';
+      var brandAccent   = vars.brand_accent   || '#6366f1';
+      var brandFont     = vars.brand_font     || 'Inter, system-ui, sans-serif';
+      var logoUrl       = vars.logo_url       || '';
+      var title         = vars.title          || 'New Drop';
+      var cta           = vars.cta            || 'Shop Now';
+      var backgroundUrl = vars.background_url || '';
+      var compWidth     = Number(vars.width)    || 1080;
+      var compHeight    = Number(vars.height)   || 1920;
+      var compDuration  = Number(vars.duration) || 6;
+
+      // ── 2. Apply CSS custom properties + inject brand font ───────────────
+      document.documentElement.style.setProperty('--brand-primary', brandPrimary);
+      document.documentElement.style.setProperty('--brand-accent',  brandAccent);
+      // Override the static @font-face with the runtime brand_font value.
+      var fontStyleEl = document.createElement('style');
+      fontStyleEl.textContent = [
+        '@font-face {',
+        '  font-family: BrandFont;',
+        '  src: local("' + brandFont.split(',')[0].trim().replace(/['"]/g, '') + '"), local("system-ui"), local("sans-serif");',
+        '  font-weight: 100 900;',
+        '}'
+      ].join('\n');
+      document.head.appendChild(fontStyleEl);
+      document.documentElement.style.setProperty('--brand-font',    brandFont);
+
+      // ── 3. Size the root (variable-driven dimensions) ────────────────────
+      var root = document.getElementById('root');
+      root.setAttribute('data-width',    String(compWidth));
+      root.setAttribute('data-height',   String(compHeight));
+      root.setAttribute('data-duration', String(compDuration));
+      root.style.width  = compWidth  + 'px';
+      root.style.height = compHeight + 'px';
+      document.documentElement.style.width  = compWidth  + 'px';
+      document.documentElement.style.height = compHeight + 'px';
+      document.body.style.width  = compWidth  + 'px';
+      document.body.style.height = compHeight + 'px';
+
+      // ── 4. Background ─────────────────────────────────────────────────────
+      var bgImg     = document.getElementById('bg-image');
+      var bgOverlay = document.getElementById('bg-overlay');
+      if (backgroundUrl) {
+        bgImg.src = backgroundUrl;
+        bgImg.classList.add('visible');
+        bgOverlay.classList.add('visible');
+      }
+
+      // ── 5. Logo ───────────────────────────────────────────────────────────
+      var logoMark = document.getElementById('logo-mark');
+      if (logoUrl) {
+        logoMark.src = logoUrl;
+        logoMark.classList.add('visible');
+      }
+
+      // ── 6. Content text ───────────────────────────────────────────────────
+      document.getElementById('title').textContent    = title;
+      document.getElementById('eyebrow').textContent  = title; // eyebrow mirrors for brand continuity
+      document.getElementById('cta-pill').textContent = cta;
+
+      // ── 7. Build the single paused GSAP timeline ──────────────────────────
+      window.__timelines = window.__timelines || {};
+      var tl = gsap.timeline({ paused: true });
+
+      // Background fades in
+      tl.from('#bg-image',    { opacity: 0, duration: 0.5, ease: 'power2.out' }, 0);
+
+      // Accent line wipes in (scaleX from 0 — block element, sized by width:80px)
+      tl.from('#accent-line', { scaleX: 0, duration: 0.4, ease: 'power3.out', transformOrigin: 'left center' }, 0.1);
+
+      // Eyebrow fades up
+      tl.from('#eyebrow',     { y: 20, opacity: 0, duration: 0.4, ease: 'power2.out' }, 0.25);
+
+      // Title slides up with weight
+      tl.from('#title',       { y: 56, opacity: 0, duration: 0.6, ease: 'power3.out' }, 0.35);
+
+      // CTA pill pops in
+      tl.from('#cta-pill',    { y: 32, opacity: 0, scale: 0.92, duration: 0.5, ease: 'back.out(1.5)', transformOrigin: 'left center' }, 0.6);
+
+      // Logo fades in
+      tl.from('#logo-mark',   { opacity: 0, scale: 0.85, duration: 0.4, ease: 'back.out(1.4)', transformOrigin: 'top left' }, 0.2);
+
+      window.__timelines['launch'] = tl;
+    </script>
+  </body>
+</html>

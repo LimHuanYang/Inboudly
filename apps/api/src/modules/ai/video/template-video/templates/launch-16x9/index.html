@@ -1,0 +1,214 @@
+<!doctype html>
+<html
+  lang="en"
+  data-composition-variables='[
+    {"id":"brand_primary","type":"color","label":"Brand Primary","default":"#111827"},
+    {"id":"brand_accent","type":"color","label":"Brand Accent","default":"#6366f1"},
+    {"id":"brand_font","type":"string","label":"Brand Font","default":"Inter, system-ui, sans-serif"},
+    {"id":"logo_url","type":"string","label":"Logo URL","default":""},
+    {"id":"title","type":"string","label":"Title","default":"New Drop"},
+    {"id":"cta","type":"string","label":"Call to Action","default":"Shop Now"},
+    {"id":"background_url","type":"string","label":"Background Image URL","default":""},
+    {"id":"duration","type":"number","label":"Duration (seconds)","default":6}
+  ]'
+>
+  <head>
+    <meta charset="UTF-8" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      @font-face {
+        font-family: 'BrandFont';
+        src: local('Inter'), local('system-ui'), local('sans-serif');
+        font-weight: 100 900;
+        font-style: normal;
+      }
+
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: #000; }
+
+      #root {
+        position: relative;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: var(--brand-primary, #111827);
+      }
+
+      #bg-image {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: center;
+        display: none;
+      }
+      #bg-image.visible { display: block; }
+
+      #bg-overlay {
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.45);
+        z-index: 1;
+        display: none;
+      }
+      #bg-overlay.visible { display: block; }
+
+      #logo-mark {
+        position: absolute;
+        top: 60px;
+        left: 80px;
+        width: 72px;
+        height: 72px;
+        object-fit: contain;
+        display: none;
+        z-index: 3;
+        border-radius: 10px;
+      }
+      #logo-mark.visible { display: block; }
+
+      #content-zone {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        justify-content: center;
+        padding: 80px 160px;
+        z-index: 2;
+      }
+
+      #eyebrow {
+        font-family: BrandFont, Inter, system-ui, sans-serif;
+        font-weight: 600;
+        font-size: 24px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--brand-accent, #6366f1);
+        margin-bottom: 20px;
+      }
+
+      #title {
+        font-family: BrandFont, Inter, system-ui, sans-serif;
+        font-weight: 800;
+        font-size: 96px;
+        line-height: 1.05;
+        color: #ffffff;
+        text-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
+        max-width: 1200px;
+        margin-bottom: 48px;
+      }
+
+      #cta-pill {
+        display: inline-block;
+        background: var(--brand-accent, #6366f1);
+        color: #0d0d0d;
+        font-family: BrandFont, Inter, system-ui, sans-serif;
+        font-weight: 700;
+        font-size: 32px;
+        padding: 20px 52px;
+        border-radius: 100px;
+        letter-spacing: 0.02em;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      }
+
+      #accent-line {
+        display: block;
+        width: 80px;
+        height: 6px;
+        background: var(--brand-accent, #6366f1);
+        border-radius: 3px;
+        margin-bottom: 28px;
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="launch"
+      data-start="0"
+      data-duration="6"
+      data-width="1920"
+      data-height="1080"
+    >
+      <img id="bg-image" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt="" />
+      <div id="bg-overlay"></div>
+
+      <section
+        class="clip"
+        id="content-zone"
+        data-start="0"
+        data-duration="6"
+        data-track-index="1"
+      >
+        <span id="accent-line"></span>
+        <p id="eyebrow">New Drop</p>
+        <h1 id="title">New Drop</h1>
+        <span id="cta-pill">Shop Now</span>
+      </section>
+
+      <img id="logo-mark" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="Logo" />
+    </div>
+
+    <script>
+      var vars = window.__hyperframes ? window.__hyperframes.getVariables() : {};
+
+      var brandPrimary  = vars.brand_primary  || '#111827';
+      var brandAccent   = vars.brand_accent   || '#6366f1';
+      var brandFont     = vars.brand_font     || 'Inter, system-ui, sans-serif';
+      var logoUrl       = vars.logo_url       || '';
+      var title         = vars.title          || 'New Drop';
+      var cta           = vars.cta            || 'Shop Now';
+      var backgroundUrl = vars.background_url || '';
+      var compDuration  = Number(vars.duration) || 6;
+
+      document.documentElement.style.setProperty('--brand-primary', brandPrimary);
+      document.documentElement.style.setProperty('--brand-accent',  brandAccent);
+
+      var fontStyleEl = document.createElement('style');
+      fontStyleEl.textContent = [
+        '@font-face {',
+        '  font-family: BrandFont;',
+        '  src: local("' + brandFont.split(',')[0].trim().replace(/['"]/g, '') + '"), local("system-ui"), local("sans-serif");',
+        '  font-weight: 100 900;',
+        '}'
+      ].join('\n');
+      document.head.appendChild(fontStyleEl);
+
+      if (compDuration !== 6) {
+        document.getElementById('root').setAttribute('data-duration', String(compDuration));
+        document.getElementById('content-zone').setAttribute('data-duration', String(compDuration));
+      }
+
+      var bgImg     = document.getElementById('bg-image');
+      var bgOverlay = document.getElementById('bg-overlay');
+      if (backgroundUrl) {
+        bgImg.src = backgroundUrl;
+        bgImg.classList.add('visible');
+        bgOverlay.classList.add('visible');
+      }
+
+      var logoMark = document.getElementById('logo-mark');
+      if (logoUrl) {
+        logoMark.src = logoUrl;
+        logoMark.classList.add('visible');
+      }
+
+      document.getElementById('title').textContent    = title;
+      document.getElementById('eyebrow').textContent  = title;
+      document.getElementById('cta-pill').textContent = cta;
+
+      window.__timelines = window.__timelines || {};
+      var tl = gsap.timeline({ paused: true });
+
+      tl.from('#bg-image',    { opacity: 0, duration: 0.5, ease: 'power2.out' }, 0);
+      tl.from('#accent-line', { scaleX: 0, duration: 0.4, ease: 'power3.out', transformOrigin: 'left center' }, 0.1);
+      tl.from('#eyebrow',     { y: 20, opacity: 0, duration: 0.4, ease: 'power2.out' }, 0.25);
+      tl.from('#title',       { y: 56, opacity: 0, duration: 0.6, ease: 'power3.out' }, 0.35);
+      tl.from('#cta-pill',    { y: 32, opacity: 0, scale: 0.92, duration: 0.5, ease: 'back.out(1.5)', transformOrigin: 'left center' }, 0.6);
+      tl.from('#logo-mark',   { opacity: 0, scale: 0.85, duration: 0.4, ease: 'back.out(1.4)', transformOrigin: 'top left' }, 0.2);
+
+      window.__timelines['launch'] = tl;
+    </script>
+  </body>
+</html>
