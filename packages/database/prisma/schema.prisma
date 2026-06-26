@@ -320,6 +320,8 @@ model VideoGeneration {
   aspectRatio       String      // '9:16' | '16:9' | '1:1'
   durationSec       Int
   referenceImageUrl String?
+  templateId        String?     // HyperFrames template id (null for Higgsfield)
+  variables         Json?       // HyperFrames render variables (brand tokens + text + size + __hash)
   status            VideoStatus @default(PENDING)
   mediaAssetId      String?
   errorMessage      String?     @db.Text
