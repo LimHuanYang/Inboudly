@@ -19,7 +19,7 @@ export type ResolvedImageProvider = {
   model: string;
 };
 
-export type VideoProviderName = 'higgsfield';
+export type VideoProviderName = 'higgsfield' | 'hyperframes';
 
 export type ResolvedVideoProvider = {
   provider: VideoProviderName;
@@ -46,10 +46,11 @@ export const DEFAULT_IMAGE_MODELS = {
 /** Default VIDEO models when no user override is saved. */
 export const DEFAULT_VIDEO_MODELS: Record<VideoProviderName, string> = {
   higgsfield: 'higgsfield',
+  hyperframes: 'hyperframes',
 } as const;
 
 /** Providers with a working adapter in THIS build. */
-export const IMPLEMENTED_VIDEO_PROVIDERS: VideoProviderName[] = ['higgsfield'];
+export const IMPLEMENTED_VIDEO_PROVIDERS: VideoProviderName[] = ['higgsfield', 'hyperframes'];
 
 interface ProviderStateView {
   configured: boolean;
