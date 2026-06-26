@@ -44,3 +44,9 @@ coverage/
 # Scratch build-output dumps (from `pnpm dev | tee tc-out.txt` etc.)
 tc-out.txt
 **/tc-out.txt
+
+# HyperFrames local render artifacts (provider renders in a temp copy, not in-tree)
+apps/api/src/modules/ai/video/template-video/templates/**/out.mp4
+apps/api/src/modules/ai/video/template-video/templates/**/out-*.mp4
+apps/api/src/modules/ai/video/template-video/templates/**/vars.json
+apps/api/src/modules/ai/video/template-video/templates/**/vars-*.json

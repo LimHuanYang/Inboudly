@@ -315,7 +315,7 @@ model VideoGeneration {
   id                String      @id @default(cuid())
   workspaceId       String
   prompt            String      @db.Text
-  provider          String      // 'higgsfield'
+  provider          String      // 'higgsfield' | 'hyperframes'
   model             String      // e.g. 'higgsfield'
   aspectRatio       String      // '9:16' | '16:9' | '1:1'
   durationSec       Int

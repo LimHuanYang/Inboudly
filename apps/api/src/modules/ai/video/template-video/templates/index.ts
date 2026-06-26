@@ -27,7 +27,7 @@ export type TemplateDef = {
    * `getTemplateDir(id, aspect)` — the provider/service layer uses this resolver
    * instead of reading `dir` directly.
    */
-  dirFor: (aspect: AspectRatio) => string;
+  dirFor: (aspect: AspectRatio) => string | undefined;
 };
 
 // ── Root ─────────────────────────────────────────────────────────────────────
@@ -42,8 +42,9 @@ const ASPECT_SUFFIX: Record<AspectRatio, string> = {
   '16:9': '16x9',
 };
 
-function aspectDir(templateSlug: string, aspect: AspectRatio): string {
-  return join(ROOT, `${templateSlug}-${ASPECT_SUFFIX[aspect]}`);
+function aspectDir(templateSlug: string, aspect: AspectRatio): string | undefined {
+  const suffix = ASPECT_SUFFIX[aspect];
+  return suffix ? join(ROOT, `${templateSlug}-${suffix}`) : undefined;
 }
 
 // ── Registry ──────────────────────────────────────────────────────────────────

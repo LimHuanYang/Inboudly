@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { createHash } from 'crypto';
 import { PrismaService } from '../../../common/prisma/prisma.service';
@@ -34,6 +34,9 @@ export class VideoGenerationService {
    * status GENERATING. The frontend polls GET /ai/video/:id until READY/FAILED.
    */
   async create(input: GenerateVideoInput) {
+    if (input.provider === 'hyperframes') {
+      throw new BadRequestException('HyperFrames branded clips use POST /ai/video/template-video.');
+    }
     const resolved = await this.credentials.resolveVideoProvider(input.workspaceId, input.provider);
     const model = input.model?.trim() || resolved.model;
 
@@ -85,7 +88,7 @@ export class VideoGenerationService {
     variables.__hash = hash;
 
     const recent = await this.prisma.videoGeneration.findMany({
-      where: { workspaceId: input.workspaceId, provider: 'hyperframes', status: VideoStatus.READY, mediaAssetId: { not: null } },
+      where: { workspaceId: input.workspaceId, provider: 'hyperframes', templateId: input.templateId, status: VideoStatus.READY, mediaAssetId: { not: null } },
       orderBy: { createdAt: 'desc' },
       take: 50,
       select: { mediaAssetId: true, variables: true },
@@ -184,7 +187,10 @@ export class VideoGenerationService {
     if (res.count > 0) this.logger.warn(`Reaped ${res.count} stale video job(s)`);
   }
 
-  private failureMessage(_provider: string, rawMsg: string): string {
+  private failureMessage(provider: string, rawMsg: string): string {
+    if (provider === 'hyperframes') {
+      return `${rawMsg}. HyperFrames render failed — ensure the hyperframes CLI is available (npx hyperframes) and the template files are present.`;
+    }
     return `${rawMsg}. Check your Higgsfield key in Settings → AI Providers (format api_key:api_key_secret) and that your account has credit.`;
   }
 }
