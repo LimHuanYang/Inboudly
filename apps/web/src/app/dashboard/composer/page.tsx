@@ -75,7 +75,7 @@ export default function ComposerPage() {
   >({});
 
   // ----- Video generation state -----
-  const [mediaMode, setMediaMode] = useState<'image' | 'video'>('image');
+  const [mediaMode, setMediaMode] = useState<'image' | 'video' | 'branded'>('image');
   // YouTube is a video-only platform — force the media mode so the image
   // generation UI never appears and only the video card is shown.
   const [videoPrompt, setVideoPrompt] = useState('');
@@ -83,6 +83,15 @@ export default function ComposerPage() {
   const [videoDuration, setVideoDuration] = useState(5);
   const [videoJobId, setVideoJobId] = useState<string | null>(null);
   // Video is always Higgsfield (image-to-video): no provider/model picker.
+
+  // ----- Branded clip (HyperFrames) state -----
+  const [brandedTemplate, setBrandedTemplate] = useState<'bilingual-caption' | 'launch'>('bilingual-caption');
+  const [brandedCaptionEn, setBrandedCaptionEn] = useState('');
+  const [brandedCaptionZh, setBrandedCaptionZh] = useState('');
+  const [brandedTitle, setBrandedTitle] = useState('');
+  const [brandedCta, setBrandedCta] = useState('');
+  // Guard so the prefill only seeds once and doesn't clobber user edits.
+  const brandedPrefillRef = useRef(false);
 
   // ----- Upload state -----
   const [uploadPct, setUploadPct] = useState<number | null>(null);
@@ -248,10 +257,51 @@ export default function ComposerPage() {
       }),
   });
 
+  const generateBranded = useMutation({
+    mutationFn: () =>
+      api.post<{ id: string }>('/ai/video/template-video', {
+        workspaceId,
+        templateId: brandedTemplate,
+        aspectRatio: videoAspect,
+        // bilingual-caption needs both captions; launch needs title + cta
+        captionEn: brandedCaptionEn || undefined,
+        captionZh: brandedCaptionZh || undefined,
+        title: brandedTitle || undefined,
+        cta: brandedCta || undefined,
+      }),
+    onSuccess: (job) => {
+      setVideoJobId(job.id);
+      qc.invalidateQueries({ queryKey: ['video-jobs', workspaceId] });
+    },
+    onError: (err: any) =>
+      toast.error("Couldn't start the branded clip", {
+        description: err?.message ?? 'Please try again.',
+        duration: 8000,
+      }),
+  });
+
+  // Prefill branded-clip fields when the user switches into branded mode.
+  // Runs once per "enter branded" to seed sensible defaults without clobbering edits.
+  useEffect(() => {
+    if (mediaMode !== 'branded') {
+      brandedPrefillRef.current = false; // reset guard when leaving branded mode
+      return;
+    }
+    if (brandedPrefillRef.current) return;
+    brandedPrefillRef.current = true;
+    const activeCap = captions[activePlatform] ?? '';
+    const rednoteCap = captions['REDNOTE'] ?? '';
+    setBrandedCaptionEn(activeCap);
+    setBrandedCaptionZh(rednoteCap);
+    setBrandedTitle(activeCap.slice(0, 120));
+    // brandedCta left empty for the user to fill in
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mediaMode]);
+
   const videoStatus = useQuery<VideoJobResponse>({
     queryKey: ['video-job', videoJobId],
     queryFn: () => api.get<VideoJobResponse>(`/ai/video/${videoJobId}?workspaceId=${workspaceId}`),
-    enabled: !!videoJobId && !!workspaceId && mediaMode === 'video',
+    enabled: !!videoJobId && !!workspaceId && (mediaMode === 'video' || mediaMode === 'branded'),
     // TanStack Query v5: callback receives the query object.
     refetchInterval: (query) => {
       const s = query.state.data?.status;
@@ -434,6 +484,8 @@ export default function ComposerPage() {
   useEffect(() => {
     if (activePlatform === 'YOUTUBE') setMediaMode('video');
   }, [activePlatform]);
+
+
 
   const toggleAttachImage = (imageId: string) => {
     setAttachedImageIds((prev) => {
@@ -858,6 +910,14 @@ export default function ComposerPage() {
               >
                 Video
               </button>
+              <button
+                type="button"
+                aria-pressed={mediaMode === 'branded'}
+                onClick={() => setMediaMode('branded')}
+                className={`rounded-md px-3 py-1.5 text-sm ${mediaMode === 'branded' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}
+              >
+                Branded clip
+              </button>
             </div>
           )}
 
@@ -1159,6 +1219,184 @@ export default function ComposerPage() {
 
             {videoStatus.data?.status === 'FAILED' && (
               <p className="mt-3 text-sm text-destructive">{videoStatus.data?.errorMessage ?? 'Generation failed.'}</p>
+            )}
+          </div>
+          )}
+
+          {/* Branded clip (HyperFrames) */}
+          {mediaMode === 'branded' && (
+          <div className="rounded-lg border bg-background p-4">
+            <h3 className="mb-3 flex items-center gap-2 text-sm font-medium">
+              <Film className="h-4 w-4 text-primary" /> Branded clip
+            </h3>
+
+            {/* Template picker */}
+            <div className="mb-3">
+              <label className="text-xs font-medium">Template</label>
+              <div className="mt-1 inline-flex overflow-hidden rounded-md border">
+                <button
+                  type="button"
+                  aria-pressed={brandedTemplate === 'bilingual-caption'}
+                  onClick={() => setBrandedTemplate('bilingual-caption')}
+                  className={`px-3 py-1.5 text-sm ${brandedTemplate === 'bilingual-caption' ? 'bg-primary text-primary-foreground' : 'bg-background hover:bg-muted'}`}
+                >
+                  Bilingual caption
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={brandedTemplate === 'launch'}
+                  onClick={() => setBrandedTemplate('launch')}
+                  className={`px-3 py-1.5 text-sm ${brandedTemplate === 'launch' ? 'bg-primary text-primary-foreground' : 'bg-background hover:bg-muted'}`}
+                >
+                  Launch announcement
+                </button>
+              </div>
+            </div>
+
+            <p className="mb-3 flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Info className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+              Uses your workspace BrandKit (colours, font, logo).
+            </p>
+
+            {/* Aspect ratio (shared with video mode) */}
+            <div className="mb-3">
+              <label htmlFor="branded-aspect" className="text-xs font-medium">Aspect ratio</label>
+              <select
+                id="branded-aspect"
+                value={videoAspect}
+                onChange={(e) => setVideoAspect(e.target.value as '9:16' | '16:9' | '1:1')}
+                className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                <option value="9:16">9:16 — vertical</option>
+                <option value="16:9">16:9 — landscape</option>
+                <option value="1:1">1:1 — square</option>
+              </select>
+            </div>
+
+            {/* Adaptive fields */}
+            {brandedTemplate === 'bilingual-caption' ? (
+              <div className="space-y-3">
+                <div>
+                  <label htmlFor="branded-caption-en" className="text-xs font-medium">
+                    Caption (EN) <span className="text-muted-foreground">required</span>
+                  </label>
+                  <input
+                    id="branded-caption-en"
+                    type="text"
+                    value={brandedCaptionEn}
+                    onChange={(e) => setBrandedCaptionEn(e.target.value)}
+                    placeholder="English caption…"
+                    className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="branded-caption-zh" className="text-xs font-medium">
+                    Caption (中文) <span className="text-muted-foreground">required</span>
+                  </label>
+                  <input
+                    id="branded-caption-zh"
+                    type="text"
+                    value={brandedCaptionZh}
+                    onChange={(e) => setBrandedCaptionZh(e.target.value)}
+                    placeholder="中文字幕…"
+                    className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div>
+                  <label htmlFor="branded-title" className="text-xs font-medium">
+                    Title <span className="text-muted-foreground">required</span>
+                  </label>
+                  <input
+                    id="branded-title"
+                    type="text"
+                    value={brandedTitle}
+                    onChange={(e) => setBrandedTitle(e.target.value)}
+                    placeholder="Product or campaign name…"
+                    className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="branded-cta" className="text-xs font-medium">
+                    Call to action <span className="text-muted-foreground">required</span>
+                  </label>
+                  <input
+                    id="branded-cta"
+                    type="text"
+                    value={brandedCta}
+                    onChange={(e) => setBrandedCta(e.target.value)}
+                    placeholder="e.g. Shop now · Learn more · Limited offer…"
+                    className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  />
+                </div>
+              </div>
+            )}
+
+            <button
+              type="button"
+              disabled={
+                generateBranded.isPending ||
+                videoStatus.data?.status === 'GENERATING' ||
+                videoStatus.data?.status === 'PENDING' ||
+                (brandedTemplate === 'bilingual-caption'
+                  ? !brandedCaptionEn.trim() || !brandedCaptionZh.trim()
+                  : !brandedTitle.trim() || !brandedCta.trim())
+              }
+              onClick={() => generateBranded.mutate()}
+              className="mt-4 inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
+            >
+              {generateBranded.isPending || videoStatus.data?.status === 'GENERATING' || videoStatus.data?.status === 'PENDING' ? (
+                <><Loader2 className="h-4 w-4 animate-spin" /> Generating…</>
+              ) : (
+                <>Generate branded clip</>
+              )}
+            </button>
+
+            {/* READY: preview + attach — mirrors the Higgsfield video READY block */}
+            {videoStatus.data?.status === 'READY' && videoStatus.data?.mediaAsset && (
+              <div className="mt-4">
+                {(() => {
+                  const asset = videoStatus.data.mediaAsset!;
+                  return (
+                    <>
+                      <video
+                        src={asset.url}
+                        controls
+                        preload="metadata"
+                        aria-label="Generated branded clip preview"
+                        className="w-full max-w-sm rounded-lg border"
+                      />
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Generated with HyperFrames using your workspace BrandKit.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAttachedImageIds((ids) => {
+                            const current = ids[activePlatform] ?? [];
+                            return current.includes(asset.id)
+                              ? ids
+                              : { ...ids, [activePlatform]: [...current, asset.id] };
+                          });
+                          setAttachedAssets((m) => ({ ...m, [asset.id]: { url: asset.url, type: 'video' } }));
+                          toast.success('Branded clip attached to post');
+                        }}
+                        className="mt-2 rounded-md border px-3 py-1.5 text-sm hover:bg-secondary"
+                      >
+                        Attach to post
+                      </button>
+                    </>
+                  );
+                })()}
+              </div>
+            )}
+
+            {videoStatus.data?.status === 'FAILED' && (
+              <p className="mt-3 text-sm text-destructive">
+                {videoStatus.data?.errorMessage ?? 'Generation failed.'}
+              </p>
             )}
           </div>
           )}
