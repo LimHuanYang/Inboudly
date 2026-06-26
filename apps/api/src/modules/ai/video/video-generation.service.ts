@@ -1,11 +1,16 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
+import { createHash } from 'crypto';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { AiCredentialsService } from '../../ai-credentials/ai-credentials.service';
 import { HiggsfieldVideoProvider } from './higgsfield-video.provider';
+import { HyperframesVideoProvider } from './hyperframes-video.provider';
+import { brandToVariables, type BrandKitLike } from './template-video/brand-to-variables';
+import { sizeForAspect, type AspectRatio } from './template-video/size-for-aspect';
+import { TEMPLATES } from './template-video/templates';
 import type { VideoProvider } from './video-provider.interface';
 import { VideoStatus } from '@inboudly/database';
-import type { GenerateVideoInput } from '@inboudly/shared';
+import type { GenerateVideoInput, CreateTemplateVideoInput } from '@inboudly/shared';
 
 @Injectable()
 export class VideoGenerationService {
@@ -15,11 +20,12 @@ export class VideoGenerationService {
     private prisma: PrismaService,
     private credentials: AiCredentialsService,
     private higgsfield: HiggsfieldVideoProvider,
+    private hyperframes: HyperframesVideoProvider,
   ) {}
 
-  /** Map a resolved provider name to its adapter. Only Higgsfield today;
-   *  the seam stays so a second provider is a new case, not a rewrite. */
-  private adapterFor(_provider: string): VideoProvider {
+  /** Map a resolved provider name to its adapter. */
+  private adapterFor(provider: string): VideoProvider {
+    if (provider === 'hyperframes') return this.hyperframes;
     return this.higgsfield;
   }
 
@@ -50,6 +56,60 @@ export class VideoGenerationService {
     return job;
   }
 
+  /** Create a HyperFrames branded-clip job. Builds variables from the workspace's
+   *  default BrandKit + text + per-aspect size, dedupes by a content hash, then
+   *  reuses the existing detached runner. */
+  async createTemplateJob(input: CreateTemplateVideoInput) {
+    // schema (CreateTemplateVideoSchema) validates templateId against the known enum —
+    // TEMPLATES will always have this key at runtime.
+    const tpl = TEMPLATES[input.templateId]!;
+    const { width, height } = sizeForAspect(input.aspectRatio as AspectRatio);
+    const kit =
+      (await this.prisma.brandKit.findFirst({ where: { workspaceId: input.workspaceId, isDefault: true } })) ??
+      (await this.prisma.brandKit.findFirst({ where: { workspaceId: input.workspaceId } }));
+
+    const variables: Record<string, unknown> = {
+      ...brandToVariables(kit as BrandKitLike | null),
+      width,
+      height,
+      duration: tpl.defaultDurationSec,
+      caption_en: input.captionEn ?? '',
+      caption_zh: input.captionZh ?? '',
+      title: input.title ?? '',
+      cta: input.cta ?? '',
+      background_url: input.backgroundUrl ?? '',
+    };
+    const hash = createHash('sha256')
+      .update(input.templateId + '|' + stableStringify(variables))
+      .digest('hex');
+    variables.__hash = hash;
+
+    const recent = await this.prisma.videoGeneration.findMany({
+      where: { workspaceId: input.workspaceId, provider: 'hyperframes', status: VideoStatus.READY, mediaAssetId: { not: null } },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+      select: { mediaAssetId: true, variables: true },
+    });
+    const hit = recent.find((r) => (r.variables as { __hash?: string })?.__hash === hash);
+
+    const job = await this.prisma.videoGeneration.create({
+      data: {
+        workspaceId: input.workspaceId,
+        prompt: `branded clip · ${input.templateId}`,
+        provider: 'hyperframes',
+        model: input.templateId,
+        templateId: input.templateId,
+        variables: variables as never,
+        aspectRatio: input.aspectRatio,
+        durationSec: tpl.defaultDurationSec,
+        status: hit ? VideoStatus.READY : VideoStatus.GENERATING,
+        mediaAssetId: hit?.mediaAssetId ?? null,
+      },
+    });
+    if (!hit) void this.run(job.id, '');
+    return job;
+  }
+
   private async run(jobId: string, apiKey: string): Promise<void> {
     try {
       const job = await this.prisma.videoGeneration.findUnique({ where: { id: jobId } });
@@ -63,6 +123,8 @@ export class VideoGenerationService {
           aspectRatio: job.aspectRatio,
           model: job.model,
           referenceImageUrl: job.referenceImageUrl ?? undefined,
+          templateId: job.templateId ?? undefined,
+          variables: (job.variables as Record<string, unknown>) ?? undefined,
         });
         await this.prisma.videoGeneration.update({
           where: { id: jobId },
@@ -125,4 +187,16 @@ export class VideoGenerationService {
   private failureMessage(_provider: string, rawMsg: string): string {
     return `${rawMsg}. Check your Higgsfield key in Settings → AI Providers (format api_key:api_key_secret) and that your account has credit.`;
   }
+}
+
+function stableStringify(obj: Record<string, unknown>): string {
+  return JSON.stringify(
+    Object.keys(obj)
+      .filter((k) => k !== '__hash')
+      .sort()
+      .reduce((a, k) => {
+        a[k] = obj[k];
+        return a;
+      }, {} as Record<string, unknown>),
+  );
 }
