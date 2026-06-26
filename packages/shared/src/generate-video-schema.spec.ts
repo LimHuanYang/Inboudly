@@ -26,8 +26,13 @@ describe('GenerateVideoSchema', () => {
       .toThrow();
   });
 
-  it('VideoProviderSchema enumerates only higgsfield', () => {
-    expect(VideoProviderSchema.options).toEqual(['higgsfield']);
+  it('VideoProviderSchema enumerates higgsfield and hyperframes', () => {
+    expect(VideoProviderSchema.options).toEqual(['higgsfield', 'hyperframes']);
+  });
+
+  it('accepts hyperframes as a provider', () => {
+    const out = GenerateVideoSchema.parse({ workspaceId: WS, prompt: 'x', provider: 'hyperframes' });
+    expect(out.provider).toBe('hyperframes');
   });
 
   it('rejects durationSec outside [2, 10]', () => {

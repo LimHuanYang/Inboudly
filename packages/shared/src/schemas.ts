@@ -98,7 +98,7 @@ export const GenerateImageSchema = z.object({
 });
 export type GenerateImageInput = z.infer<typeof GenerateImageSchema>;
 
-export const VideoProviderSchema = z.enum(['higgsfield']);
+export const VideoProviderSchema = z.enum(['higgsfield', 'hyperframes']);
 export type VideoProviderName = z.infer<typeof VideoProviderSchema>;
 
 export const GenerateVideoSchema = z.object({
@@ -114,6 +114,24 @@ export const GenerateVideoSchema = z.object({
   referenceImageUrl: z.string().url().optional(),
 });
 export type GenerateVideoInput = z.infer<typeof GenerateVideoSchema>;
+
+// ============================================================
+// HYPERFRAMES — TEMPLATE VIDEO
+// ============================================================
+export const TemplateIdSchema = z.enum(['bilingual-caption', 'launch']);
+export type TemplateId = z.infer<typeof TemplateIdSchema>;
+
+export const CreateTemplateVideoSchema = z.object({
+  workspaceId: z.string().cuid(),
+  templateId: TemplateIdSchema,
+  aspectRatio: z.enum(['9:16', '16:9', '1:1']).default('9:16'),
+  captionEn: z.string().max(280).optional(),
+  captionZh: z.string().max(280).optional(),
+  title: z.string().max(120).optional(),
+  cta: z.string().max(60).optional(),
+  backgroundUrl: z.string().url().optional(),
+});
+export type CreateTemplateVideoInput = z.infer<typeof CreateTemplateVideoSchema>;
 
 // ============================================================
 // REPURPOSE ENGINE
