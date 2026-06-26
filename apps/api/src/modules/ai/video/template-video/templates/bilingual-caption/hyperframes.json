@@ -1,6 +1,0 @@
-{
-  "name": "bilingual-caption",
-  "version": "1.0.0",
-  "description": "Bilingual (EN + ZH) caption card. Solid brand-primary background or full-frame image, bottom-third captions with dark scrim, optional logo mark.",
-  "entry": "index.html"
-}
